@@ -1,5 +1,6 @@
 import React from "react";
 import {makeStyles, GridList, GridListTile} from "@material-ui/core";
+import Plans from '../Plans';
 
 const useStyles = makeStyles((theme) => ({
   datenode_container: {
@@ -20,8 +21,13 @@ const useStyles = makeStyles((theme) => ({
     padding: '0.5em',
   },
   nodeFocus: {
-    // border: '2px solid rgba(0, 0, 0, .05)',
     backgroundColor: 'rgba(0, 0, 0, .05)',
+    // border: '2px solid rgba(0, 0, 0, .05)',
+    // backgroundClip: 'padding-box',
+  },
+  nodeToday: {
+    // backgroundColor: '#0099ff',
+    // border: '2px solid #0099ff',
   },
   background0: {
     backgroundColor: '#ff8080',
@@ -68,6 +74,7 @@ function Calendar() {
       newDate.setDate(newDate.getDate() + d);
       ret.push({
         isFocused: false,
+        isToday: (`${newDate}` === `${new Date()}`),
         day: newDate,
       });
     }
@@ -75,13 +82,11 @@ function Calendar() {
   }
 
   const handleDatenodeClick = event => {
-    if (!event.target.hasAttribute('nodefocus')) return;
     let targetDay = event.target.getAttribute('day');
-    for (let i = 0; i < dateNodes.length; i++) {
-      if (`${dateNodes[i].day}` !== targetDay) dateNodes[i].isFocused = false;
-      else dateNodes[i].isFocused = true;
-    }
-    setDateNodes([...dateNodes]);
+    setDateNodes(dateNodes.map(e => {
+      e.isFocused = (`${e.day}` === targetDay);
+      return e;
+    }));
   }
 
   const handleNodePagination = event => {
@@ -101,12 +106,15 @@ function Calendar() {
     <GridList cols={7} spacing={0} className={classes.datenode_container} style={{margin: ''}} onScroll={handleNodePagination}>
       {dateNodes.map(e => (
         <GridListTile key={e.day} style={{height: 'auto'}}>
-          <div day={e.day} className={`${classes.datenode} ${e.isFocused ? classes.nodeFocus : ''}`} 
-            onClick={handleDatenodeClick} nodefocus='true'
+          <div 
+            day={e.day}
+            className={`${classes.datenode} ${e.isFocused ? classes.nodeFocus : ''} ${e.isToday ? classes.nodeToday : ''}`} 
+            onClick={handleDatenodeClick}
           >
             <div className={`${classes.datenodeHeader} ${classes['background' + e.day.getDay()]}`}>
               {e.day.getDate() === 1 ? e.day.toLocaleDateString('default', {month: 'long'}) : e.day.getDate()}
             </div>
+            <Plans day={e.day} isfocused={e.isFocused}/>
           </div>
         </GridListTile>
       ))}
