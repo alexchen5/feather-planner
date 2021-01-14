@@ -3,30 +3,23 @@ import React from 'react';
 import {
   Button,
   TextField,
-  Link,
 } from '@material-ui/core';
 
-function LoginPage({ setAuth, ...props }) {
+function RegisterPage({ setAuth, ...props }) {
 	function handleSubmit(event) {
-    event.preventDefault();
+		event.preventDefault();
 		const loginForm = new FormData(event.target);
 
 		axios
-			.post(`/accounts/login`, loginForm, {
+			.post(`/accounts/register`, loginForm, {
 				'Content-Type': `multipart/form-data; boundary=${loginForm._boundary}`,
 			})
-      .then((response) => {
-				const data = response.data;
-				if (data['status'] === 0) {
-					setAuth(data.token);
-					props.history.push('/');
-				} else {
-					alert(`Login failed with status code ${data['status']}`);
-				}
-      })
-      .catch((err) => {})
-		
-		// console.log([...loginForm.entries()]);
+	  .then((response) => {
+		const data = response.data;
+		setAuth(data.token);
+		props.history.push('/');
+	  })
+	  .catch((err) => {})
   }
 
 	return (
@@ -47,6 +40,28 @@ function LoginPage({ setAuth, ...props }) {
 				margin="normal"
 				required
 				fullWidth
+				id="fullname"
+				label="Full Name"
+				name="fullname"
+				type="text"
+				autoFocus
+			/>
+			<TextField
+				variant="outlined"
+				margin="normal"
+				required
+				fullWidth
+				id="username"
+				label="Username"
+				name="username"
+				type="text"
+				autoFocus
+			/>
+			<TextField
+				variant="outlined"
+				margin="normal"
+				required
+				fullWidth
 				name="password"
 				label="Password"
 				type="password"
@@ -54,13 +69,10 @@ function LoginPage({ setAuth, ...props }) {
 				autoComplete="current-password"
 			/>
 			<Button type="submit" fullWidth variant="contained" color="primary">
-				Sign In
+				Sign Up
 			</Button>
-			<Link href="/register">
-				{"Don't have an account? Register"}
-			</Link>
 		</form>
 	)
 }
 
-export default LoginPage;
+export default RegisterPage;
