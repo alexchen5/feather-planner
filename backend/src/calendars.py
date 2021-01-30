@@ -108,7 +108,8 @@ class Calendar:
                 try:
                     plan = self.plans[plan_id]
                 except:
-                    raise BadRequestError(f'plan_id {plan_id} at {date} does not exist')
+                    self.dates[date].remove(plan_id)
+                    raise BadRequestError(f'plan_id {plan_id} at {date} does not exist - please reload')
 
                 plans.append({
                     'plan_id': plan.plan_id,
@@ -118,7 +119,8 @@ class Calendar:
             pass
 
         return {
-            'plans': plans
+            'date_str': date,
+            'plans': plans,
         }
 
 class Calendars:

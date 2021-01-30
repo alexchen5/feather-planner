@@ -4,7 +4,7 @@ import axios from 'axios';
 import {makeStyles} from "@material-ui/core";
 import {Menu, Item, Separator, useContextMenu} from 'react-contexify';
 import 'react-contexify/dist/ReactContexify.css';
-import styled from 'styled-components';
+// import styled from 'styled-components';
 
 import AuthContext from '../../AuthContext';
 
@@ -134,6 +134,7 @@ function Plans({dateStr}) {
     // put whatever custom logic you need
     // you can even decide to not display the Menu
     show(e);
+    console.log(e.currentTarget);
   }
 
   function handleItemClick({data: {role, plan}}){
@@ -166,17 +167,20 @@ function Plans({dateStr}) {
                 ></input>
               </form>
             </div>
+            {
+            // openMenu && 
             <Menu id='planContextMenu' className={classes.planContextMenu}>
-              <Item onClick={handleItemClick} data={{role: 'edit', plan: plan}}>Edit</Item>
-              <Item onClick={handleItemClick} data={{role: 'delete', plan: plan}}>Delete</Item>
+              <Item onClick={handleItemClick} data={{role: 'edit'}}>Edit</Item>
+              <Item onClick={handleItemClick} data={{role: 'delete'}}>Delete</Item>
               <Separator/>
-              <Item onClick={handleItemClick} data={{role: 'cut', plan: plan}}>Cut</Item>
-              <Item onClick={handleItemClick} data={{role: 'copy', plan: plan}}>Copy</Item>
-              <Item onClick={handleItemClick} data={{role: 'paste', plan: plan}}>Paste</Item>
-            </Menu>
+              <Item onClick={handleItemClick} data={{role: 'cut'}}>Cut</Item>
+              <Item onClick={handleItemClick} data={{role: 'copy'}}>Copy</Item>
+              <Item onClick={handleItemClick} data={{role: 'paste'}}>Paste</Item>
+            </Menu>}
           </div>
         )
       }
+      
       {
         <form onSubmit={addPlan}>
           <input name="textContent" autoComplete="off" style={{maxWidth: '100%', boxSizing: 'border-box'}}></input>

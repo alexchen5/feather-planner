@@ -30,3 +30,13 @@ def test_plan_edit():
         'content': 'asdfsdff',
     }]
 
+def test_plan_del():
+    '''
+    Check that a plan can be validly deleted
+    '''
+    test_calendar = calendars.Calendar()
+    plan = test_calendar.new_plan('2021015', 'asdfdsfdfs')
+
+    test_calendar.delete_plan(plan['plan_id'])
+
+    assert not test_calendar.plan_id_exists(plan['plan_id'])

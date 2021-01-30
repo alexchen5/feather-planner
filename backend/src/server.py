@@ -93,5 +93,16 @@ def app_calendar_date_edit():
 def app_calendar_date_get():
     return calendar.user(accounts.get_u_id(request.args.get('token'))).get_plans(request.args.get('date'))
 
+@app.route('/calendar/dates', methods=['POST'])
+def app_calendar_dates_get():
+    r = request.get_json()
+    dates = []
+    c = calendar.user(accounts.get_u_id(r['token']))
+    for date in r['dates']:
+        dates.append(c.get_plans(date))
+    return {
+        'dates': dates,
+    }
+
 if __name__ == "__main__":
     app.run(port=0)

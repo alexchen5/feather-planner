@@ -3,7 +3,9 @@ import Calendar from '../components/Calendar';
 
 function HomePage(props) {
   return (
-    <Calendar/>
+    <>
+      <Calendar/>
+    </>
   );
 }
 
