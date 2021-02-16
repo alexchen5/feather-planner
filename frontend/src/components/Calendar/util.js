@@ -1,7 +1,19 @@
-const dayStart = -6;
+const dayStart = 'MON';
 const numWeeksStart = 5;
 const paginateWeeksNext = 4;
 const paginateWeeksPrv = 3;
+
+export function getDayStart() {
+  switch (dayStart) {
+    case 'SUN':
+      return 0;
+    case 'MON':
+      return 1;
+    default:
+      console.log(`Unrecognised dayStart: ${dayStart}`);
+      return 0;
+  }
+}
 
 export function dateToStr(date = new Date()) {
   // Given a Date object, returns a string in the form 'YYYYMMDD' (where MM is from 00 - 11)
@@ -31,8 +43,8 @@ export function getRange(dateStart, dateEnd) {
 
 export function newDateRange(plans, dir="INIT") {
   if (dir === "INIT") {
-    const start = adjustDays(dateToStr(), dayStart - strToDate().getDay());
-    const end = adjustDays(adjustDays(dateToStr(), dayStart - strToDate().getDay()), 7 * numWeeksStart);
+    const start = adjustDays(dateToStr(), getDayStart() - strToDate().getDay() - 7);
+    const end = adjustDays(start, 7 * numWeeksStart);
     return [getRange(start, end), "END"];
   } 
   else if (dir === "END") {

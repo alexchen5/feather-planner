@@ -1,96 +1,80 @@
-import React from "react";
-import axios from 'axios';
-import {InputBase, makeStyles} from "@material-ui/core";
+import React, { useEffect, useState } from "react";
+import { CalendarContext } from ".";
+import TextEdit from "../TextEdit";
 
-import AuthContext from '../../AuthContext';
+function Plan({plan: {date_str, plan_id, content}}) {
+  const {dispatchDates} = React.useContext(CalendarContext);
+  const textEdit = React.createRef(null);
+  const [editing, setEditing] = useState(false);
 
-const useStyles = makeStyles(() => ({
-  planText: {
-    border: `none`,
-    backgroundColor: 'transparent',
-    color: 'black',
-    '&:disabled': {
-      backgroundColor: 'transparent',
-    },
-    resize: 'none',
-    fontSize: '14px',
-    lineHeight: '18px',
-    padding: '0px 2px',
-  },
-  planNode: {
-    padding: '0px',
-    borderRadius: '4px',
-    border: `1px solid transparent`,
-    '&:hover': {
-      border: `1px solid green`,
-    },
-    '&:focus': {
-      border: `1px solid transparent`,
-      backgroundColor: '#f3fef3',
-      outline: '0',
-    },
-  },
-}));
-
-function Plan({editPlan, handleMenuEvent, plan: {date_str, plan_id, content}, displayMenu}) {
-  const token = React.useContext(AuthContext);
-  const classes = useStyles();
+  useEffect(() => {
+    if (content.textContent === '') {
+      getFocus();
+    }
+    // eslint-disable-next-line
+  }, []);
 
   const planHoverIn = (event) => {
     event.currentTarget.closest('[datenode]').style.border = `1px solid transparent`;
   }
-
   const planHoverOut = (event) => {
     event.currentTarget.closest('[datenode]').style.border = ``;
   }
 
-  const textBlur = (event) => {    
-    const plannode = event.currentTarget.closest('[plan]');
-    plannode.style.border = '';
-    plannode.style.backgroundColor = '';
-    plannode.style.outline = '';
-    
-    event.currentTarget.setAttribute('disabled', '');
-    // event.currentTarget.closest('[role=plan]').focus();
-    
-    const entries = {
-      [event.currentTarget.name]: event.currentTarget.value,
-    }
-    
-    if (JSON.stringify(content) === JSON.stringify(entries)) return;
-
-    axios
-    .put('/calendar/plan/edit', {
-      token,
-      plan_id: plan_id,
-      content: entries,
-    })
-    .then((response) => {
-      editPlan(date_str, plan_id, entries)
-    })
-    .catch((err) => {});
+  const getFocus = () => {
+    document.querySelector(`[plan="${plan_id}"]`).setAttribute('editing', '');
+    setEditing(true)
+    textEdit.current.focus();
+  }
+  const getBlur = () => {
+    document.querySelector(`[plan="${plan_id}"]`).removeAttribute('editing');
+    setEditing(false);
   }
 
-  const submitInput = (e) => {
-    if (e.key === 'Enter' && !e.getModifierState('Shift')) {
-      e.preventDefault();
-      e.currentTarget.closest('[plan]').focus();
+  const submitInput = val => {
+    getBlur();
+    if (!val) {
+      dispatchDates({type: 'delete', date_str, plan_id});
+      return;
     }
+    const entries = {
+      ...content,
+      textContent: val,
+    }
+    if (JSON.stringify(content) === JSON.stringify(entries)) return;
+    dispatchDates({type: 'edit', date_str, plan_id, entries});
   };
 
+  const toggleDone = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.closest('.plan-node').blur();
+
+    const entries = {
+      ...content,
+      done: !(content.done),
+    }
+    dispatchDates({type: 'edit', date_str, plan_id, entries});
+  }
+
   const menuEvent = (e) => {
+    if (e.currentTarget !== e.target) return;
 
     if (e.key === 'c' && e.getModifierState('Meta')) {
       e.stopPropagation();
-      handleMenuEvent({data: {role: 'copy'}, props: {planId: plan_id, dateStr: date_str, planEl: null}})
+      dispatchDates({type: 'menu-c', date_str, plan_id});
     }
     else if (e.key === 'v' && e.getModifierState('Meta')) {
       e.stopPropagation();
-      handleMenuEvent({data: {role: 'paste'}, props: {planId: plan_id, dateStr: date_str, planEl: null}})
+      dispatchDates({type: 'menu-v', date_str});
     }
     else if (e.key === 'Backspace') {
       e.stopPropagation();
-      handleMenuEvent({data: {role: 'delete'}, props: {planId: plan_id, dateStr: date_str, planEl: null}})
+      dispatchDates({type: 'delete', date_str, plan_id});
+    }
+    else if (e.key === '1' && e.getModifierState('Meta')) {
+      e.stopPropagation();
+      console.log('xd');
     }
     // else console.log(e.key)
   }
@@ -99,11 +83,13 @@ function Plan({editPlan, handleMenuEvent, plan: {date_str, plan_id, content}, di
     const target = e.currentTarget;
     const placeholder = document.createElement('div');
     placeholder.style.height = window.getComputedStyle(target).height;
+    placeholder.style.pointerEvents = 'none';
     placeholder.setAttribute('placeholder', date_str);
 
     setTimeout(() => {
       target.style.display = 'none'
       target.closest('[plans]').insertBefore(placeholder, target);
+      target.closest('[datenode]').setAttribute('drag-display', '');
     }, 0);
 
     target.setAttribute('dragging', plan_id);
@@ -111,44 +97,43 @@ function Plan({editPlan, handleMenuEvent, plan: {date_str, plan_id, content}, di
   }
 
   const handleDragEnd = e => {
-    e.currentTarget.style.display = 'block';
+    e.currentTarget.style.display = '';
     e.currentTarget.removeAttribute('dragging');
+    e.currentTarget.closest('[datenode]').removeAttribute('drag-display');
     if (document.querySelector('[placeholder]')) document.querySelector('[placeholder]').remove();
   }
 
-  return (<form
-      className={classes.planNode}
-      tabIndex='0'
-      onMouseOver={planHoverIn}
-      onMouseOut={planHoverOut}
-      onContextMenu={displayMenu}
-      onKeyDown={menuEvent}
-      onClick={e => {
-        if(e.detail === 2) handleMenuEvent({data: {role: 'edit'}, props: {planId: plan_id, dateStr: date_str, planEl: e.currentTarget}})
-      }}
-      onDragEnd={handleDragEnd}
-      onDragStart={handleDragStart}
-      draggable
-      plan={plan_id}
-    >
-      <InputBase
-        name="textContent"
-        multiline
-        fullWidth
-        defaultValue={content.textContent}
-        disabled
-        autoComplete="off"
-        style={{maxWidth: '100%', boxSizing: 'border-box', padding: '0px'}}
-        onBlur={textBlur}
-        onKeyDown={(e) => {
-          e.stopPropagation();
-          submitInput(e);
-        }}
-        classes={{
-          inputMultiline: classes.planText,
-        }}
-      />
-    </form>)
+  return (<div
+    plan={plan_id}
+    className={`plan-node ${content.done ? '-done' : ''}`}
+    onMouseOver={planHoverIn}
+    onMouseOut={planHoverOut}
+    onClick={e => {
+      e.stopPropagation();
+      if(e.detail === 2) getFocus();
+    }}
+    draggable={!editing}
+    onDragEnd={handleDragEnd}
+    onDragStart={handleDragStart}
+    onContextMenu={e => {
+      e.stopPropagation();
+      dispatchDates({type: 'menu', event: e, plan_id, date_str, plan_el: textEdit.current})
+    }}
+    tabIndex='0'
+    onKeyDown={menuEvent}
+  >
+    <div className={'plan-complete-toggle'} style={{display: `${editing ? 'none' : ''}`}}>
+      <span 
+        className={`plan-complete-toggle-button ${content.done ? '-done' : ''}`}
+        onClick={toggleDone}
+      >
+        <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+          <circle cx="50%" cy="50%" r="50%"/>
+        </svg>
+      </span>
+    </div>
+    <TextEdit ref={textEdit} readOnly={!editing} menu={editing} init={content.textContent} submit={submitInput}/>
+  </div>)
 }
 
 export default Plan;

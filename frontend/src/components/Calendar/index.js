@@ -1,329 +1,229 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { createContext, useCallback, useReducer, useRef } from "react";
 import axios from 'axios';
-import {makeStyles, GridList, GridListTile} from "@material-ui/core";
 import {Menu, Item, Separator, useContextMenu} from 'react-contexify';
-import 'react-contexify/dist/ReactContexify.css';
+
+import '../../Calendar.css'
 
 import AuthContext from '../../AuthContext';
-import {newDateRange, getPlanIds, getPlan} from './util';
-import DatenodeHeader from './DatenodeHeader';
+import {getPlanIds, getPlan} from './util';
 import Plan from './Plan'
-import AddPlan from './AddPlan'
+import ScrollHandler from "./ScrollHandler";
+import Datenode from "./Datenode";
+import DayHeaders from "./DayHeaders";
+import CalendarContainer from "./CalendarContainer";
 
-const useStyles = makeStyles(() => ({
-  datenodeContainer: {
-    margin: '24px',
-    height: '640px',
-    overflow: 'scroll',
-    minWidth: '700px',
-  },
-  datenode: {
-    minHeight: '160px',
-    borderRadius: '6px',
-    overflow: 'hidden',
-    border: `1px solid transparent`,
-    '&:hover': {
-      border: `1px solid rgba(0, 0, 0, .2)`, 
-    },
-    // '&:active': {
-    //   border: `2px solid rgba(0, 0, 0, .2)`,
-    // },
-    '&:focus': {
-      border: `1px solid transparent`,
-      backgroundColor: 'rgba(0, 0, 0, .05)',
-      outline: '0',
-    },
-    // pointerEvents: 'none',
-  },
-  planContextMenu: {
-    // boxShadow: 'none',
-    // border: '1px solid rgba(0, 0, 0, .1)',
-  },
-}));
+export const CalendarContext = createContext(null);
+
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'add': 
+      // action.date_str: Date that needs a plan to be added
+      // action.new_plan: New plan to be added
+      // action.new_index: Index of new plan (add to end if undefined)
+      // NOTE: No Duplicate ID Rule: Will silently filter new_plan from date if new_plan.plan_id already exists in the date
+      function insertAt(array, item, index) {
+        const ret = [...array];
+        index === undefined ? ret.push(item) : ret.splice(index, 0, item);
+        return ret;
+      }
+      return {
+        dates: state.dates.map(date => 
+          date.date_str === action.date_str ? {
+            ...date, 
+            plans: insertAt(date.plans.filter(e => e.plan_id !== action.new_plan.plan_id), action.new_plan, action.new_index),
+          } : date
+        )
+      }
+    case 'edit': 
+      return {
+        dates: state.dates.map(date => 
+          date.date_str === action.date_str ? { ...date, plans: 
+            date.plans.map(plan => 
+              plan.plan_id === action.plan_id ? {...plan, content: action.entries} : plan
+            )
+          } : date
+        )
+      }
+    case 'delete': 
+      // action.date_str: Date that needs plans to be removed
+      // action.plan_id: Plan id to be filtered from the date
+      return {
+        dates: state.dates.map(date => 
+          date.date_str === action.date_str ? { ...date, plans: date.plans.filter(plan => plan.plan_id !== action.plan_id)} : date
+        )
+      }
+    case 'load': 
+      return action.dir === 'END' ? {
+        dates: [...state.dates, ...action.dates]
+      } : {
+        dates: [...action.dates, ...state.dates]
+      };
+    default:
+      console.log(`Unknown action type: ${action.type}`);
+      return state;
+  }
+}
 
 function Calendar() {
   const token = React.useContext(AuthContext);
-  const classes = useStyles();
-
-  const [dates, setDates] = React.useState([]);
-  const datenodeContainer = useRef(null);
+  const [{ dates }, dispatch] = useReducer(reducer, {dates: []});
   const { show } = useContextMenu({
     id: 'planContextMenu',
   });
-  const clipboard = React.useRef();
+  const clipboard = useRef(null);
 
-  useEffect(() => {
-    if (dates.length === 0) {
-      loadPlans(newDateRange(dates, "INIT"));
-    }
-    // eslint-disable-next-line
-  }, []);
-
-  function loadPlans([dateRange, dir="END"]) {
-    axios
-      .post('/calendar/dates', {
-        token,
-        dates: dateRange,
-      })
-      .then(({data}) => {
-        if (dir === 'END') setDates(cur => [...cur, ...data.dates]);
-        else if (dir === 'FRONT') {
-          datenodeContainer.current.scrollTop = 1;
-          setDates(cur => [...data.dates, ...cur]);
-        }
-      })
-      .catch((err) => {})
-  }
-
-  const handleNodePagination = event => {
-    if (event.currentTarget.scrollHeight - event.currentTarget.scrollTop === event.currentTarget.clientHeight) 
-      loadPlans(newDateRange(dates, "END"));
-    else if (event.currentTarget.scrollTop === 0) {
-      loadPlans(newDateRange(dates, "FRONT"));
-    }
-  }
-
-  function displayMenu(e, dateStr, planId){
-    // put whatever custom logic you need
-    // you can even decide to not display the Menu
-    show(e, {
-      props: {
-        planId: planId,
-        dateStr: dateStr,
-        planEl: e.currentTarget,
-      }
-    });
-  }
-
-  function handleMenuEvent({data: {role}, props: {planId, dateStr, planEl}}){
-    switch (role) {
-      case "edit": 
-        const plannode = planEl.closest('[plan]');
-        plannode.style.border = '1px dotted green';
-        plannode.style.backgroundColor = '#f3fef3';
-        plannode.style.outline = '0';
-
-        const planInput = planEl.getElementsByTagName('textarea')[0]; 
-        planInput.removeAttribute('disabled')
-        planInput.focus();
-        break;
-      case "delete":
-        deletePlan(dateStr, planId);
-        break;
-      case "copy":
-        clipboard.current = {
-          planId,
-          dateStr,
-        }
-        // console.log(clipboard.current);
-        break;
-      case "paste":
-        duplicatePlan(clipboard.current.planId, clipboard.current.dateStr, dateStr);
-        // console.log(role, dateStr, planEl);
-        break;
-      default:
-        console.log(role, planId, planEl);
-        break;
-    }
-  }
-
-  const addPlan = useCallback(
-    (date_str, plan_id, entries) => {
-      dates.find(e => e.date_str === date_str).plans.push({
-        plan_id: plan_id,
-        content: entries,
-      });
-
-      setDates([...dates]);
-    },
-    [dates, setDates]
-  );
-
-  const editPlan = useCallback(
-    (date_str, plan_id, entries) => {
-      dates.find(e => e.date_str === date_str).plans.find(e => e.plan_id === plan_id).content = entries;
-
-      setDates([...dates]);
-    },
-    [dates, setDates]
-  );
-
-  const deletePlan = useCallback(
-    (date_str, plan_id) => {
-      dates.find(e => e.date_str === date_str).plans =
-        dates.find(e => e.date_str === date_str).plans.filter(e => e.plan_id !== plan_id);
-
-      axios
-        .put('/calendar/date/edit', {
-          token,
-          date: date_str,
-          plan_ids: getPlanIds(dates, date_str),
-        })
-        .then((r) => {});
-
-      axios 
-        .delete('/calendar/plan/delete', {
-          data: {
+  const dispatchWrapper = useCallback(async (action) => {
+    try {
+      switch (action.type) {
+        case 'add': {
+          const res = await axios.post('/calendar/plan/new', {
             token,
-            plan_id: plan_id,
+            date: action.date_str,
+            content: action.entries,
+          })
+          const new_plan = {
+            plan_id: parseInt(res.data.plan_id),
+            content: action.entries,
           }
-        })
-        .then((r) => {});
+          dispatch({...action, new_plan});
+          break;
+        }
+        case 'edit': {
+          await axios.put('/calendar/plan/edit', {
+            token,
+            plan_id: action.plan_id,
+            content: action.entries,
+          })
+          dispatch(action);
+          break;
+        }
+        case 'delete': {
+          dispatch(action);
+          await axios.put('/calendar/date/edit', {
+            token,
+            date: action.date_str,
+            plan_ids: getPlanIds(dates, action.date_str).filter(id => id !== action.plan_id),
+          })
+          await axios.delete('/calendar/plan/delete', {
+            data: {
+              token,
+              plan_id: action.plan_id,
+            }
+          })
+          break;
+        }
+        case 'duplicate': {
+          const refContent = getPlan(dates, action.ref_id).content;
+          const res = await axios.post('/calendar/plan/copy', {
+            token,
+            plan_id: parseInt(action.ref_id), 
+            date: action.to_date,
+          });
+          const new_plan = {
+            plan_id: parseInt(res.data.plan_id),
+            content: refContent,
+          };
+          dispatch({...action, type: 'add', new_plan, date_str: action.to_date});
+          break;
+        }
+        case 'move': {
+          const {plan_id, from_date, to_date, to_index} = action;
+          const ref_plan = getPlan(dates, plan_id);
 
-      setDates([...dates]);
-    }, 
-    [token, dates, setDates]
-  );
+          dispatch({type: 'add', date_str: to_date, new_plan: ref_plan, new_index: to_index});
+          if (from_date !== to_date) dispatch({type: 'delete', date_str: from_date, plan_id});
 
-  const duplicatePlan = (refId, refDate, newDate, newIndex=-1) => {
-    const refContent = getPlan(dates, refId).content;
-
-    axios
-      .post('/calendar/plan/copy', {
-        token,
-        plan_id: refId, 
-        date: newDate,
-      })
-      .then((r) => {
-        dates.find(e => e.date_str === newDate).plans.push({
-          plan_id: r.data.plan_id,
-          content: refContent,
-        });
-
-        setDates([...dates]);
-      })
-  }
-
-  const menuEvent = (e, date_str) => {
-    if (e.key === 'v' && e.getModifierState('Meta')) {
-      e.stopPropagation();
-      handleMenuEvent({data: {role: 'paste'}, props: {planId: '', dateStr: date_str, planEl: null}})
-    }
-    // else console.log(e.key)
-  }
-
-  const handlePlanDrop = event => {
-    const planId = parseInt(document.querySelector('[dragging]').getAttribute('dragging'));
-    const fromDate = document.querySelector('[placeholder]').getAttribute('placeholder');
-    const toDate = event.target.closest(`[plans]`).getAttribute('plans');
-    const refPlan = getPlan(dates, planId);
-    const newIndex = [...document.querySelector(`[plans='${toDate}']`).children].filter(e => !e.hasAttribute('dragging')).indexOf(document.querySelector('[placeholder]'));
-    document.querySelector('[placeholder]').remove();
-
-    dates.find(e => e.date_str === fromDate).plans =
-      dates.find(e => e.date_str === fromDate).plans.filter(e => e.plan_id !== planId);
-
-    dates.find(e => e.date_str === toDate).plans =
-      dates.find(e => e.date_str === toDate).plans.filter(e => e.plan_id !== planId);
-
-    dates.find(e => e.date_str === toDate).plans.splice(newIndex, 0, refPlan);
-
-    axios
-      .put('/calendar/date/edit', {
-        token,
-        date: fromDate,
-        plan_ids: getPlanIds(dates, fromDate),
-      })
-      .then((r) => {});
-
-    axios
-      .put('/calendar/date/edit', {
-        token,
-        date: toDate,
-        plan_ids: getPlanIds(dates, toDate),
-      })
-      .then((r) => {});
-    
-    // document.querySelector('[dragging]').remove();
-    setDates([...dates]);
-  }
-
-  const handleDragOver = (event) => {
-    event.preventDefault();
-    const afterElement = getDragAfterElement(event.target.closest('[plans]'), event.clientY);
-    const placeholder = document.querySelector('[placeholder]');
-
-    event.target.closest('[plans]').insertBefore(placeholder, afterElement);
-  }
-
-  const handleDragLeave = e => {
-    e.stopPropagation();
-    if (!e.target.hasAttribute('placeholder')) return;
-    
-    const placeholder = document.querySelector('[placeholder]');
-    document.querySelector(`[plans="${placeholder.getAttribute('placeholder')}"]`).insertBefore(placeholder, document.querySelector('[dragging]'));
-  }
-
-  function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('[plan]:not([dragging])')];
-    
-    return draggableElements.reduce((closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-      if (offset < 0 && offset > closest.offset) {
-        return { offset: offset, element: child };
-      } else {
-        return closest;
+          const to_dates = getPlanIds(dates, to_date).filter(id => id !== plan_id);
+          to_dates.splice(to_index, 0, plan_id)
+          await axios.put('/calendar/date/edit', {
+            token,
+            date: to_date,
+            plan_ids: to_dates,
+          });
+          if (from_date !== to_date) await axios.put('/calendar/date/edit', {
+            token,
+            date: from_date,
+            plan_ids: getPlanIds(dates, from_date).filter(id => id !== plan_id),
+          });
+          break;
+        }
+        case 'load': {
+          const res = await axios.post('/calendar/dates', {
+            token,
+            dates: action.dateRange,
+          });
+          // function resolveAfter2Seconds() {
+          //   return new Promise(resolve => {
+          //     setTimeout(() => {
+          //       resolve('resolved');
+          //     }, 2000);
+          //   });
+          // }
+          // console.log(await resolveAfter2Seconds());
+          if (action.dir === 'FRONT') document.getElementById('datenode-container').scrollTop = 1;
+          dispatch({...action, dates: [...res.data.dates]});
+          break;
+        }
+        case 'menu': {
+          show(action.event, {
+            props: {
+              plan_id: action.plan_id,
+              date_str: action.date_str,
+              plan_el: action.plan_el,
+            }
+          });
+          break;
+        }
+        case 'menu-c': {
+          clipboard.current = {
+            plan_id: action.plan_id,
+            date_str: action.date_str,
+          }
+          break;
+        }
+        case 'menu-v': {
+          if (!clipboard.current) {
+            console.log('Clipboard Empty');
+            return;
+          }
+          dispatchWrapper({type: 'duplicate', ref_id: clipboard.current.plan_id, to_date: action.date_str})
+          break;
+        }
+        default: {
+          console.log(`Unknown action type: ${action.type}`);
+        }
       }
-    }, { offset: Number.NEGATIVE_INFINITY}).element;
-  }
+    } catch (error) {
+      console.log(action, error);
+    }
+  }, [dates, token, show]);
+  // const clipboard = React.useRef();
 
   return (
-    <>
-      <GridList 
-        ref={datenodeContainer}
-        cols={7} spacing={0} 
-        className={classes.datenodeContainer} 
-        style={{margin: ''}} 
-        onScroll={handleNodePagination}
-      >
-        {dates.map(date =>
-          <GridListTile 
+    <CalendarContext.Provider value={{dates: dates, dispatchDates: dispatchWrapper}}>
+      <CalendarContainer>
+        <DayHeaders />
+        <ScrollHandler>
+          {dates.map(date => <Datenode
             key={date.date_str}
-            style={{height: 'auto'}}
-            className={classes.datenode}
-            tabIndex='0'
-            datenode={date.date_str}
-            onContextMenu={(event) => {
-              event.stopPropagation();
-              displayMenu(event, date.date_str, '');
-            }}
-            onKeyDown={(e) => menuEvent(e, date.date_str)}
+            date_str={date.date_str}
           >
-            <DatenodeHeader date_str={date.date_str}/>
-            <div
-              style={{minHeight: '10px'}}
-              plans={date.date_str}
-              onDragOver={handleDragOver}
-              onDrop={handlePlanDrop}
-              onDragLeave={handleDragLeave}
-            >
-              {date.plans.map(plan => 
-                <Plan 
-                  key={plan.plan_id}
-                  editPlan={editPlan}
-                  handleMenuEvent={handleMenuEvent}
-                  plan={{date_str: date.date_str, ...plan}}
-                  displayMenu={(event) => {event.stopPropagation(); displayMenu(event, date.date_str, plan.plan_id)}}
-                />
-              )}
-            </div>
-            <AddPlan 
-              addPlan={addPlan}
-              date_str={date.date_str}
-            />
-          </GridListTile>
-        )}
-      </GridList>
-      <Menu id='planContextMenu' className={classes.planContextMenu}>
-        <Item onClick={handleMenuEvent} data={{role: 'edit'}}>Edit</Item>
-        <Item onClick={handleMenuEvent} data={{role: 'delete'}}>Delete</Item>
+            {date.plans.map(plan => <Plan
+              key={plan.plan_id}
+              plan={{date_str: date.date_str, ...plan}}
+            />)}
+          </Datenode>)}
+        </ScrollHandler>
+      </CalendarContainer>
+      <Menu id='planContextMenu'>
+        <Item onClick={e => dispatchWrapper({type: 'menu-edit', ...e.props})}>Edit</Item>
+        <Item onClick={e => dispatchWrapper({type: 'delete', ...e.props})}>Delete</Item>
         <Separator/>
-        <Item onClick={handleMenuEvent} data={{role: 'cut'}}>Cut</Item>
-        <Item onClick={handleMenuEvent} data={{role: 'copy'}}>Copy</Item>
-        <Item onClick={handleMenuEvent} data={{role: 'paste'}}>Paste</Item>
+        {/* <Item onClick={handleMenuEvent} data={{role: 'cut'}}>Cut</Item> */}
+        <Item onClick={e => dispatchWrapper({type: 'menu-c', ...e.props})}>Copy</Item>
+        <Item onClick={e => dispatchWrapper({type: 'menu-v', ...e.props})}>Paste</Item>
       </Menu>
-    </>
+    </CalendarContext.Provider>
   );
 }
 
