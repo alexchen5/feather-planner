@@ -16,7 +16,7 @@ def test_register_validity():
     assert(test_creds.get_user(token).fullname == 'Full Test Name')
     assert(test_creds.get_user(token).username == 'testusername1')
     assert(test_creds.get_user(token).password == 'testpassword!')
-    assert(test_creds.get_user(token).tokens == [token])
+    assert(test_creds.get_user(token).session_ids == [0])
     assert isinstance(test_creds.get_user(token).u_id, int)
 
     assert(test_creds.users[0] == test_creds.get_user(token))
@@ -81,7 +81,8 @@ def test_logout_validity():
     token0 = test_creds.register('email@test.com', 'Full Test Name', 'testusername1', 'testpassword!')['token']
 
     assert test_creds.logout(token0) == {}
-    assert not test_creds.get_user(token0)
+    with pytest.raises(UnauthorizedError):
+        test_creds.get_user(token0)
 
 def test_logout_multiple():
     '''
@@ -98,7 +99,8 @@ def test_logout_multiple():
 
     assert test_creds.get_user(token1).email == 'email@test.com'
     assert test_creds.get_user(token2).email == 'email@test.com'
-    assert not test_creds.get_user(token3)
+    with pytest.raises(UnauthorizedError):
+        test_creds.get_user(token3)
         
 def test_double_logout():
     '''

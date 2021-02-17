@@ -25,7 +25,7 @@ const StyleButton = ({active, label, style, onToggle}) => {
     </span>
   )
 }
-
+// eslint-disable-next-line
 const InlineStyleControls = ({editorState, onToggle}) => {
   const currentStyle = editorState.getCurrentInlineStyle();
   return (
@@ -66,7 +66,7 @@ const TextEdit = React.forwardRef(({menu, init, submit, readOnly}, ref) => {
     }
     return 'not-handled';
   }
-
+// eslint-disable-next-line
   const toggleInlineStyle = style => {
     setEditorState(RichUtils.toggleInlineStyle(editorState, style));
   }

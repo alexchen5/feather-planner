@@ -6,7 +6,7 @@ import {
   Link,
 } from '@material-ui/core';
 
-function LoginPage({ setAuth, ...props }) {
+function LoginPage({ newToken, ...props }) {
 	function handleSubmit(event) {
     event.preventDefault();
 		const loginForm = new FormData(event.target);
@@ -16,17 +16,18 @@ function LoginPage({ setAuth, ...props }) {
 				'Content-Type': `multipart/form-data; boundary=${loginForm._boundary}`,
 			})
       .then((response) => {
+				console.log(response);
 				const data = response.data;
 				if (data['status'] === 0) {
-					setAuth(data.token);
+					newToken(data.token);
 					props.history.push('/');
 				} else {
 					alert(`Login failed with status code ${data['status']}`);
 				}
       })
-      .catch((err) => {})
-		
-		// console.log([...loginForm.entries()]);
+      .catch((err) => {console.log(err)})
+
+		console.log('xd');
   }
 
 	return (

@@ -5,7 +5,7 @@ import {
   TextField,
 } from '@material-ui/core';
 
-function RegisterPage({ setAuth, ...props }) {
+function RegisterPage({ newToken, ...props }) {
 	function handleSubmit(event) {
 		event.preventDefault();
 		const loginForm = new FormData(event.target);
@@ -16,7 +16,7 @@ function RegisterPage({ setAuth, ...props }) {
 			})
 	  .then((response) => {
 		const data = response.data;
-		setAuth(data.token);
+		newToken(data.token);
 		props.history.push('/');
 	  })
 	  .catch((err) => {})

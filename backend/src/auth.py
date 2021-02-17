@@ -1,21 +1,30 @@
 import secrets
+import jwt
 
 from error import BadRequestError, UnauthorizedError
+from key import jwt_key
 
 class User:
     '''
     Defines the structure of information for users
     '''
-    def __init__(self, u_id, token, email, fullname, username, password):
-        self.u_id = u_id            # Integer value for backend to identify each user
-        self.tokens = [token]       # Allows account to be accessed accross multiple browsers without logging in
+    def __init__(self, u_id, email, fullname, username, password):
+        self.u_id = u_id                # Integer value for backend to identify each user
         self.email = email          
         self.fullname = fullname    
         self.username = username    
         self.password = password
+        self.session_ids = []           # Active sessions ids
+        self.next_session_id = 0        # Next session id to be used
 
     def __str__(self):
-        return f"{(('email', self.email), ('fullname', self.fullname), ('username', self.username), ('password', self.password), ('tokens', self.tokens))}"
+        return f"{(('email', self.email), ('fullname', self.fullname), ('username', self.username), ('password', self.password))}"
+
+    def set_session(self):
+        new_session = self.next_session_id
+        self.session_ids.append(new_session)
+        self.next_session_id = self.next_session_id + 1
+        return new_session
 
 class Auth:
     '''
@@ -40,12 +49,6 @@ class Auth:
                 return True 
         return False
 
-    def token_exists(self, token):
-        for u in self.users:
-            if token in u.tokens:
-                return True 
-        return False
-
     def u_id_exists(self, u_id):
         for u in self.users:
             if u.u_id == u_id:
@@ -61,33 +64,29 @@ class Auth:
             id = secrets.randbits(32)
         return id
 
-    def new_token(self):
-        '''
-        Generates a new random token that is not used by any user
-        '''
-        tok = secrets.token_urlsafe()
-        while self.token_exists(tok):
-            tok = secrets.token_urlsafe()
-        return tok
-
-    def get_user(self, token):
-        '''
-        Returns a User object from a given token
-        Returns False if a User cannot be found
-        '''
+    def get_user(self, u_id):
         for u in self.users:
-            if token in u.tokens:
+            if u.u_id == u_id:
                 return u
         return False
 
-    def get_u_id(self, token):
+    def check_token(self, token):
         '''
-        Returns the u_id of a given token
-        False if user cannot be found
-        ''' 
+        Returns the u_id from a given token
+        Raises: UnauthorizedError('Malicious token') if token cannot be parsed
+        Raises: UnauthorizedError('Session Expired') if user session does not exist
+        '''
+        try:
+            decoded_token = jwt.decode(token, jwt_key(), algorithms="HS256")
+        except jwt.exceptions.InvalidTokenError:
+            raise UnauthorizedError('Malicious token')
+
         for u in self.users:
-            if token in u.tokens:
-                return u.u_id
+            if decoded_token['u_id'] == u.u_id:
+                if decoded_token['session_id'] in u.session_ids:
+                    return decoded_token
+                else: 
+                    raise UnauthorizedError('Session Expired')
         return False
 
     def login(self, email, password):
@@ -105,8 +104,10 @@ class Auth:
                 status = 1
                 if u.password == password:
                     status = 0
-                    token = self.new_token()
-                    u.tokens.append(token)
+                    token = jwt.encode({
+                        'u_id': u.u_id,
+                        'session_id': u.set_session(),
+                    }, jwt_key(), algorithm="HS256").decode('UTF-8')
         return {
             'status': status,
             'token': token
@@ -125,23 +126,25 @@ class Auth:
         '''
         if self.email_exists(email) or self.username_exists(username):
             raise BadRequestError('Cannot register with duplicate email or username')
-        new_tok = self.new_token()
         new_u_id = self.new_u_id()
-        self.users.append(User(new_u_id, new_tok, email, fullname, username, password))
+        new_user = User(new_u_id, email, fullname, username, password)
+        self.users.append(new_user)
         return {
-            'token': new_tok,
+            'token': jwt.encode(
+                {
+                    'u_id': new_u_id,
+                    'session_id': new_user.set_session(),
+                }, 
+                jwt_key(), 
+                algorithm="HS256"
+            ).decode('UTF-8'),
             'u_id': new_u_id,
         }
 
-    def logout(self, token):
+    def logout(self, u_id, session_id):
         '''
-        Removes the given token from a User, preventing the same token from being used again to log in
+        Removes the session_id from a user
         Returns {} on success
-        Raises: UnauthorizedError('Please log in again to complete your request')
         '''
-        user = self.get_user(token)
-        if user:
-            user.tokens.remove(token)
-            return {}
-        else:
-            raise UnauthorizedError('Please log in again to complete your request')
+        self.get_user(u_id).session_ids.remove(session_id)
+        return {}

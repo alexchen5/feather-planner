@@ -4,7 +4,6 @@ import {Menu, Item, Separator, useContextMenu} from 'react-contexify';
 
 import '../../Calendar.css'
 
-import AuthContext from '../../AuthContext';
 import {getPlanIds, getPlan} from './util';
 import Plan from './Plan'
 import ScrollHandler from "./ScrollHandler";
@@ -65,7 +64,6 @@ const reducer = (state, action) => {
 }
 
 function Calendar() {
-  const token = React.useContext(AuthContext);
   const [{ dates }, dispatch] = useReducer(reducer, {dates: []});
   const { show } = useContextMenu({
     id: 'planContextMenu',
@@ -77,7 +75,6 @@ function Calendar() {
       switch (action.type) {
         case 'add': {
           const res = await axios.post('/calendar/plan/new', {
-            token,
             date: action.date_str,
             content: action.entries,
           })
@@ -90,7 +87,6 @@ function Calendar() {
         }
         case 'edit': {
           await axios.put('/calendar/plan/edit', {
-            token,
             plan_id: action.plan_id,
             content: action.entries,
           })
@@ -100,13 +96,11 @@ function Calendar() {
         case 'delete': {
           dispatch(action);
           await axios.put('/calendar/date/edit', {
-            token,
             date: action.date_str,
             plan_ids: getPlanIds(dates, action.date_str).filter(id => id !== action.plan_id),
           })
           await axios.delete('/calendar/plan/delete', {
             data: {
-              token,
               plan_id: action.plan_id,
             }
           })
@@ -115,7 +109,6 @@ function Calendar() {
         case 'duplicate': {
           const refContent = getPlan(dates, action.ref_id).content;
           const res = await axios.post('/calendar/plan/copy', {
-            token,
             plan_id: parseInt(action.ref_id), 
             date: action.to_date,
           });
@@ -136,12 +129,10 @@ function Calendar() {
           const to_dates = getPlanIds(dates, to_date).filter(id => id !== plan_id);
           to_dates.splice(to_index, 0, plan_id)
           await axios.put('/calendar/date/edit', {
-            token,
             date: to_date,
             plan_ids: to_dates,
           });
           if (from_date !== to_date) await axios.put('/calendar/date/edit', {
-            token,
             date: from_date,
             plan_ids: getPlanIds(dates, from_date).filter(id => id !== plan_id),
           });
@@ -149,7 +140,6 @@ function Calendar() {
         }
         case 'load': {
           const res = await axios.post('/calendar/dates', {
-            token,
             dates: action.dateRange,
           });
           // function resolveAfter2Seconds() {
@@ -196,7 +186,7 @@ function Calendar() {
     } catch (error) {
       console.log(action, error);
     }
-  }, [dates, token, show]);
+  }, [dates, show]);
   // const clipboard = React.useRef();
 
   return (

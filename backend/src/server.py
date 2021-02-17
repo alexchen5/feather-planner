@@ -3,9 +3,11 @@ import pymongo
 from json import dumps
 from flask import Flask, request
 from flask_cors import CORS
+from functools import wraps
 
 import auth 
 import calendars
+from error import BadRequestError, UnauthorizedError
 
 def defaultHandler(err):
     response = err.get_response()
@@ -18,6 +20,18 @@ def defaultHandler(err):
     response.content_type = 'application/json'
     return response
 
+def checkin(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            pair = request.headers['authorization'].split()
+            if (len(pair) == 2 and pair[0] == 'Bearer'):
+                return func(*args, token=accounts.check_token(pair[1]), **kwargs)
+            else:
+                raise UnauthorizedError('Invalid Authorization Header')
+        except KeyError:
+            raise UnauthorizedError('Please log in')
+    return wrapper
 
 # client = pymongo.MongoClient("mongodb+srv://alexchen:alexchen!@cluster0.uee2f.mongodb.net/Cluster0?retryWrites=true&w=majority")
 # db = client.test
@@ -43,9 +57,10 @@ def app_accounts_register():
     }
 
 @app.route('/accounts/checkin', methods=['GET'])
-def app_accounts_checkin():
+@checkin
+def app_accounts_checkin(token):
     return {
-        'success': accounts.token_exists(request.args.get('token'))
+        'success': True,
     }
 
 @app.route('/accounts/checkemail', methods=["GET"])
@@ -61,43 +76,51 @@ def app_accounts_checkusername():
     }
 
 @app.route('/accounts/logout', methods=['POST'])
-def app_accounts_logout():
-    return accounts.logout(request.get_json()['token'])
+@checkin
+def app_accounts_logout(token):
+    return accounts.logout(token['u_id'], token['session_id'])
 
 @app.route('/calendar/plan/new', methods=['POST'])
-def app_calendar_plan_new():
+@checkin
+def app_calendar_plan_new(token):
     r = request.get_json()
-    return calendar.user(accounts.get_u_id(r['token'])).new_plan(r['date'], r['content'])
+    return calendar.user(token['u_id']).new_plan(r['date'], r['content'])
 
 @app.route('/calendar/plan/copy', methods=['POST'])
-def app_calendar_plan_copy():
+@checkin
+def app_calendar_plan_copy(token):
     r = request.get_json()
-    return calendar.user(accounts.get_u_id(r['token'])).copy_plan(r['plan_id'], r['date'])
+    return calendar.user(token['u_id']).copy_plan(r['plan_id'], r['date'])
 
 @app.route('/calendar/plan/delete', methods=['DELETE'])
-def app_calendar_plan_delete():
+@checkin
+def app_calendar_plan_delete(token):
     r = request.get_json()
-    return calendar.user(accounts.get_u_id(r['token'])).delete_plan(r['plan_id'])
+    return calendar.user(token['u_id']).delete_plan(r['plan_id'])
 
 @app.route('/calendar/plan/edit', methods=['PUT'])
-def app_calendar_plan_edit():
+@checkin
+def app_calendar_plan_edit(token):
     r = request.get_json()
-    return calendar.user(accounts.get_u_id(r['token'])).edit_plan(r['plan_id'], r['content'])
+    return calendar.user(token['u_id']).edit_plan(r['plan_id'], r['content'])
 
 @app.route('/calendar/date/edit', methods=['PUT'])
-def app_calendar_date_edit():
+@checkin
+def app_calendar_date_edit(token):
     r = request.get_json()
-    return calendar.user(accounts.get_u_id(r['token'])).edit_dates(r['date'], r['plan_ids'])
+    return calendar.user(token['u_id']).edit_dates(r['date'], r['plan_ids'])
 
 @app.route('/calendar/date', methods=['GET'])
-def app_calendar_date_get():
-    return calendar.user(accounts.get_u_id(request.args.get('token'))).get_plans(request.args.get('date'))
+@checkin
+def app_calendar_date_get(token):
+    return calendar.user(token['u_id']).get_plans(request.args.get('date'))
 
 @app.route('/calendar/dates', methods=['POST'])
-def app_calendar_dates_get():
+@checkin
+def app_calendar_dates_get(token):
     r = request.get_json()
     dates = []
-    c = calendar.user(accounts.get_u_id(r['token']))
+    c = calendar.user(token['u_id'])
     for date in r['dates']:
         dates.append(c.get_plans(date))
     return {
