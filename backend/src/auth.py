@@ -74,7 +74,7 @@ class Auth:
         '''
         Returns the u_id from a given token
         Raises: UnauthorizedError('Malicious token') if token cannot be parsed
-        Raises: UnauthorizedError('Session Expired') if user session does not exist
+        Raises: UnauthorizedError('Session Invalid') if user session does not exist
         '''
         try:
             decoded_token = jwt.decode(token, jwt_key(), algorithms="HS256")
@@ -85,9 +85,7 @@ class Auth:
             if decoded_token['u_id'] == u.u_id:
                 if decoded_token['session_id'] in u.session_ids:
                     return decoded_token
-                else: 
-                    raise UnauthorizedError('Session Expired')
-        return False
+        raise UnauthorizedError(f'Session Invalid: {decoded_token}')
 
     def login(self, email, password):
         '''

@@ -12,14 +12,14 @@ def test_register_validity():
     reg = test_creds.register('email@test.com', 'Full Test Name', 'testusername1', 'testpassword!')
     token = reg['token']
 
-    assert(test_creds.get_user(token).email == 'email@test.com')
-    assert(test_creds.get_user(token).fullname == 'Full Test Name')
-    assert(test_creds.get_user(token).username == 'testusername1')
-    assert(test_creds.get_user(token).password == 'testpassword!')
-    assert(test_creds.get_user(token).session_ids == [0])
-    assert isinstance(test_creds.get_user(token).u_id, int)
+    assert(test_creds.get_user(test_creds.check_token(token)['u_id']).email == 'email@test.com')
+    assert(test_creds.get_user(test_creds.check_token(token)['u_id']).fullname == 'Full Test Name')
+    assert(test_creds.get_user(test_creds.check_token(token)['u_id']).username == 'testusername1')
+    assert(test_creds.get_user(test_creds.check_token(token)['u_id']).password == 'testpassword!')
+    assert(test_creds.get_user(test_creds.check_token(token)['u_id']).session_ids == [0])
+    assert isinstance(test_creds.get_user(test_creds.check_token(token)['u_id']).u_id, int)
 
-    assert(test_creds.users[0] == test_creds.get_user(token))
+    assert(test_creds.users[0] == test_creds.get_user(test_creds.check_token(token)['u_id']))
 
 def test_register_duplicity():
     '''
