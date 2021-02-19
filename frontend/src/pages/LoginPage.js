@@ -26,8 +26,6 @@ function LoginPage({ newToken, ...props }) {
 				}
       })
       .catch((err) => {console.log(err)})
-
-		console.log('xd');
   }
 
 	return (

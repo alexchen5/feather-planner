@@ -45,7 +45,7 @@ export function newDateRange(plans, dir="INIT") {
   if (dir === "INIT") {
     const start = adjustDays(dateToStr(), getDayStart() - strToDate().getDay() - 7);
     const end = adjustDays(start, 7 * numWeeksStart);
-    return [getRange(start, end), "END"];
+    return [getRange(start, end), "INIT"];
   } 
   else if (dir === "END") {
     const start = adjustDays(plans[plans.length - 1].date_str, 1);
