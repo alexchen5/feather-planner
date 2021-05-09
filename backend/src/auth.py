@@ -105,7 +105,7 @@ class Auth:
                     token = jwt.encode({
                         'u_id': u.u_id,
                         'session_id': u.set_session(),
-                    }, jwt_key(), algorithm="HS256").decode('UTF-8')
+                    }, jwt_key(), algorithm="HS256")
         return {
             'status': status,
             'token': token
@@ -135,7 +135,7 @@ class Auth:
                 }, 
                 jwt_key(), 
                 algorithm="HS256"
-            ).decode('UTF-8'),
+            ),
             'u_id': new_u_id,
         }
 

@@ -8,10 +8,10 @@ function AddPlan({date_str}) {
   const {dispatchDates} = React.useContext(CalendarContext);
 
   const planHoverIn = (event) => {
-    event.currentTarget.closest('[datenode]').style.border = `1px solid transparent`;
+    event.currentTarget.closest('.datenode-item').style.border = `1px solid transparent`;
   }
   const planHoverOut = (event) => {
-    event.currentTarget.closest('[datenode]').style.border = ``;
+    event.currentTarget.closest('.datenode-item').style.border = ``;
   }
 
   const handleAddClick = e => {

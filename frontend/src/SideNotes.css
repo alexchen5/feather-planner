@@ -1,0 +1,6 @@
+
+.sidenode-container {
+    background-color: pink;
+    flex-grow: 1;
+    padding: 2px;
+}

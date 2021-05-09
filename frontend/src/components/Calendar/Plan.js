@@ -7,6 +7,8 @@ function Plan({plan: {date_str, plan_id, content}}) {
   const textEdit = React.createRef(null);
   const [editing, setEditing] = useState(false);
 
+  // console.log(content);
+
   useEffect(() => {
     if (content.textContent === '') {
       getFocus();
@@ -15,10 +17,10 @@ function Plan({plan: {date_str, plan_id, content}}) {
   }, []);
 
   const planHoverIn = (event) => {
-    event.currentTarget.closest('[datenode]').style.border = `1px solid transparent`;
+    event.currentTarget.closest('.datenode-item').style.border = `1px solid transparent`;
   }
   const planHoverOut = (event) => {
-    event.currentTarget.closest('[datenode]').style.border = ``;
+    event.currentTarget.closest('.datenode-item').style.border = ``;
   }
 
   const getFocus = () => {
@@ -79,30 +81,6 @@ function Plan({plan: {date_str, plan_id, content}}) {
     // else console.log(e.key)
   }
 
-  const handleDragStart = e => {
-    const target = e.currentTarget;
-    const placeholder = document.createElement('div');
-    placeholder.style.height = window.getComputedStyle(target).height;
-    placeholder.style.pointerEvents = 'none';
-    placeholder.setAttribute('placeholder', date_str);
-
-    setTimeout(() => {
-      target.style.display = 'none'
-      target.closest('[plans]').insertBefore(placeholder, target);
-      target.closest('[datenode]').setAttribute('drag-display', '');
-    }, 0);
-
-    target.setAttribute('dragging', plan_id);
-    target.closest('[datenode]').style.border = `1px solid transparent`;
-  }
-
-  const handleDragEnd = e => {
-    e.currentTarget.style.display = '';
-    e.currentTarget.removeAttribute('dragging');
-    e.currentTarget.closest('[datenode]').removeAttribute('drag-display');
-    if (document.querySelector('[placeholder]')) document.querySelector('[placeholder]').remove();
-  }
-
   return (<div
     plan={plan_id}
     className={`plan-node ${content.done ? '-done' : ''}`}
@@ -113,8 +91,6 @@ function Plan({plan: {date_str, plan_id, content}}) {
       if(e.detail === 2) getFocus();
     }}
     draggable={!editing}
-    onDragEnd={handleDragEnd}
-    onDragStart={handleDragStart}
     onContextMenu={e => {
       e.stopPropagation();
       dispatchDates({type: 'menu', event: e, plan_id, date_str, plan_el: textEdit.current})

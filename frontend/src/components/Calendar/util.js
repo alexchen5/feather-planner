@@ -16,7 +16,7 @@ export function getDayStart() {
 }
 
 export function dateToStr(date = new Date()) {
-  // Given a Date object, returns a string in the form 'YYYYMMDD' (where MM is from 00 - 11)
+  // Given a Date object, returns a string in the form 'YYYYMMDD' (where MM is from 01 - 12)
   // Defaults to the Date of today
   return `${date.getFullYear()}` + `${date.getMonth()}`.padStart(2, 0) + `${date.getDate()}`.padStart(2, 0);
 }
@@ -36,7 +36,10 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
 export function getRange(dateStart, dateEnd) {
   const ret = [];
   for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
-    ret.push(curDate);
+    ret.push({
+      date_str: curDate,
+      plans: [],
+    });
   }
   return ret;
 }
@@ -45,17 +48,17 @@ export function newDateRange(plans, dir="INIT") {
   if (dir === "INIT") {
     const start = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);
     const end = adjustDays(start, 7 * numWeeksStart);
-    return [getRange(start, end), "INIT"];
+    return [getRange(start, end), start, end];
   } 
   else if (dir === "END") {
     const start = adjustDays(plans[plans.length - 1].date_str, 1);
     const end = adjustDays(start, 7 * paginateWeeksNext);
-    return [getRange(start, end), "END"];
+    return [getRange(start, end), start, end];
   }
   else if (dir === "FRONT") {
     const end = plans[0].date_str;
     const start = adjustDays(end, -7 * paginateWeeksPrv);
-    return [getRange(start, end), "FRONT"];
+    return [getRange(start, end), start, end];
   }
   else {
     console.log('Unknown dir:', dir);
