@@ -90,6 +90,15 @@ function getDragAfterElement(container, y) {
     }
   }, { offset: Number.NEGATIVE_INFINITY}).element;
 }
+export function dragFinalised() {
+  const target = document.querySelector('[dragging]');
+  const placeholder = document.querySelector('[placeholder]');
+  if (target) {
+    target.removeAttribute('dragging');
+    target.style.display = '';
+  }
+  if (placeholder) placeholder.remove();
+}
 
 function ScrollHandler({children}) {
   const {dates, dispatchDates} = React.useContext(CalendarContext);
@@ -179,19 +188,15 @@ function ScrollHandler({children}) {
     const from_nxt_id = (plansFrom[from_index + 1] || '') && plansFrom[from_index + 1].getAttribute('plan');
 
     if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) return;
-    dispatchDates({type: 'move', plan_id, to_date, from_date, from_prv_id, from_nxt_id, to_prv_id, to_nxt_id })
+    dispatchDates({type: 'move', plan_id, to_date, from_prv_id, from_nxt_id, to_prv_id, to_nxt_id })
+    document.querySelector('[dragging]').setAttribute('dragging', 'rendering');
     handleDragEnd(); // dragend event gets cancelled on re-render
   }
 
   const handleDragEnd = () => {
-    const target = document.querySelector('[dragging]');
-    const placeholder = document.querySelector('[placeholder]');
-    if (target) {
-      target.removeAttribute('dragging');
-      target.style.display = '';
-    }
-    if (placeholder) placeholder.remove();
     document.querySelector('#datenode-container').removeAttribute('drag-display');
+    if (document.querySelector('[dragging]').getAttribute('dragging') === 'rendering') return;
+    dragFinalised();
   }
 
   const handleDragLeave = event => {

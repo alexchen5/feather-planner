@@ -1,6 +1,22 @@
 
-.sidenode-container {
-    background-color: pink;
+#sidenote-container {
     flex-grow: 1;
     padding: 2px;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    --node-border: 1px solid #A3D9DA;
+    position: relative;
+}
+
+.sidenote {
+    cursor: pointer;
+    position: absolute;
+    border: 1px solid transparent;
+    border-radius: 2px;
+}
+.sidenote:hover {
+    border: var(--node-border);
+}
+.sidenote[editing="true"] {
+    cursor: auto;
+    border: var(--node-border);
 }

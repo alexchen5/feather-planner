@@ -43,7 +43,7 @@ const InlineStyleControls = ({editorState, onToggle}) => {
   )
 }
 
-const TextEdit = React.forwardRef(({menu, init, submit, readOnly}, ref) => {
+const TextEdit = React.forwardRef(({options: {menu, init, submit, readOnly}}, ref) => {
   const [editorState, setEditorState] = React.useState(
     () => EditorState.createWithContent(
       typeof init === 'string' ? ContentState.createFromText(init) : convertFromRaw(init)

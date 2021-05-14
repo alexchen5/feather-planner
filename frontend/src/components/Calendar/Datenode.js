@@ -18,7 +18,7 @@ function Datenode({date_str, children}) {
   }, [date_str, isToday]);
 
   const menuEvent = (e) => {
-    if (e.currentTarget !== e.target) return;
+    // if (e.currentTarget !== e.target) return;
     
     if (e.key === 'v' && e.getModifierState('Meta')) {
       e.stopPropagation();

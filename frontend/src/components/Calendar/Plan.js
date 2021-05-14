@@ -33,19 +33,37 @@ function Plan({plan: {date_str, plan_id, content}}) {
     setEditing(false);
   }
 
-  const submitInput = val => {
-    getBlur();
-    if (!val) {
-      dispatchDates({type: 'delete', date_str, plan_id});
-      return;
-    }
-    const entries = {
-      ...content,
-      textContent: val,
-    }
-    if (JSON.stringify(content) === JSON.stringify(entries)) return;
-    dispatchDates({type: 'edit', date_str, plan_id, entries});
+  const textEditOptions = {
+    readOnly: !editing,
+    menu: editing,
+    init: (content.textContent || ''),
+    submit: val => {
+      getBlur();
+      if (!val) {
+        dispatchDates({type: 'delete', date_str, plan_id});
+        return;
+      }
+      const entries = {
+        ...content,
+        textContent: val,
+      }
+      if (JSON.stringify(content) === JSON.stringify(entries)) return;
+      dispatchDates({type: 'edit', date_str, plan_id, entries});
+    },
   };
+  // const submitInput = val => {
+  //   getBlur();
+  //   if (!val) {
+  //     dispatchDates({type: 'delete', date_str, plan_id});
+  //     return;
+  //   }
+  //   const entries = {
+  //     ...content,
+  //     textContent: val,
+  //   }
+  //   if (JSON.stringify(content) === JSON.stringify(entries)) return;
+  //   dispatchDates({type: 'edit', date_str, plan_id, entries});
+  // };
 
   const toggleDone = (e) => {
     e.preventDefault();
@@ -108,7 +126,7 @@ function Plan({plan: {date_str, plan_id, content}}) {
         </svg>
       </span>
     </div>
-    <TextEdit ref={textEdit} readOnly={!editing} menu={editing} init={content.textContent} submit={submitInput}/>
+    <TextEdit ref={textEdit} options={textEditOptions}/>
   </div>)
 }
 

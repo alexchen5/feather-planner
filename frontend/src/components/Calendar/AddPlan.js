@@ -30,7 +30,6 @@ function AddPlan({date_str}) {
     >
       <AddCircle/>
     </IconButton>
-
   </div>)
 }
 

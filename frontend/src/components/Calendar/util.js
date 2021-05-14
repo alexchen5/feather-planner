@@ -44,6 +44,14 @@ export function getRange(dateStart, dateEnd) {
   return ret;
 }
 
+export function getUpdateRange(dateStart, dateEnd) {
+  const ret = {};
+  for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
+    ret[curDate] = [];
+  }
+  return ret;
+}
+
 export function newDateRange(plans, dir="INIT") {
   if (dir === "INIT") {
     const start = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);

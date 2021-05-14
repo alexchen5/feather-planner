@@ -1,12 +1,11 @@
 import React, { createContext, useCallback, useReducer, useRef } from "react";
-import axios from 'axios';
 import {Menu, Item, Separator, useContextMenu} from 'react-contexify';
 
 import '../../Calendar.css'
 
-import {getPlanIds, getPlan} from './util';
+import { getPlan, getPlanIds, getUpdateRange} from './util';
 import Plan from './Plan'
-import ScrollHandler from "./ScrollHandler";
+import ScrollHandler, { dragFinalised } from "./ScrollHandler";
 import Datenode from "./Datenode";
 import DayHeaders from "./DayHeaders";
 import CalendarContainer from "./CalendarContainer";
@@ -17,42 +16,6 @@ export const CalendarContext = createContext(null);
 
 const reducer = (state, action) => {
   switch (action.type) {
-    // case 'add': 
-    //   // action.date_str: Date that needs a plan to be added
-    //   // action.new_plan: New plan to be added
-    //   // action.new_index: Index of new plan (add to end if undefined)
-    //   // NOTE: No Duplicate ID Rule: Will silently filter new_plan from date if new_plan.plan_id already exists in the date
-    //   function insertAt(array, item, index) {
-    //     const ret = [...array];
-    //     index === undefined ? ret.push(item) : ret.splice(index, 0, item);
-    //     return ret;
-    //   }
-    //   return {
-    //     dates: state.dates.map(date => 
-    //       date.date_str === action.date_str ? {
-    //         ...date, 
-    //         plans: insertAt(date.plans.filter(e => e.plan_id !== action.new_plan.plan_id), action.new_plan, action.new_index),
-    //       } : date
-    //     )
-    //   }
-    // case 'edit': 
-    //   return {
-    //     dates: state.dates.map(date => 
-    //       date.date_str === action.date_str ? { ...date, plans: 
-    //         date.plans.map(plan => 
-    //           plan.plan_id === action.plan_id ? {...plan, content: action.entries} : plan
-    //         )
-    //       } : date
-    //     )
-    //   }
-    case 'delete': 
-      // action.date_str: Date that needs plans to be removed
-      // action.plan_id: Plan id to be filtered from the date
-      return {
-        dates: state.dates.map(date => 
-          date.date_str === action.date_str ? { ...date, plans: date.plans.filter(plan => plan.plan_id !== action.plan_id)} : date
-        )
-      }
     case 'load': 
       return action.dir === 'END' ? {
         dates: [...state.dates, ...action.dates]
@@ -83,10 +46,12 @@ function Calendar() {
     try {
       switch (action.type) {
         case 'add': {
+          const ids = getPlanIds(dates, action.date_str);
+          const prv = ids[ids.length - 1] || '';
           db.collection(`users/${uid}/plans`).add({
             date: action.date_str,
             content: action.entries,
-            prc: '',
+            prv: prv,
           });
           break;
         }
@@ -95,27 +60,24 @@ function Calendar() {
           break;
         }
         case 'delete': {
-          db.doc(`users/${uid}/plans/${action.plan_id}`).delete();
-          break;
-        }
-        case 'duplicate': {
-          const refContent = getPlan(dates, action.ref_id).content;
-          const res = await axios.post('/calendar/plan/copy', {
-            plan_id: parseInt(action.ref_id), 
-            date: action.to_date,
-          });
-          const new_plan = {
-            plan_id: parseInt(res.data.plan_id),
-            content: refContent,
-          };
-          dispatch({...action, type: 'add', new_plan, date_str: action.to_date});
+          const ids = getPlanIds(dates, action.date_str);
+          const p = ids.indexOf(action.plan_id);
+
+          const delBatch = db.batch();
+          if (ids[p+1]) delBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', ids[p-1] || '');
+          delBatch.delete(db.doc(`users/${uid}/plans/${action.plan_id}`));
+          delBatch.commit();
+
           break;
         }
         case 'move': {
-          const {plan_id, to_date, from_date, from_prv_id, from_nxt_id, to_prv_id, to_nxt_id } = action;
-          if (to_prv_id) db.doc(`users/${uid}/plans/${to_prv_id}`).update('prc', plan_id);
-          db.doc(`users/${uid}/plans/${plan_id}`).update('date', to_date, 'prc', to_nxt_id);
-          if (from_prv_id) db.doc(`users/${uid}/plans/${from_prv_id}`).update('prc', from_nxt_id);
+          const {plan_id, to_date, from_prv_id, from_nxt_id, to_prv_id, to_nxt_id } = action;
+          
+          const moveBatch = db.batch();
+          if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', plan_id);
+          moveBatch.update(db.doc(`users/${uid}/plans/${plan_id}`), 'date', to_date, 'prv', to_prv_id);
+          if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
+          moveBatch.commit();
 
           break;
         }
@@ -125,25 +87,40 @@ function Calendar() {
             .where('date', '>=', action.start)
             .where('date', '<', action.end)
             .onSnapshot((snapshot) => {
-              const newPlans = {};
-              snapshot.docChanges().forEach(change => {
-                newPlans[change.doc.data().date] = []
-              })
-              snapshot.forEach(doc => {
+              const newPlans = getUpdateRange(action.start, action.end);
+              let reserves = [];
+              snapshot.forEach((doc) => {
                 const d = doc.data();
-                if (newPlans[d.date]) {
-                  const newPlan = {
-                    plan_id: doc.id,
-                    content: d.content,
-                    prc: d.prc,
-                  };
-                  const prc = newPlans[d.date].findIndex(plan => plan.plan_id === d.prc);
-                  if (prc !== -1) newPlans[d.date].splice(prc, 0, newPlan);
-                  else newPlans[d.date].push(newPlan);
+                const newPlan = {
+                  plan_id: doc.id,
+                  content: d.content,
+                  prv: d.prv,
+                };
+                if (!d.prv) {
+                  newPlans[d.date].push(newPlan);
+                } else {
+                  const prv = newPlans[d.date].findIndex(plan => plan.plan_id === d.prv);
+                  if (prv !== -1) newPlans[d.date].splice(prv + 1, 0, newPlan);
+                  else reserves.push({date: d.date, plan: newPlan});
                 }
               });
-              console.log(newPlans)
-              dispatch({ type: 'update', plans: newPlans })
+              let prvlen;
+              while (reserves.length && reserves.length !== prvlen) {
+                let nextReserves = [];
+                reserves.forEach(r => {
+                  const prv = newPlans[r.date].findIndex(plan => plan.plan_id === r.plan.prv);
+                  if (prv !== -1) newPlans[r.date].splice(prv + 1, 0, r.plan);
+                  else nextReserves.push(r);
+                })
+                prvlen = reserves.length;
+                reserves = nextReserves;
+              }
+              reserves.forEach(r => {
+                r.plan.prv = '';
+                newPlans[r.date].push(r.plan);
+              })
+              dispatch({ type: 'update', plans: newPlans });
+              dragFinalised();
             });
           break;
         }
@@ -169,7 +146,8 @@ function Calendar() {
             console.log('Clipboard Empty');
             return;
           }
-          dispatchWrapper({type: 'duplicate', ref_id: clipboard.current.plan_id, to_date: action.date_str})
+          const plan = getPlan(dates, clipboard.current.plan_id);
+          dispatchWrapper({type: 'add', date_str: action.date_str, entries: plan.content})
           break;
         }
         default: {
