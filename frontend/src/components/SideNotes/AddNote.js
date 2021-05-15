@@ -12,9 +12,13 @@ function AddNote() {
     db.collection(`users/${uid}/notes`).add({
       content: '',
       position: {
-        left: 0,
-        right: 0,
-      }
+        left: '8px',
+        top: '8px',
+      },
+      size: {
+        width: '160px',
+        height: '180px',
+      },
     })
   }
 

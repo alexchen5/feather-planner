@@ -21,6 +21,7 @@ function SideNotes() {
             note_id: doc.id,
             content: doc.data().content,
             position: doc.data().position,
+            size: doc.data().size,
           });
         });
         setNotes(newNotes);
@@ -35,6 +36,7 @@ function SideNotes() {
         id={note.note_id} 
         content={note.content || ''} 
         position={note.position || {}}
+        size={note.size || {}}
       />)}
     </div>
   )

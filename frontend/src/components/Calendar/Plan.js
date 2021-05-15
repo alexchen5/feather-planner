@@ -6,22 +6,18 @@ function Plan({plan: {date_str, plan_id, content}}) {
   const {dispatchDates} = React.useContext(CalendarContext);
   const textEdit = React.createRef(null);
   const [editing, setEditing] = useState(false);
-
-  // console.log(content);
+  const planRef = React.useRef();
+  const [hasFocus, setFocus] = useState(false);
 
   useEffect(() => {
     if (content.textContent === '') {
       getFocus();
     }
+    if (document.hasFocus() && planRef.current.contains(document.activeElement)) {
+      setFocus(true);
+    }
     // eslint-disable-next-line
   }, []);
-
-  const planHoverIn = (event) => {
-    event.currentTarget.closest('.datenode-item').style.border = `1px solid transparent`;
-  }
-  const planHoverOut = (event) => {
-    event.currentTarget.closest('.datenode-item').style.border = ``;
-  }
 
   const getFocus = () => {
     document.querySelector(`[plan="${plan_id}"]`).setAttribute('editing', '');
@@ -51,19 +47,6 @@ function Plan({plan: {date_str, plan_id, content}}) {
       dispatchDates({type: 'edit', date_str, plan_id, entries});
     },
   };
-  // const submitInput = val => {
-  //   getBlur();
-  //   if (!val) {
-  //     dispatchDates({type: 'delete', date_str, plan_id});
-  //     return;
-  //   }
-  //   const entries = {
-  //     ...content,
-  //     textContent: val,
-  //   }
-  //   if (JSON.stringify(content) === JSON.stringify(entries)) return;
-  //   dispatchDates({type: 'edit', date_str, plan_id, entries});
-  // };
 
   const toggleDone = (e) => {
     e.preventDefault();
@@ -99,34 +82,45 @@ function Plan({plan: {date_str, plan_id, content}}) {
     // else console.log(e.key)
   }
 
+  // const handleMouseDownDrag = (e) => {
+  //   // e.preventDefault();
+  // };
+
   return (<div
+    ref={planRef}
     plan={plan_id}
     className={`plan-node ${content.done ? '-done' : ''}`}
-    onMouseOver={planHoverIn}
-    onMouseOut={planHoverOut}
     onClick={e => {
       e.stopPropagation();
       if(e.detail === 2) getFocus();
     }}
-    draggable={!editing}
+    draggable={hasFocus && !editing}
     onContextMenu={e => {
       e.stopPropagation();
       dispatchDates({type: 'menu', event: e, plan_id, date_str, plan_el: textEdit.current})
     }}
     tabIndex='0'
     onKeyDown={menuEvent}
+    onFocus={() => setFocus(true)}
+    onBlur={() => setFocus(false)}
   >
-    <div className={'plan-complete-toggle'} style={{display: `${editing ? 'none' : ''}`}}>
-      <span 
-        className={`plan-complete-toggle-button ${content.done ? '-done' : ''}`}
-        onClick={toggleDone}
-      >
-        <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-          <circle cx="50%" cy="50%" r="50%"/>
-        </svg>
-      </span>
+    <div className={`plan-node-content`} draggable={hasFocus && !editing}>
+      <div className={'plan-complete-toggle'} style={{display: `${editing ? 'none' : ''}`}}>
+        <span 
+          className={`plan-complete-toggle-button ${content.done ? '-done' : ''}`}
+          onClick={toggleDone}
+        >
+          <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+            <circle cx="50%" cy="50%" r="50%"/>
+          </svg>
+        </span>
+      </div>
+      <TextEdit ref={textEdit} options={textEditOptions}/>
     </div>
-    <TextEdit ref={textEdit} options={textEditOptions}/>
+    {/* <div draggable={!editing} className={'border-capture top'} style={{cursor: 'grab'}}/>
+    <div draggable={!editing} className={'border-capture right'} style={{cursor: 'grab'}}/>
+    <div draggable={!editing} className={'border-capture bottom'} style={{cursor: 'grab'}}/>
+    <div draggable={!editing} className={'border-capture left'} style={{cursor: 'grab'}}/> */}
   </div>)
 }
 

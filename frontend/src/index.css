@@ -5,9 +5,65 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  --edge-grey: rgba(0, 0, 0, 0.1);
+  --edge-blue: #A3D9DA;
+  --bg-greyblue: #E6EEEE;
+
+  --node-hover-border: 1px solid #A3D9DA;
+  --node-focus-bg-color: #E6EEEE;
+  --node-edit-border: 1px dotted #A3D9DA;
+
+  --node-border-color: #A3D9DA;
+
+  --header-bg-color-1: #ff8080;
+  --header-bg-color-2: #ffcc99;
+  --header-bg-color-3: #ffff99;
+  --header-bg-color-4: #ccffcc;
+  --header-bg-color-5: #99ccff;
+  --header-bg-color-6: #ccccff;
+  --header-bg-color-7: #cc99ff;
+
+  --content-done-true: #34a853;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+.border-capture {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.border-capture.top {
+  height: 6px;
+  width: 100%;
+  top: -4px;
+  left: 0px;
+}
+.border-capture.bottom {
+  height: 6px;
+  width: 100%;
+  bottom: -4px;
+  left: 0px;
+}
+.border-capture.left {
+  width: 6px;
+  height: 100%;
+  left: -4px;
+  top: 0px;
+}
+.border-capture.right {
+  width: 6px;
+  height: 100%;
+  right: -4px;
+  top: 0px;
+}
+.border-capture.bottom-right {
+  height: 8px;
+  width: 8px;
+  bottom: -4px;
+  right: -4px;
 }

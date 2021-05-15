@@ -151,7 +151,7 @@ function Calendar() {
           break;
         }
         default: {
-          console.log(`Unknown action type: ${action.type}`);
+          console.warn(`Unknown action type: ${action.type}`);
         }
       }
     } catch (error) {

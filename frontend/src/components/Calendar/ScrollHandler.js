@@ -136,8 +136,8 @@ function ScrollHandler({children}) {
   }, []);
   
   const handleDragStart = (event) => {
-    const target = event.target;
-
+    const target = event.target.closest('[plan]');
+    if (!event.target.hasAttribute('plan')) {event.preventDefault(); event.stopPropagation();return};
     const date_str = target.closest('[datenode]').getAttribute('datenode');
     const placeholder = document.createElement('div');
     placeholder.style.height = window.getComputedStyle(target).height;
@@ -154,8 +154,10 @@ function ScrollHandler({children}) {
       datenodeFrom.style.pointerEvents = 'none';
       container.onpointermove = () => {
         datenodeFrom.style.pointerEvents = '';
+        container.style.cursor = '';
         container.onpointermove = null;
       }
+      // datenodeFrom.style.cursor = 'grabbing';
     });
     target.setAttribute('dragging', '');
   }
