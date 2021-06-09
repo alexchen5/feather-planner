@@ -61,9 +61,9 @@ function Note({ id, content, position, size }) {
     e.preventDefault();
     pos1 = pos3 - e.clientX;
     pos2 = pos4 - e.clientY;
-    if (note.current.offsetTop - pos2 >= 8) pos4 = e.clientY;
+    if (note.current.offsetTop - pos2 >= 0) pos4 = e.clientY;
     if (note.current.offsetLeft - pos1 >= 8) pos3 = e.clientX;
-    note.current.style.top = Math.max(8, note.current.offsetTop - pos2) + "px";
+    note.current.style.top = Math.max(0, note.current.offsetTop - pos2) + "px";
     note.current.style.left = Math.max(8, note.current.offsetLeft - pos1) + "px";
   }
 

@@ -3,29 +3,41 @@
 
 #calendar-container {
     margin: 4px;
-    min-width: 780px;
-    max-width: 980px;
+    /* min-width: 780px; */
+    /* max-width: 980px; */
+    height: 100%;
 }
 
 #datenode-container {
     overflow: scroll;
-    height: 600px;
+    /* height: 600px; */
+    height: calc(100% - 42px);
     display: flex;
     flex-wrap: wrap;
     margin: 0px;
     padding: 0px;
+
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+#datenode-container::-webkit-scrollbar {
+    display: none;
 }
 
 .datenode-root {
     box-sizing: border-box;
-    min-height: 160px;
+    min-height: 28vh;
     width: calc(100% / 7);
     display: flex;
     flex-direction: column;
+    position: relative;
+    background-color: white;
+    border: 1px solid #f9f9f9;
 }
 .datenode-item {
     border: 1px solid transparent;
-    border-radius: 6px;
+    margin: 1px;
+    border-radius: 1px;
     height: 100%;
 }
 .datenode-item:focus {
@@ -34,10 +46,38 @@
 }
 
 .datenode-header {
-    border-radius: 4px;
-    font-weight: bold;
-    padding: 8px 12px;
-    margin-bottom: 2px;
+    font-weight: 300;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    color: #333;
+    max-width: 100%;
+}
+
+.datenode-label {
+    /* background-color: pink; */
+    border: 1px solid transparent;
+    border-radius: 2px;
+    flex-grow: 1;
+    padding: 2px;
+    margin-top: 2.3px;
+    margin-right: 2px;
+    font-weight: 400;
+}
+.datenode-label.editing {
+    border: 1px solid var(--edge-grey);
+}
+
+.datenode-date {
+    border-radius: 100%;
+    min-width: 28px;
+    flex-grow: 0 0 28px;
+    height: 28px;
+    text-align: center;
+    line-height: 28px;
+}
+.datenode-date.today {
+    background-color: var(--bg-greyblue);
 }
 
 li.-calendar-bg:nth-child(7n + 1) .datenode-header {
@@ -67,33 +107,20 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     border-radius: 4px;
     border: 1px solid transparent;
     box-sizing: border-box;
-    font-size: 14px;
+    font-size: var(--plan-font-size);
     position: relative;
-    cursor: default;
+    cursor: pointer;
 }
 .plan-node-content {
     padding: 2px 10px 0px 0px;
-    cursor: default;
 }
-.plan-node:focus {
+.plan-node:focus-within {
     border: 1px solid var(--edge-blue);
-    outline: 0;
-    cursor: grab;
-}
-.plan-node:active {
-    cursor: grabbing;
-}
-.plan-node:focus .border-capture {
-    pointer-events: all;
-}
-.plan-node[editing] {
     cursor: auto;
-    border: 1px dashed var(--edge-blue);
+    outline: 0;
 }
 .plan-node[dragging] {
     background-color: var(--bg-greyblue);
-    /* opacity: 0.3;
-    position: relative; */
 }
 
 .plan-node.-done span {
@@ -105,15 +132,13 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     z-index: 9;
     top: 0px;
     right: 2px;
+    display: none;
 }
 .plan-complete-toggle-button svg {
     width: 10px;
     height: 10px;
 }
-.plan-complete-toggle {
-    display: none;
-}
-.plan-node:focus .plan-complete-toggle {
+.plan-node:focus-within .plan-complete-toggle {
     cursor: pointer;
     display: block;
 }
@@ -122,15 +147,6 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     display: flex;
     flex-direction: column;
     align-items: center;
-    visibility: hidden;
-}
-.datenode-item:focus-within .plan-add {
-    visibility: visible;
-}
-.plan-node:focus ~ .plan-add {
-    visibility: hidden;
-}
-.plan-node[editing] ~ .plan-add {
     visibility: hidden;
 }
 

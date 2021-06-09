@@ -6,12 +6,24 @@ var INLINE_STYLES = [
   // {label: 'Italic', style: 'ITALIC'},
   // {label: 'Underline', style: 'UNDERLINE'},
   {label: 'Green', style: 'GREEN'},
+  {label: 'Blue', style: 'BLUE'},
+  {label: 'Red', style: 'RED'},
+  {label: 'Purple', style: 'PURPLE'},
 ];
 
 const styleMap = {
   GREEN: {
     color: '#34a853',
-  }
+  },
+  BLUE: {
+    color: '#0000ff',
+  },
+  RED: {
+    color: '#cc0000',
+  },
+  PURPLE: {
+    color: '#9900ff',
+  },
 }
 
 const StyleButton = ({active, label, style, onToggle}) => {

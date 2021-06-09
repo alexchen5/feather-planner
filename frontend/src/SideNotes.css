@@ -2,7 +2,6 @@
 #sidenote-container {
     flex-grow: 1;
     padding: 2px;
-    border-left: 1px solid var(--edge-grey);
     position: relative;
 }
 

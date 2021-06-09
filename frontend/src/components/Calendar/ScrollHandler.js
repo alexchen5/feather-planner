@@ -26,7 +26,7 @@ function smoothMove(container, placeholder, afterElement) {
     ], 
     []
   );
-  const heights = [container.closest('li'), placeholder.closest('li')].map(e => [e, parseInt(getComputedStyle(e).height)]);
+  const heights = [container.closest('li').firstElementChild, placeholder.closest('li').firstElementChild].map(e => [e, parseInt(getComputedStyle(e).height)]);
   container.insertBefore(placeholder, afterElement); 
 
   moveTargets.forEach(m => {
@@ -54,7 +54,7 @@ function smoothMove(container, placeholder, afterElement) {
       window.requestAnimationFrame(step);
     }
   });
-  heights.forEach(([e, h]) => {
+  heights.map(([e, h]) => {
     const curHeight = parseInt(getComputedStyle(e).height);
     if (h !== curHeight) {
       let start;
@@ -73,9 +73,11 @@ function smoothMove(container, placeholder, afterElement) {
           e.removeAttribute('animate');
         }
       }
-      window.requestAnimationFrame(step);
+      return step;
+      // window.requestAnimationFrame(step);
     }
-  });
+    return null;
+  }).forEach(step => step && window.requestAnimationFrame(step));
 }
 function getDragAfterElement(container, y) {
   const draggableElements = [...container.querySelectorAll('[plan]:not([dragging])')];
@@ -143,6 +145,7 @@ function ScrollHandler({children}) {
     placeholder.style.height = window.getComputedStyle(target).height;
     placeholder.style.pointerEvents = 'none';
     placeholder.style.position = 'relative';
+    placeholder.style.zIndex = '2';
     placeholder.setAttribute('placeholder', date_str);
 
     setTimeout(() => {

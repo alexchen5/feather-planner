@@ -13,7 +13,6 @@ axios.defaults.headers.delete['Content-Type'] = 'application/json';
 export const UidContext = React.createContext(null);
 
 function App() {
-  document.title = 'Project 2020';
   const [uid, setUid] = useState(false); 
 
   return (

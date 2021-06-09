@@ -9,6 +9,8 @@ function Plan({plan: {date_str, plan_id, content}}) {
   const planRef = React.useRef();
   const [hasFocus, setFocus] = useState(false);
 
+  if (!content) dispatchDates({type: 'delete', date_str, plan_id});
+
   useEffect(() => {
     if (content.textContent === '') {
       getFocus();
@@ -20,19 +22,17 @@ function Plan({plan: {date_str, plan_id, content}}) {
   }, []);
 
   const getFocus = () => {
-    document.querySelector(`[plan="${plan_id}"]`).setAttribute('editing', '');
     setEditing(true)
     textEdit.current.focus();
   }
   const getBlur = () => {
-    document.querySelector(`[plan="${plan_id}"]`).removeAttribute('editing');
     setEditing(false);
   }
 
   const textEditOptions = {
     readOnly: !editing,
     menu: editing,
-    init: (content.textContent || ''),
+    init: ((content && content.textContent) || ''),
     submit: val => {
       getBlur();
       if (!val) {
@@ -89,10 +89,10 @@ function Plan({plan: {date_str, plan_id, content}}) {
   return (<div
     ref={planRef}
     plan={plan_id}
-    className={`plan-node ${content.done ? '-done' : ''}`}
-    onClick={e => {
+    className={`plan-node ${(content && content.done) ? '-done' : ''}`}
+    onMouseDown={e => {
       e.stopPropagation();
-      if(e.detail === 2) getFocus();
+      if (hasFocus) getFocus();
     }}
     draggable={hasFocus && !editing}
     onContextMenu={e => {
@@ -104,8 +104,8 @@ function Plan({plan: {date_str, plan_id, content}}) {
     onFocus={() => setFocus(true)}
     onBlur={() => setFocus(false)}
   >
-    <div className={`plan-node-content`} draggable={hasFocus && !editing}>
-      <div className={'plan-complete-toggle'} style={{display: `${editing ? 'none' : ''}`}}>
+    <div className={`plan-node-content`}>
+      <div className={'plan-complete-toggle'}>
         <span 
           className={`plan-complete-toggle-button ${content.done ? '-done' : ''}`}
           onClick={toggleDone}
@@ -117,10 +117,6 @@ function Plan({plan: {date_str, plan_id, content}}) {
       </div>
       <TextEdit ref={textEdit} options={textEditOptions}/>
     </div>
-    {/* <div draggable={!editing} className={'border-capture top'} style={{cursor: 'grab'}}/>
-    <div draggable={!editing} className={'border-capture right'} style={{cursor: 'grab'}}/>
-    <div draggable={!editing} className={'border-capture bottom'} style={{cursor: 'grab'}}/>
-    <div draggable={!editing} className={'border-capture left'} style={{cursor: 'grab'}}/> */}
   </div>)
 }
 

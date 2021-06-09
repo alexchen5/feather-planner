@@ -3,7 +3,7 @@ import { GridList } from "@material-ui/core";
 import { getDayStart } from "./util";
 
 function DayHeaders() {
-  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   for (let i = 0; i < getDayStart(); i++) weekdays.push(weekdays.shift());
 
   return (
@@ -13,15 +13,16 @@ function DayHeaders() {
     >
       {weekdays.map((day, i) => <li 
         key={day} 
-        className={'-calendar-bg'}
-        style={{height: '', padding: '', position: 'relative', zIndex: '9'}
+        // className={'-calendar-bg'}
+        style={{height: '', padding: '', position: 'relative'}
       }>
         <div 
-          className={'datenode-header'}
           style={{
-            boxSizing: 'border-box', 
-            textAlign: 'center',
-            border: '1px solid white',
+            textAlign: 'right',
+            fontSize: '20px',
+            fontWeight: '300',
+            padding: '4px 6px',
+            color: '#333',
           }}
         >
           {day}

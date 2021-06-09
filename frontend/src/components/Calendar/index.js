@@ -25,7 +25,13 @@ const reducer = (state, action) => {
     case 'update':
       return {
         dates: state.dates.map(date => 
-          action.plans[date.date_str] ? { date_str: date.date_str, plans: action.plans[date.date_str] } : date
+          action.plans[date.date_str] ? { ...date, plans: action.plans[date.date_str] } : date
+        )
+      }
+    case 'update-label':
+      return {
+        dates: state.dates.map(date =>
+          action.labels[date.date_str] ? { ...date, label: action.labels[date.date_str] } : date
         )
       }
     default:
@@ -83,6 +89,25 @@ function Calendar() {
         }
         case 'load': {
           dispatch({...action, dates: action.dateRange});
+          db.collection(`users/${uid}/date-labels`)
+            .where('date', '>=', action.start)
+            .where('date', '<', action.end)
+            .onSnapshot((snapshot) => {
+              const newLabels = {};
+              snapshot.forEach((doc) => {
+                const d = doc.data();
+                newLabels[d.date] = {
+                  label_id: doc.id,
+                  content: d.content,
+                };
+              })
+              dispatch({ type: 'update-label', labels: newLabels });
+
+              snapshot.docChanges().forEach(change => {
+                console.log(change.doc.data(), change.type)
+              })
+            });
+
           db.collection(`users/${uid}/plans`)
             .where('date', '>=', action.start)
             .where('date', '<', action.end)
@@ -121,6 +146,10 @@ function Calendar() {
               })
               dispatch({ type: 'update', plans: newPlans });
               dragFinalised();
+
+              snapshot.docChanges().forEach(change => {
+                console.log(change.doc.data(), change.type)
+              })
             });
           break;
         }
@@ -168,6 +197,7 @@ function Calendar() {
           {dates.map(date => <Datenode
             key={date.date_str}
             date_str={date.date_str}
+            label={date.label}
           >
             {date.plans.map(plan => <Plan
               key={plan.plan_id}
