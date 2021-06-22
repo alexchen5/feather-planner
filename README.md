@@ -2,4 +2,4 @@
 
 A personal task management app. 
 
-featherplanner.com
+https://featherplanner.com/
