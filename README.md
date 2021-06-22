@@ -1,5 +1,5 @@
-# project2020
+# Feather Planner
 
-A task-planning/calendar app that doesn't have a name yet. 
+A personal task management app. 
 
-Hosting URL: https://project-2020-70e99.web.app
+featherplanner.com
