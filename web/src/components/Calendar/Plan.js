@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CalendarContext } from ".";
 import TextEdit from "../TextEdit";
+import MoreVertIcon from '@material-ui/icons/MoreVert';
 
 function Plan({plan: {date_str, plan_id, content}}) {
   const {dispatchDates} = React.useContext(CalendarContext);
@@ -86,6 +87,15 @@ function Plan({plan: {date_str, plan_id, content}}) {
   //   // e.preventDefault();
   // };
 
+  const dispatchContextMenu = () => {
+    const e = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    });
+    planRef.current.dispatchEvent(e);
+  }
+
   return (<div
     ref={planRef}
     plan={plan_id}
@@ -96,6 +106,7 @@ function Plan({plan: {date_str, plan_id, content}}) {
     }}
     draggable
     onContextMenu={e => {
+      console.log(e);
       e.stopPropagation();
       dispatchDates({type: 'menu', event: e, plan_id, date_str, plan_el: textEdit.current})
     }}
@@ -104,19 +115,24 @@ function Plan({plan: {date_str, plan_id, content}}) {
     onFocus={() => setFocus(true)}
     onBlur={() => setFocus(false)}
   >
+    <div className={'plan-complete-toggle'}>
+      <span 
+        className={`plan-complete-toggle-button ${content.done ? '-done' : ''}`}
+        onMouseDown={e => {e.stopPropagation(); e.preventDefault()}}
+        onClick={toggleDone}
+      >
+        <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+          <circle cx="50%" cy="50%" r="50%"/>
+        </svg>
+      </span>
+    </div>
     <div className={`plan-node-content`}>
-      <div className={'plan-complete-toggle'}>
-        <span 
-          className={`plan-complete-toggle-button ${content.done ? '-done' : ''}`}
-          onClick={toggleDone}
-        >
-          <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-            <circle cx="50%" cy="50%" r="50%"/>
-          </svg>
-        </span>
-      </div>
       <TextEdit ref={textEdit} options={textEditOptions}/>
     </div>
+    <div className={'plan-node-menu'} onClick={dispatchContextMenu}>
+      <MoreVertIcon/>
+    </div>
+
   </div>)
 }
 

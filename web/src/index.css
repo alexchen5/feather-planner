@@ -13,6 +13,7 @@ body {
 
   --plan-font-size: 14px;
 
+  --node-hover-bg-color: #f6fafa;
   --node-hover-border: 1px solid #A3D9DA;
   --node-focus-bg-color: #E6EEEE;
   --node-edit-border: 1px dotted #A3D9DA;

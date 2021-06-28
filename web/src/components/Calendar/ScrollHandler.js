@@ -138,6 +138,7 @@ function ScrollHandler({children}) {
   }, []);
   
   const handleDragStart = (event) => {
+    console.log(event.metaKey);
     const target = event.target.closest('[plan]');
     if (!event.target.hasAttribute('plan')) {event.preventDefault(); event.stopPropagation();return};
     const date_str = target.closest('[datenode]').getAttribute('datenode');

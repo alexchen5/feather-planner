@@ -103,9 +103,9 @@ function Calendar() {
               })
               dispatch({ type: 'update-label', labels: newLabels });
 
-              snapshot.docChanges().forEach(change => {
-                console.log(change.doc.data(), change.type)
-              })
+              // snapshot.docChanges().forEach(change => {
+              //   console.log(change.doc.data(), change.type)
+              // })
             });
 
           db.collection(`users/${uid}/plans`)
@@ -147,9 +147,9 @@ function Calendar() {
               dispatch({ type: 'update', plans: newPlans });
               dragFinalised();
 
-              snapshot.docChanges().forEach(change => {
-                console.log(change.doc.data(), change.type)
-              })
+              // snapshot.docChanges().forEach(change => {
+              //   console.log(change.doc.data(), change.type)
+              // })
             });
           break;
         }
@@ -164,10 +164,10 @@ function Calendar() {
           break;
         }
         case 'menu-c': {
-          clipboard.current = {
-            plan_id: action.plan_id,
-            date_str: action.date_str,
-          }
+          // clipboard.current = {
+          //   plan_id: action.plan_id,
+          //   date_str: action.date_str,
+          // }
           break;
         }
         case 'menu-v': {

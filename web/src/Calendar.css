@@ -109,13 +109,19 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     box-sizing: border-box;
     font-size: var(--plan-font-size);
     position: relative;
-    cursor: pointer;
+    /* cursor: pointer; */
+    cursor: auto;
+    transition: background-color 200ms ease;
+}
+.plan-node:hover {
+    background-color: var(--node-hover-bg-color);
 }
 .plan-node-content {
     padding: 2px 10px 0px 0px;
 }
 .plan-node:focus-within {
-    border: 1px solid var(--edge-blue);
+    /* border: 1px solid var(--edge-blue); */
+    background-color: var(--node-hover-bg-color);
     cursor: auto;
     outline: 0;
 }
@@ -131,16 +137,54 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     position: absolute;
     z-index: 9;
     top: 0px;
-    right: 2px;
-    display: none;
+    left: -8px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease, left 300ms ease;
+}
+.plan-complete-toggle-button {
+    display: flex;
 }
 .plan-complete-toggle-button svg {
     width: 10px;
     height: 10px;
+    cursor: pointer;
+}
+.plan-node:hover .plan-complete-toggle {
+    opacity: 1;
+    pointer-events: all;
+    left: 0px
 }
 .plan-node:focus-within .plan-complete-toggle {
+    left: -8px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.plan-node-menu {
+    position: absolute;
+    /* z-index: 4; */
+    height: 95%;
+    display: flex;
+    align-items: center;
+    top: 0px;
+    right: -2px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
     cursor: pointer;
-    display: block;
+}
+.plan-node:hover .plan-node-menu {
+    opacity: 1;
+    pointer-events: all;
+    transition: opacity 800ms ease;
+}
+.plan-node:focus-within .plan-node-menu {
+    opacity: 1;
+    pointer-events: all;
 }
 
 .plan-add {
