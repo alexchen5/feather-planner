@@ -94,7 +94,7 @@ function Plan({plan: {date_str, plan_id, content}}) {
       e.stopPropagation();
       if (hasFocus) getFocus();
     }}
-    draggable={hasFocus && !editing}
+    draggable
     onContextMenu={e => {
       e.stopPropagation();
       dispatchDates({type: 'menu', event: e, plan_id, date_str, plan_el: textEdit.current})

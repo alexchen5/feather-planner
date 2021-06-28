@@ -1,7 +1,6 @@
 import React from "react";
 
 import {CalendarContext} from '.'
-import { db } from "../../pages/HomePage";
 import AddPlan from "./AddPlan";
 import DateLabel from "./DateLabel";
 import { strToDate, dateToStr } from './util';

@@ -7,7 +7,6 @@ import "firebase/auth";
 import "firebase/firestore";
 import "firebaseui";
 import { UidContext } from '../App';
-import StyleMenu from '../components/StyleMenu';
 
 // Initialize Firebase
 const firebaseConfig = {
