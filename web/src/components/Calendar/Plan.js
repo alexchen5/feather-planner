@@ -11,20 +11,6 @@ function Plan({plan: {date_str, plan_id, content}}) {
 
   if (!content) dispatchDates({type: 'delete', date_str, plan_id});
 
-  useEffect(() => {
-    // if (content.textContent === '') {
-    //   getFocus();
-    // }
-    // if (document.hasFocus() && planRef.current.contains(document.activeElement)) {
-    //   setFocus(true);
-    // }
-    // eslint-disable-next-line
-  }, []);
-
-  // const getFocus = () => {
-  //   textEdit.current.focus();
-  // }
-
   const textEditOptions = {
     readOnly: !hasFocus,
     menu: true,
@@ -78,10 +64,6 @@ function Plan({plan: {date_str, plan_id, content}}) {
     // else console.log(e.key)
   }
 
-  // const handleMouseDownDrag = (e) => {
-  //   // e.preventDefault();
-  // };
-
   const dispatchContextMenu = () => {
     const e = new MouseEvent('contextmenu', {
       bubbles: true,
@@ -106,12 +88,7 @@ function Plan({plan: {date_str, plan_id, content}}) {
     onClick={() => setFocus(true)}
     onBlur={(e) => setTimeout(() => {if (!planRef?.current.contains(document.activeElement)) setFocus(false)})}
   >
-    <div className={`plan-node-content`} 
-      // onMouseDown={e => {
-      //   e.stopPropagation();
-      //   if (hasFocus) getFocus();
-      // }}
-    >
+    <div className={`plan-node-content`}>
       <TextEdit ref={textEdit} options={textEditOptions}/>
     </div>
     <div className={'plan-node-menu'} onClick={dispatchContextMenu}>

@@ -182,11 +182,6 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     transition: opacity 200ms ease;
     cursor: pointer;
 }
-/* .plan-node:hover .plan-node-menu {
-    opacity: 1;
-    pointer-events: all;
-    transition: opacity 800ms ease;
-} */
 .plan-node:focus-within .plan-node-menu {
     opacity: 1;
     pointer-events: all;
