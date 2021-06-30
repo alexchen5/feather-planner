@@ -28,8 +28,17 @@ function Datenode({date_str, label, children}) {
     }
   }
 
-  const handleMouseDown = () => {
-    addPlan.current && !document.querySelector('#calendar-container').contains(document.activeElement) && addPlan.current.click()
+  /**
+   * Mouse down will add a new plan to the datenode
+   * We use mousedown because we want to check for focused elements before
+   * activating a new plan
+   * @param {*} e 
+   */
+  const handleMouseDown = (e) => {
+    // console.log(e.target.className);
+    if (e.target.className === 'datenode-item') {
+      addPlan.current && !document.querySelector('#calendar-container').contains(document.activeElement) && addPlan.current.click()
+    }
   }
 
   return (

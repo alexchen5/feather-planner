@@ -90,7 +90,7 @@ const TextEdit = React.forwardRef(({options: {menu, init, submit, readOnly}}, re
     </div>} */}
     <Editor 
       ref={ref}
-      // readOnly={readOnly}
+      readOnly={readOnly}
       editorState={editorState} 
       customStyleMap={styleMap}
       handleKeyCommand={handleKeyCommand}

@@ -5,37 +5,32 @@ import MoreVertIcon from '@material-ui/icons/MoreVert';
 
 function Plan({plan: {date_str, plan_id, content}}) {
   const {dispatchDates} = React.useContext(CalendarContext);
-  const textEdit = React.createRef(null);
-  const [editing, setEditing] = useState(false);
   const planRef = React.useRef();
+  const textEdit = React.createRef(null);
   const [hasFocus, setFocus] = useState(false);
 
   if (!content) dispatchDates({type: 'delete', date_str, plan_id});
 
   useEffect(() => {
-    if (content.textContent === '') {
-      getFocus();
-    }
-    if (document.hasFocus() && planRef.current.contains(document.activeElement)) {
-      setFocus(true);
-    }
+    // if (content.textContent === '') {
+    //   getFocus();
+    // }
+    // if (document.hasFocus() && planRef.current.contains(document.activeElement)) {
+    //   setFocus(true);
+    // }
     // eslint-disable-next-line
   }, []);
 
-  const getFocus = () => {
-    setEditing(true)
-    textEdit.current.focus();
-  }
-  const getBlur = () => {
-    setEditing(false);
-  }
+  // const getFocus = () => {
+  //   textEdit.current.focus();
+  // }
 
   const textEditOptions = {
-    readOnly: !editing,
-    menu: editing,
+    readOnly: !hasFocus,
+    menu: true,
     init: ((content && content.textContent) || ''),
     submit: val => {
-      getBlur();
+      setFocus(false);
       if (!val) {
         dispatchDates({type: 'delete', date_str, plan_id});
         return;
@@ -100,11 +95,7 @@ function Plan({plan: {date_str, plan_id, content}}) {
     ref={planRef}
     plan={plan_id}
     className={`plan-node ${(content && content.done) ? '-done' : ''}`}
-    onMouseDown={e => {
-      e.stopPropagation();
-      if (hasFocus) getFocus();
-    }}
-    draggable
+    draggable={!hasFocus}
     onContextMenu={e => {
       console.log(e);
       e.stopPropagation();
@@ -112,9 +103,20 @@ function Plan({plan: {date_str, plan_id, content}}) {
     }}
     tabIndex='0'
     onKeyDown={menuEvent}
-    onFocus={() => setFocus(true)}
-    onBlur={() => setFocus(false)}
+    onClick={() => setFocus(true)}
+    onBlur={(e) => setTimeout(() => {if (!planRef?.current.contains(document.activeElement)) setFocus(false)})}
   >
+    <div className={`plan-node-content`} 
+      // onMouseDown={e => {
+      //   e.stopPropagation();
+      //   if (hasFocus) getFocus();
+      // }}
+    >
+      <TextEdit ref={textEdit} options={textEditOptions}/>
+    </div>
+    <div className={'plan-node-menu'} onClick={dispatchContextMenu}>
+      <MoreVertIcon/>
+    </div>
     <div className={'plan-complete-toggle'}>
       <span 
         className={`plan-complete-toggle-button ${content.done ? '-done' : ''}`}
@@ -126,13 +128,6 @@ function Plan({plan: {date_str, plan_id, content}}) {
         </svg>
       </span>
     </div>
-    <div className={`plan-node-content`}>
-      <TextEdit ref={textEdit} options={textEditOptions}/>
-    </div>
-    <div className={'plan-node-menu'} onClick={dispatchContextMenu}>
-      <MoreVertIcon/>
-    </div>
-
   </div>)
 }
 
