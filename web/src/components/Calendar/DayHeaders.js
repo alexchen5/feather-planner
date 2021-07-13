@@ -19,7 +19,7 @@ function DayHeaders() {
         <div 
           style={{
             textAlign: 'right',
-            fontSize: '20px',
+            fontSize: 'var(--day-label-font-size)',
             fontWeight: '300',
             padding: '4px 6px',
             color: '#333',

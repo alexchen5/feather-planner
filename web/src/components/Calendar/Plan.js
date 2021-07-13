@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { CalendarContext } from ".";
 import TextEdit from "../TextEdit";
 import MoreVertIcon from '@material-ui/icons/MoreVert';

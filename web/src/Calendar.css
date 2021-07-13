@@ -47,7 +47,7 @@
 
 .datenode-header {
     font-weight: 300;
-    font-size: 16px;
+    font-size: var(--datenode-header-font-size);
     display: flex;
     justify-content: space-between;
     color: #333;
@@ -137,8 +137,17 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 }
 .plan-node[dragging] {
     background-color: var(--bg-greyblue);
+    width: 100%;
+    left: 0;
+    transition: all 0ms ease;
 }
 
+.plan-node .plan-complete-toggle-button {
+    color: rgb(100, 100, 100);
+}
+.plan-node.-done .plan-complete-toggle-button {
+    color: #8ecfa0;
+}
 .plan-node.-done span {
     color: var(--content-done-true);
 }

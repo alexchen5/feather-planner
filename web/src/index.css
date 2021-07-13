@@ -11,6 +11,8 @@ body {
   --edge-blue: #A3D9DA;
   --bg-greyblue: #E6EEEE;
 
+  --day-label-font-size: 20px;
+  --datenode-header-font-size: 16px;
   --plan-font-size: 14px;
 
   --node-hover-bg-color: #f6fafa;
@@ -29,6 +31,20 @@ body {
   --header-bg-color-7: #cc99ff;
 
   --content-done-true: #34a853;
+}
+@media screen and (max-width: 1024px) {
+  body {
+    --day-label-font-size: 18px;
+    --datenode-header-font-size: 14px;
+    --plan-font-size: 12px;
+  }
+}
+@media screen and (max-width: 478px) {
+  body {
+    --day-label-font-size: 12px;
+    --datenode-header-font-size: 8px;
+    --plan-font-size: 6px;
+  }
 }
 
 code {
