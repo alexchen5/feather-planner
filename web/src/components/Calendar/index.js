@@ -1,9 +1,8 @@
-import React, { createContext, useCallback, useReducer, useRef } from "react";
-import {Menu, Item, Separator, useContextMenu} from 'react-contexify';
+import React, { createContext, useCallback, useReducer } from "react";
 
 import '../../Calendar.css'
 
-import { getPlan, getPlanIds, getUpdateRange} from './util';
+import { getPlanIds, getUpdateRange} from './util';
 import Plan from './Plan'
 import ScrollHandler, { dragFinalised } from "./ScrollHandler";
 import Datenode from "./Datenode";
@@ -42,10 +41,6 @@ const reducer = (state, action) => {
 
 function Calendar() {
   const [{ dates }, dispatch] = useReducer(reducer, {dates: []});
-  const { show } = useContextMenu({
-    id: 'planContextMenu',
-  });
-  const clipboard = useRef(null);
   const {uid} = React.useContext(UidContext);
 
   const dispatchWrapper = useCallback(async (action) => {
@@ -153,32 +148,32 @@ function Calendar() {
             });
           break;
         }
-        case 'menu': {
-          show(action.event, {
-            props: {
-              plan_id: action.plan_id,
-              date_str: action.date_str,
-              plan_el: action.plan_el,
-            }
-          });
-          break;
-        }
-        case 'menu-c': {
-          // clipboard.current = {
-          //   plan_id: action.plan_id,
-          //   date_str: action.date_str,
-          // }
-          break;
-        }
-        case 'menu-v': {
-          if (!clipboard.current) {
-            console.log('Clipboard Empty');
-            return;
-          }
-          const plan = getPlan(dates, clipboard.current.plan_id);
-          dispatchWrapper({type: 'add', date_str: action.date_str, entries: plan.content})
-          break;
-        }
+        // case 'menu': {
+        //   show(action.event, {
+        //     props: {
+        //       plan_id: action.plan_id,
+        //       date_str: action.date_str,
+        //       plan_el: action.plan_el,
+        //     }
+        //   });
+        //   break;
+        // }
+        // case 'menu-c': {
+        //   // clipboard.current = {
+        //   //   plan_id: action.plan_id,
+        //   //   date_str: action.date_str,
+        //   // }
+        //   break;
+        // }
+        // case 'menu-v': {
+        //   if (!clipboard.current) {
+        //     console.log('Clipboard Empty');
+        //     return;
+        //   }
+        //   const plan = getPlan(dates, clipboard.current.plan_id);
+        //   dispatchWrapper({type: 'add', date_str: action.date_str, entries: plan.content})
+        //   break;
+        // }
         default: {
           console.warn(`Unknown action type: ${action.type}`);
         }
@@ -186,7 +181,7 @@ function Calendar() {
     } catch (error) {
       console.log(action, error);
     }
-  }, [uid, dates, show]);
+  }, [uid, dates]);
   // const clipboard = React.useRef();
 
   return (
@@ -206,14 +201,6 @@ function Calendar() {
           </Datenode>)}
         </ScrollHandler>
       </CalendarContainer>
-      <Menu id='planContextMenu'>
-        <Item onClick={e => dispatchWrapper({type: 'menu-edit', ...e.props})}>Edit</Item>
-        <Item onClick={e => dispatchWrapper({type: 'delete', ...e.props})}>Delete</Item>
-        <Separator/>
-        {/* <Item onClick={handleMenuEvent} data={{role: 'cut'}}>Cut</Item> */}
-        <Item onClick={e => dispatchWrapper({type: 'menu-c', ...e.props})}>Copy</Item>
-        <Item onClick={e => dispatchWrapper({type: 'menu-v', ...e.props})}>Paste</Item>
-      </Menu>
     </CalendarContext.Provider>
   );
 }
