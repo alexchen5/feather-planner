@@ -9,7 +9,7 @@ function DayHeaders() {
   return (
     <GridList
       cols={7} spacing={0} 
-      style={{margin: '0', padding: '0px 8px'}}
+      style={{margin: '0', padding: '0px 4px'}}
     >
       {weekdays.map((day, i) => <li 
         key={day} 
