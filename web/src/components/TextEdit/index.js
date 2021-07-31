@@ -64,8 +64,7 @@ const TextEdit = React.forwardRef(({options: {menu, init, submit, readOnly}}, re
 
   const checkSubmit = e => {
     if (e.keyCode === 13 && !e.shiftKey) {
-      e.currentTarget.closest('[plan]').focus();
-      // document.body.focus();
+      submit(editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()))
       return 'submit';
     }
     return getDefaultKeyBinding(e);
@@ -97,7 +96,6 @@ const TextEdit = React.forwardRef(({options: {menu, init, submit, readOnly}}, re
       handleKeyCommand={handleKeyCommand}
       onChange={setEditorState}
       keyBindingFn={checkSubmit}
-      onBlur={e => submit(editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()))}
     />
     </>
   );

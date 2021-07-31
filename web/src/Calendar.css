@@ -2,19 +2,18 @@
 
 #calendar-container {
     margin: 4px;
-    /* min-width: 780px; */
-    /* max-width: 980px; */
     height: 100%;
+    overflow: hidden;
 }
 
 #datenode-container {
-    overflow: scroll;
-    /* height: 600px; */
+    overflow-y: scroll;
+    overflow-x: hidden;
     height: calc(100% - 42px);
     display: flex;
     flex-wrap: wrap;
     margin: 0px;
-    padding: 0px;
+    padding: 0px 8px;
 
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -102,37 +101,116 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 }
 
 .plan-node {
-    padding: 2px 2px 2px 2px;
-    border-radius: 4px;
-    left: 0;
-    width: 100%;
-    border: 1px solid transparent;
     box-sizing: border-box;
-    font-size: var(--plan-font-size);
     position: relative;
     cursor: pointer;
-    transition: all 200ms ease;
 }
-.plan-node:hover {
-    /* background-color: var(--node-hover-bg-color); */
+.plan-node[state="edit"] {
+    cursor: auto;
+}
+
+.plan-node div[fp-role="content"] {
+    padding: 2px 12px 2px 2px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: all 200ms ease;
+    font-size: var(--plan-font-size);
+    position: relative;
+}
+.plan-node[state="normal"]:hover div[fp-role="content"] {
     box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
 }
-.plan-node-content {
-    padding: 2px 10px 0px 0px;
+.plan-node[state="edit"] div[fp-role="content"] {
+    background-color: white;
+    z-index: 2;
 }
-/* .plan-node[selected] {
-    box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.1);
-    cursor: auto;
-} */
-.plan-node:focus-within {
-    /* border: 1px solid var(--edge-blue); */
-    box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.1);
-    /* background-color: var(--node-hover-bg-color); */
-    padding: 2px 10px 2px 2px;
-    width: calc(100% + 8px);
-    left: -4px;
-    cursor: auto;
-    outline: 0;
+
+
+.plan-node div[fp-role="content"] div[fp-role="toggle-container"] {
+    position: absolute;
+    z-index: 0;
+    top: 0px;
+    right: -8px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease, right 300ms ease;
+}
+.plan-node:hover div[fp-role="content"] div[fp-role="toggle-container"] {
+    opacity: 1;
+    pointer-events: all;
+    right: 4px
+}
+.plan-node[state="edit"] div[fp-role="content"] div[fp-role="toggle-container"] {
+    opacity: 1;
+    pointer-events: all;
+    right: 4px
+}
+.plan-node div[fp-role="content"] div[fp-role="toggle-container"] span[fp-role="toggle-button"] {
+    display: flex;
+}
+span[fp-role="toggle-button"] svg {
+    width: 10px;
+    height: 10px;
+    cursor: pointer;
+}
+
+.plan-node div[fp-role="edit-panel"] {
+    height: calc(100% + 60px);
+    width: calc(100% + 16px);
+    background-color: rgba(240, 240, 240, 0.8);
+    position: absolute;
+    top: -32px;
+    left: -8px;
+    z-index: 2;
+    border-radius: 4px;
+    cursor: grab;
+}
+div[fp-role="edit-panel"] div[fp-role="styling"] {
+    display: flex;
+    position: absolute;
+    top: 6px;
+    left: 5px;
+    justify-content: space-between;
+}
+div[fp-role="edit-panel"] div[fp-role="delete-icon"] {
+    height: 20px;
+    width: 20px;
+    position: absolute;
+    top: 6px;
+    right: 4px;
+    cursor: pointer;
+}
+div[fp-role="edit-panel"] div[fp-role="styling"] div[fp-role="icon"] {
+    background-color: white;
+    height: 22px;
+    width: 22px;
+    margin: 0px 3px;
+    border-radius: 100%;
+    padding: 1px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+div[fp-role="edit-panel"] div[fp-role="styling"] div[fp-role="icon"] svg {
+    height: 100%;
+    width: 100%;
+    color: #365050;
+}
+div[fp-role="edit-panel"] div[fp-role="delete-icon"] svg {
+    height: 100%;
+    width: 100%;
+    color: #8ca1a1b0;
+}
+
+
+
+.plan-node[state="dragging"] {
+
 }
 .plan-node[dragging] {
     background-color: var(--bg-greyblue);
@@ -149,57 +227,6 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 }
 .plan-node.-done span {
     color: var(--content-done-true);
-}
-
-.plan-complete-toggle {
-    position: absolute;
-    z-index: 9;
-    top: 0px;
-    right: -8px;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 200ms ease, right 300ms ease;
-}
-.plan-complete-toggle-button {
-    display: flex;
-}
-.plan-complete-toggle-button svg {
-    width: 10px;
-    height: 10px;
-    cursor: pointer;
-}
-.plan-node:hover .plan-complete-toggle {
-    opacity: 1;
-    pointer-events: all;
-    right: 4px
-}
-.plan-node:focus-within .plan-complete-toggle {
-    right: -8px;
-    opacity: 0;
-    pointer-events: none;
-}
-
-.plan-node-menu {
-    position: absolute;
-    /* z-index: 4; */
-    height: 95%;
-    display: flex;
-    align-items: center;
-    top: 0px;
-    right: 0px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 100ms ease;
-    cursor: pointer;
-}
-.plan-node:focus-within .plan-node-menu {
-    opacity: 1;
-    pointer-events: all;
-    transition: opacity 400ms ease;
-    transition-delay: 200ms;
 }
 
 .plan-add {
