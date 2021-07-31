@@ -41,6 +41,7 @@ const reducer = (state, action) => {
 
 function Calendar() {
   const [{ dates }, dispatch] = useReducer(reducer, {dates: []});
+  const [planStyles, setPlanStyles] = React.useState({});
   const {uid} = React.useContext(UidContext);
 
   const dispatchWrapper = useCallback(async (action) => {
@@ -84,7 +85,7 @@ function Calendar() {
         }
         case 'load': {
           dispatch({...action, dates: action.dateRange});
-          db.collection(`users/${uid}/date-labels`)
+          db.collection(`users/${uid}/date-labels`) // labels for each date
             .where('date', '>=', action.start)
             .where('date', '<', action.end)
             .onSnapshot((snapshot) => {
@@ -102,8 +103,24 @@ function Calendar() {
               //   console.log(change.doc.data(), change.type)
               // })
             });
+          
+          db.collection(`users/${uid}/plan-style`) // user plan styling
+            .onSnapshot((snapshot) => {
+              const newStyles = {...planStyles};
+              snapshot.forEach((doc) => {
+                const d = doc.data();
+                newStyles[doc.id] = {
+                  label: d.label,
+                  color: d.color,
+                  colorDone: d.colorDone,
+                }
+                document.documentElement.style.setProperty(`--plan-color-${doc.id}`, d.color);
+                document.documentElement.style.setProperty(`--plan-color-done-${doc.id}`, d.colorDone);
+              });
+              setPlanStyles(newStyles);
+            })
 
-          db.collection(`users/${uid}/plans`)
+          db.collection(`users/${uid}/plans`) // user's plans
             .where('date', '>=', action.start)
             .where('date', '<', action.end)
             .onSnapshot((snapshot) => {
@@ -114,6 +131,7 @@ function Calendar() {
                 const newPlan = {
                   plan_id: doc.id,
                   content: d.content,
+                  styleId: d.planStyleId,
                   prv: d.prv,
                 };
                 if (!d.prv) {
@@ -148,32 +166,6 @@ function Calendar() {
             });
           break;
         }
-        // case 'menu': {
-        //   show(action.event, {
-        //     props: {
-        //       plan_id: action.plan_id,
-        //       date_str: action.date_str,
-        //       plan_el: action.plan_el,
-        //     }
-        //   });
-        //   break;
-        // }
-        // case 'menu-c': {
-        //   // clipboard.current = {
-        //   //   plan_id: action.plan_id,
-        //   //   date_str: action.date_str,
-        //   // }
-        //   break;
-        // }
-        // case 'menu-v': {
-        //   if (!clipboard.current) {
-        //     console.log('Clipboard Empty');
-        //     return;
-        //   }
-        //   const plan = getPlan(dates, clipboard.current.plan_id);
-        //   dispatchWrapper({type: 'add', date_str: action.date_str, entries: plan.content})
-        //   break;
-        // }
         default: {
           console.warn(`Unknown action type: ${action.type}`);
         }
@@ -181,11 +173,11 @@ function Calendar() {
     } catch (error) {
       console.log(action, error);
     }
-  }, [uid, dates]);
+  }, [uid, dates, planStyles]);
   // const clipboard = React.useRef();
 
   return (
-    <CalendarContext.Provider value={{dates: dates, dispatchDates: dispatchWrapper}}>
+    <CalendarContext.Provider value={{dates: dates, planStyles: planStyles, dispatchDates: dispatchWrapper}}>
       <CalendarContainer>
         <DayHeaders />
         <ScrollHandler>

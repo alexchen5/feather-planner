@@ -12,8 +12,8 @@ const PlanState = {
   Dragging: "dragging",
 }
 
-function Plan({plan: {date_str, plan_id, content}}) {
-  const {dispatchDates} = React.useContext(CalendarContext);
+function Plan({plan: {date_str, plan_id, styleId, content}}) {
+  const {planStyles, dispatchDates} = React.useContext(CalendarContext);
   const planRef = React.useRef();
   const textEdit = React.createRef(null);
   const [state, setState] = useState(PlanState.Normal);
@@ -117,7 +117,7 @@ function Plan({plan: {date_str, plan_id, content}}) {
   return (<div
     ref={planRef}
     plan={plan_id}
-    className={`plan-node ${(content && content.done) ? '-done' : ''}`}
+    className={'plan-node'}
     draggable={state === PlanState.Normal} // TODO: complete definition
     onClick={handleClick}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
@@ -138,12 +138,18 @@ function Plan({plan: {date_str, plan_id, content}}) {
       <div fp-role="delete-icon" onClick={() => dispatchDates({type: 'delete', date_str, plan_id})}>
         <Delete/>
       </div>
-
-      <div>
-
+      <div fp-role="labels">
+        {
+          Object.keys(planStyles).length ? 
+          Object.keys(planStyles).map(styleId => <div>
+            ${planStyles[styleId].label}
+          </div>)
+          :
+          <div>Normal Plan</div>
+        }
       </div>
     </div>}
-    <div fp-role="content">
+    <div fp-role="content" style={{color: `var(--plan-color${(content && content.done) ? '-done' : ''}-${styleId || 'default'})`}}>
       <TextEdit ref={textEdit} options={textEditOptions}/>
       <div fp-role="toggle-container">
         <span 

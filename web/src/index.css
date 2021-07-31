@@ -30,7 +30,8 @@ body {
   --header-bg-color-6: #ccccff;
   --header-bg-color-7: #cc99ff;
 
-  --content-done-true: #34a853;
+  --plan-color-default: #333;
+  --plan-color-done-default: #34a853;
 }
 @media screen and (max-width: 1024px) {
   body {

@@ -219,16 +219,6 @@ div[fp-role="edit-panel"] div[fp-role="delete-icon"] svg {
     transition: all 0ms ease;
 }
 
-.plan-node .plan-complete-toggle-button {
-    color: rgb(100, 100, 100);
-}
-.plan-node.-done .plan-complete-toggle-button {
-    color: #8ecfa0;
-}
-.plan-node.-done span {
-    color: var(--content-done-true);
-}
-
 .plan-add {
     display: flex;
     flex-direction: column;
