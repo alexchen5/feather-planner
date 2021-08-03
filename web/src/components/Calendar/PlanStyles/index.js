@@ -17,7 +17,7 @@ function PlanStyles({ planId, currentStyleId }) {
   const {uid} = React.useContext(UidContext);
 
   const getDefaultLabels = () => {
-    db.collection(`users/${uid}/plan-style`).doc('default').set({
+    db.doc(`users/${uid}/plan-style/default`).set({
       label: "Normal Plan",
       color: "#333",
       colorDone: "#34a853",
