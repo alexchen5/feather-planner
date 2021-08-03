@@ -2,6 +2,7 @@ import { Delete, FormatBold, FormatItalic, FormatUnderlined } from "@material-ui
 import React, { useState } from "react";
 import { CalendarContext } from ".";
 import TextEdit from "../TextEdit";
+import PlanStyles from "./PlanStyles";
 
 /**
  * Enum for the state of the plan. Note that text values are connected to stylesheets.
@@ -12,75 +13,102 @@ const PlanState = {
   Dragging: "dragging",
 }
 
+/**
+ * Context for if the plan style menu is open. Boolean.
+ */
+export const StyleOpenContext = React.createContext(null);
+
+let timeOutSubscription; // track any timeout functions being used
+
 function Plan({plan: {date_str, plan_id, styleId, content}}) {
-  const {planStyles, dispatchDates} = React.useContext(CalendarContext);
+  const {dispatchDates} = React.useContext(CalendarContext);
   const planRef = React.useRef();
   const textEdit = React.createRef(null);
   const [state, setState] = useState(PlanState.Normal);
+  const [styleOpen, setStyleOpen] = useState(false);
 
-  if (!content) dispatchDates({type: 'delete', date_str, plan_id});
+  /**
+   * Helper function to take the necessary steps to delete self
+   */
+  const deleteSelf = () => {
+    dispatchDates({type: 'delete', date_str, plan_id});
+    // deregisterPlanEdit will then be called in useEffect cleanup
+  }
+  if (!content) deleteSelf();
 
   React.useEffect(() => {
     return function cleanup() {
       deregisterPlanEdit(); // deregister plan on cleanup
+      clearTimeout(timeOutSubscription); // remove unused timeouts
     }
     // eslint-disable-next-line
   }, []);
 
   const textEditOptions = {
     readOnly: state !== PlanState.Edit,
-    menu: true,
     init: ((content && content.textContent) || ''),
-    submit: val => {
-      setState(PlanState.Normal);
-      if (!val) {
-        dispatchDates({type: 'delete', date_str, plan_id});
+    submit: (val, didChange, shouldClose) => {
+      console.log('submit');
+      if (!val) { // run delete first
+        deleteSelf();
         return;
       }
-      const entries = {
-        ...content,
-        textContent: val,
+      if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
+      if (didChange) { // dispatch changes to the plan content
+        const entries = {
+          ...content,
+          textContent: val,
+        }
+        dispatchDates({type: 'edit', date_str, plan_id, entries});
       }
-      if (JSON.stringify(content) === JSON.stringify(entries)) return;
-      dispatchDates({type: 'edit', date_str, plan_id, entries});
     },
   };
 
   /**
-   * Handle the click even of a plan. 
-   * This will handle refistering the edit state of the plan, and defocusing any other plans.
+   * Handle the click event of a plan. 
+   * This will handle registering the edit state of the plan, and de-focusing any other plans.
    * @param {MouseEvent} e 
    */
   const handleClick = (e) => {
+    e.stopPropagation(); // prevent event from propagating further
     if (state === PlanState.Normal) { // register edit state
-      e.stopPropagation(); 
       registerPlanEdit(); 
     } else if (state === PlanState.Edit) { // click while in edit state
-      e.stopPropagation(); // stop click propagation only
+
     }
   }
   /**
-   * Take the neccessary steps to register current plan as edit
+   * Handle the mousedown event of a plan
+   * This will handle de-registering the edit states of other plans - if current plan is not in edit state
+   * @param {MouseEvent} e 
+   */
+  const handleMouseDown = (e) => {
+    e.stopPropagation(); // prevent event from propagating further
+    if (state === PlanState.Normal) {
+      document.dispatchEvent(new MouseEvent('mousedown')); // trigger deregister events on other plans in edit
+    }
+  }
+  /**
+   * Take the necessary steps to register current plan as edit
    */
   const registerPlanEdit = () => {
-    document.dispatchEvent(new MouseEvent('click')); // trigger deregister events on other plans in edit
+    document.dispatchEvent(new MouseEvent('mousedown')); // (called in handleMouseDown, but leave for safety)
     document.addEventListener('keydown', handleKeyDown); // keydown events to be handled by this plan
-    document.addEventListener('click', deregisterPlanEdit); // add own deregister event
+    document.addEventListener('mousedown', deregisterPlanEdit); // add own deregister event
     setState(PlanState.Edit); // set edit state
   }
   /**
-   * Take the neccessary steps to deregister current plan as edit
+   * Take the necessary steps to deregister current plan as edit
    */
   const deregisterPlanEdit = () => {
     document.removeEventListener('keydown', handleKeyDown); // remove keydown handler
-    document.removeEventListener('click', deregisterPlanEdit); // remove deregister event
-    setState(PlanState.Normal); // set normal state
+    document.removeEventListener('mousedown', deregisterPlanEdit); // remove deregister event
+    timeOutSubscription = setTimeout(() => setState(PlanState.Normal)); // set normal state, with timeout so that the editor blur event has time to fire 
   }
 
   const toggleDone = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    e.currentTarget.closest('.plan-node').blur();
 
     const entries = {
       ...content,
@@ -120,6 +148,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     className={'plan-node'}
     draggable={state === PlanState.Normal} // TODO: complete definition
     onClick={handleClick}
+    onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
     state={state} // the state of this plan - see PlanState at top of this file
   >
@@ -135,18 +164,13 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
           <FormatUnderlined/>
         </div>
       </div>
-      <div fp-role="delete-icon" onClick={() => dispatchDates({type: 'delete', date_str, plan_id})}>
+      <div fp-role="delete-icon" onClick={deleteSelf}>
         <Delete/>
       </div>
-      <div fp-role="labels">
-        {
-          Object.keys(planStyles).length ? 
-          Object.keys(planStyles).map(styleId => <div>
-            ${planStyles[styleId].label}
-          </div>)
-          :
-          <div>Normal Plan</div>
-        }
+      <div fp-role="labels-anchor">
+        <StyleOpenContext.Provider value={{styleOpen, setStyleOpen}}>
+          <PlanStyles planId={plan_id} currentStyleId={styleId}/>
+        </StyleOpenContext.Provider>
       </div>
     </div>}
     <div fp-role="content" style={{color: `var(--plan-color${(content && content.done) ? '-done' : ''}-${styleId || 'default'})`}}>

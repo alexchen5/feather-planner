@@ -131,7 +131,7 @@ function Calendar() {
                 const newPlan = {
                   plan_id: doc.id,
                   content: d.content,
-                  styleId: d.planStyleId,
+                  styleId: d.planStyleId || "default",
                   prv: d.prv,
                 };
                 if (!d.prv) {

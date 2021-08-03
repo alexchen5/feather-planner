@@ -40,7 +40,10 @@ function AddDateLabel({ date_str }) {
     <div 
       className={'datenode-label' + (editing ? ' editing' : '')}
       onMouseDown={e => {
-        if (document.querySelector('#calendar-container').contains(document.activeElement)) return;
+        if (
+          document.querySelector('#calendar-container').contains(document.activeElement) ||
+          document.querySelector('div[plan][state="edit"]')
+        ) return;
         e.stopPropagation();
         getFocus();
       }}

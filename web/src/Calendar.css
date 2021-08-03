@@ -103,7 +103,7 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 .plan-node {
     box-sizing: border-box;
     position: relative;
-    cursor: pointer;
+    cursor: default;
 }
 .plan-node[state="edit"] {
     cursor: auto;
@@ -205,6 +205,56 @@ div[fp-role="edit-panel"] div[fp-role="delete-icon"] svg {
     height: 100%;
     width: 100%;
     color: #8ca1a1b0;
+}
+
+div[fp-role="edit-panel"]  div[fp-role="labels-anchor"] {
+    position: absolute;
+    bottom: 22px;
+    right: 8px;
+    height: 1px;
+    width: 60%;
+    min-width: 100px;
+    cursor: default;
+}
+div[fp-role="edit-panel"]  div[fp-role="labels"] {
+    position: absolute;
+    top: 0;
+    border-radius: 2px;
+    background-color: white;
+    width: 100%;
+    box-shadow: 0px 0px 12px rgba(240, 240, 240, 0.8);
+}
+div[fp-role="edit-panel"] div[fp-role="label"] {
+    position: relative;
+    width: 100%;
+    padding: 1px 22px 1px 2px;
+    box-sizing: border-box;
+}
+div[fp-role="edit-panel"] div[fp-role="label"] div[fp-role="header"] {
+    font-size: 10px;
+}
+div[fp-role="edit-panel"] div[fp-role="label"] div[fp-role="color-pickers"] {
+    display: flex;
+    position: absolute;
+    right: 2px;
+    top: 3px;
+    width: 18px;
+    justify-content: space-between;
+}
+div[fp-role="edit-panel"] div[fp-role="label"] div[fp-role="picker"] {
+    width: 8px;
+    height: 8px;
+    border-radius: 100%;
+    cursor: pointer;
+}
+
+div[fp-role="edit-panel"]  div[fp-role="labels-anchor"] div[fp-role="edit"] {
+    font-size: 8px;
+    color: rgb(46, 141, 133);
+    text-decoration: underline;
+    text-align: center;
+    cursor: pointer;
+    padding: 2px 2px;
 }
 
 

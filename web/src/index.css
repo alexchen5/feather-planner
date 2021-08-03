@@ -30,6 +30,7 @@ body {
   --header-bg-color-6: #ccccff;
   --header-bg-color-7: #cc99ff;
 
+  /* "default" is the default planStyle id */
   --plan-color-default: #333;
   --plan-color-done-default: #34a853;
 }
