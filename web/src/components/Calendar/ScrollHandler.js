@@ -124,7 +124,6 @@ function ScrollHandler({children}) {
       const [dateRange, start, end] = newDateRange(dates, "END")
       loadDates(dateRange, "END", start, end);
     } else if (event.currentTarget.scrollTop === 0) {
-      console.log('xd');
       datenodeContainer.current.scrollTop = 1;
       const [dateRange, start, end] = newDateRange(dates, "FRONT")
       loadDates(dateRange, "FRONT", start, end);
