@@ -102,6 +102,15 @@ export function dragFinalised() {
   if (placeholder) placeholder.remove();
 }
 
+function getInitScrollHeight(datenodeEl) {
+  const targetY = -150;
+  let todayY = document.querySelector(`[datenode="${dateToStr()}"]`)?.getBoundingClientRect()?.y;
+  let calendarY = datenodeEl.getBoundingClientRect().y;
+  // console.log(targetY - (calendarY - todayY));
+  if (Math.abs(targetY - (calendarY - todayY)) > 20) return datenodeEl.scrollTop + targetY - (calendarY - todayY);
+  return datenodeEl.scrollTop;
+}
+
 function ScrollHandler({children}) {
   const {dates, range, setRange, dispatchDates} = React.useContext(CalendarContext);
   const [loading, setLoading] = React.useState(false);
@@ -112,7 +121,7 @@ function ScrollHandler({children}) {
     setLoading(dir);
     await dispatchDates({type: 'load', dir, dateRange, start, end});
     if (dir === "INIT") {
-      datenodeContainer.current.scrollTop = 80;
+      datenodeContainer.current.scrollTop = getInitScrollHeight(datenodeContainer.current);
       document.querySelector(`[datenode="${dateToStr()}"]`).firstElementChild.focus();
     } 
     setLoading(false);
@@ -217,27 +226,38 @@ function ScrollHandler({children}) {
   }
 
   const handleToday = () => {
-    const i = getResetIndices(range);
-
-    const newRange = range.slice(i.floor, i.roof);
-    range.forEach(r => {
-      if (!newRange.includes(r)) {
-        r.detachLabelsListener();
-        r.detachPlansListener();
-      }
-    });
-
-    const newDateRange = getRangeDates(newRange[0].start, newRange[newRange.length - 1].end);
-    const newDates = dates.filter(d => newDateRange.includes(d.date_str));
-
+    datenodeContainer.current.style.scrollBehavior = 'smooth';
+    // eslint-disable-next-line
+    let m = datenodeContainer.current.offsetTop; // flush styles
+    datenodeContainer.current.scrollTop = getInitScrollHeight(datenodeContainer.current);
     setLoading(true);
-    dispatchDates({ type: 'replace', dates: newDates });
-    setRange(newRange);
+
     setTimeout(() => {
-      document.querySelector('#datenode-container').scrollTop = 80;
-      setLoading(false);
-    }, 100); // timeout is necessary because destroying elements above 'today' will set scroll to 0. 
-    // find a better implementation...
+      datenodeContainer.current.style.scrollBehavior = '';
+    // eslint-disable-next-line
+      let m = datenodeContainer.current.offsetTop;// flush styles
+
+      const i = getResetIndices(range);
+  
+      const newRange = range.slice(i.floor, i.roof);
+      range.forEach(r => {
+        if (!newRange.includes(r)) {
+          r.detachLabelsListener();
+          r.detachPlansListener();
+        }
+      });
+  
+      const newDateRange = getRangeDates(newRange[0].start, newRange[newRange.length - 1].end);
+      const newDates = dates.filter(d => newDateRange.includes(d.date_str));
+  
+      dispatchDates({ type: 'replace', dates: newDates });
+      setRange(newRange);
+      setTimeout(() => {
+        datenodeContainer.current.scrollTop = getInitScrollHeight(datenodeContainer.current);
+        setLoading(false);
+      }, 100); // timeout is necessary because destroying elements above 'today' will set scroll to 0. 
+      // find a better implementation...
+    }, 800);
   }
 
   return (

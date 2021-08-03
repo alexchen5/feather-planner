@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useReducer } from "react";
 
 import '../../Calendar.css'
 
-import { getPlanIds, getRangeDates, getResetIndices, getUpdateRange, getWeeklyRanges} from './util';
+import { getPlanIds, getUpdateRange, getWeeklyRanges} from './util';
 import Plan from './Plan'
 import ScrollHandler, { dragFinalised } from "./ScrollHandler";
 import Datenode from "./Datenode";
