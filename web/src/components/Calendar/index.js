@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useReducer } from "react";
 
 import '../../Calendar.css'
 
-import { getPlanIds, getUpdateRange} from './util';
+import { getPlanIds, getRangeDates, getResetIndices, getUpdateRange, getWeeklyRanges} from './util';
 import Plan from './Plan'
 import ScrollHandler, { dragFinalised } from "./ScrollHandler";
 import Datenode from "./Datenode";
@@ -15,6 +15,8 @@ export const CalendarContext = createContext(null);
 
 const reducer = (state, action) => {
   switch (action.type) {
+    case 'replace':
+      return {dates: [...action.dates]};
     case 'load': 
       return action.dir === 'END' ? {
         dates: [...state.dates, ...action.dates]
@@ -42,6 +44,7 @@ const reducer = (state, action) => {
 function Calendar() {
   const [{ dates }, dispatch] = useReducer(reducer, {dates: []});
   const [planStyles, setPlanStyles] = React.useState({});
+  const [range, setRange] = React.useState([]);
   const {uid} = React.useContext(UidContext);
 
   const dispatchWrapper = useCallback(async (action) => {
@@ -85,25 +88,6 @@ function Calendar() {
         }
         case 'load': {
           dispatch({...action, dates: action.dateRange});
-          db.collection(`users/${uid}/date-labels`) // labels for each date
-            .where('date', '>=', action.start)
-            .where('date', '<', action.end)
-            .onSnapshot((snapshot) => {
-              const newLabels = {};
-              snapshot.forEach((doc) => {
-                const d = doc.data();
-                newLabels[d.date] = {
-                  label_id: doc.id,
-                  content: d.content,
-                };
-              })
-              dispatch({ type: 'update-label', labels: newLabels });
-
-              // snapshot.docChanges().forEach(change => {
-              //   console.log(change.doc.data(), change.type)
-              // })
-            });
-          
           db.collection(`users/${uid}/plan-style`) // user plan styling
             .onSnapshot((snapshot) => {
               const newStyles = {...planStyles};
@@ -119,53 +103,82 @@ function Calendar() {
               });
               setPlanStyles(newStyles);
             })
-
-          db.collection(`users/${uid}/plans`) // user's plans
-            .where('date', '>=', action.start)
-            .where('date', '<', action.end)
-            .onSnapshot((snapshot) => {
-              const newPlans = getUpdateRange(action.start, action.end);
-              let reserves = [];
-              snapshot.forEach((doc) => {
-                const d = doc.data();
-                const newPlan = {
-                  plan_id: doc.id,
-                  content: d.content,
-                  styleId: d.planStyleId || "default",
-                  prv: d.prv,
-                };
-                if (!d.prv) {
-                  newPlans[d.date].push(newPlan);
-                } else {
-                  const prv = newPlans[d.date].findIndex(plan => plan.plan_id === d.prv);
-                  if (prv !== -1) newPlans[d.date].splice(prv + 1, 0, newPlan);
-                  else reserves.push({date: d.date, plan: newPlan});
-                }
-              });
-              let prvlen;
-              while (reserves.length && reserves.length !== prvlen) {
-                let nextReserves = [];
-                reserves.forEach(r => {
-                  const prv = newPlans[r.date].findIndex(plan => plan.plan_id === r.plan.prv);
-                  if (prv !== -1) newPlans[r.date].splice(prv + 1, 0, r.plan);
-                  else nextReserves.push(r);
+          const ranges = getWeeklyRanges(action.start, action.end);
+          ranges.forEach(r => {
+            r.detachLabelsListener = db.collection(`users/${uid}/date-labels`) // labels for each date
+              .where('date', '>=', r.start)
+              .where('date', '<', r.end)
+              .onSnapshot((snapshot) => {
+                const newLabels = {};
+                snapshot.forEach((doc) => {
+                  const d = doc.data();
+                  newLabels[d.date] = {
+                    label_id: doc.id,
+                    content: d.content,
+                  };
                 })
-                prvlen = reserves.length;
-                reserves = nextReserves;
-              }
-              reserves.forEach(r => {
-                r.plan.prv = '';
-                newPlans[r.date].push(r.plan);
-              })
-              dispatch({ type: 'update', plans: newPlans });
-              dragFinalised();
+                dispatch({ type: 'update-label', labels: newLabels });
 
-              // snapshot.docChanges().forEach(change => {
-              //   console.log(change.doc.data(), change.type)
-              // })
-            });
+                // snapshot.docChanges().forEach(change => {
+                //   console.log(change.doc.data(), change.type)
+                // })
+              });
+
+            r.detachPlansListener = db.collection(`users/${uid}/plans`) // user's plans
+              .where('date', '>=', action.start)
+              .where('date', '<', action.end)
+              .onSnapshot((snapshot) => {
+                const newPlans = getUpdateRange(action.start, action.end);
+                let reserves = [];
+                snapshot.forEach((doc) => {
+                  const d = doc.data();
+                  const newPlan = {
+                    plan_id: doc.id,
+                    content: d.content,
+                    styleId: d.planStyleId || "default",
+                    prv: d.prv,
+                  };
+                  if (!d.prv) {
+                    newPlans[d.date].push(newPlan);
+                  } else {
+                    const prv = newPlans[d.date].findIndex(plan => plan.plan_id === d.prv);
+                    if (prv !== -1) newPlans[d.date].splice(prv + 1, 0, newPlan);
+                    else reserves.push({date: d.date, plan: newPlan});
+                  }
+                });
+                let prvlen;
+                while (reserves.length && reserves.length !== prvlen) {
+                  let nextReserves = [];
+                  reserves.forEach(r => {
+                    const prv = newPlans[r.date].findIndex(plan => plan.plan_id === r.plan.prv);
+                    if (prv !== -1) newPlans[r.date].splice(prv + 1, 0, r.plan);
+                    else nextReserves.push(r);
+                  })
+                  prvlen = reserves.length;
+                  reserves = nextReserves;
+                }
+                reserves.forEach(r => {
+                  r.plan.prv = '';
+                  newPlans[r.date].push(r.plan);
+                })
+                dispatch({ type: 'update', plans: newPlans });
+                dragFinalised();
+
+                // snapshot.docChanges().forEach(change => {
+                //   console.log(change.doc.data(), change.type)
+                // })
+              });
+          });
+          if (action.dir === 'END') {
+            setRange([...range, ...ranges]);
+          } else {
+            setRange([...ranges, ...range]);
+          }
           break;
         }
+        case 'replace':
+          dispatch({...action});
+          break;
         default: {
           console.warn(`Unknown action type: ${action.type}`);
         }
@@ -173,11 +186,11 @@ function Calendar() {
     } catch (error) {
       console.log(action, error);
     }
-  }, [uid, dates, planStyles]);
+  }, [uid, dates, range, planStyles]);
   // const clipboard = React.useRef();
 
   return (
-    <CalendarContext.Provider value={{dates: dates, planStyles: planStyles, dispatchDates: dispatchWrapper}}>
+    <CalendarContext.Provider value={{dates: dates, planStyles: planStyles, range: range, setRange: setRange, dispatchDates: dispatchWrapper}}>
       <CalendarContainer>
         <DayHeaders />
         <ScrollHandler>

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 
 import {CalendarContext} from '.'
-import {newDateRange, dateToStr } from './util';
+import {newDateRange, dateToStr, getResetIndices, getRangeDates } from './util';
 
 function easeInOutCubic(x) {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
@@ -103,7 +103,7 @@ export function dragFinalised() {
 }
 
 function ScrollHandler({children}) {
-  const {dates, dispatchDates} = React.useContext(CalendarContext);
+  const {dates, range, setRange, dispatchDates} = React.useContext(CalendarContext);
   const [loading, setLoading] = React.useState(false);
   const datenodeContainer = React.useRef(null);
 
@@ -119,10 +119,12 @@ function ScrollHandler({children}) {
   }
 
   const handleNodePagination = event => {
+    if (loading) return;
     if (event.currentTarget.scrollHeight - event.currentTarget.scrollTop === event.currentTarget.clientHeight) {
       const [dateRange, start, end] = newDateRange(dates, "END")
       loadDates(dateRange, "END", start, end);
     } else if (event.currentTarget.scrollTop === 0) {
+      console.log('xd');
       datenodeContainer.current.scrollTop = 1;
       const [dateRange, start, end] = newDateRange(dates, "FRONT")
       loadDates(dateRange, "FRONT", start, end);
@@ -215,7 +217,36 @@ function ScrollHandler({children}) {
     smoothMove(container, placeholder, draggingPlan);
   }
 
+  const handleToday = () => {
+    const i = getResetIndices(range);
+
+    const newRange = range.slice(i.floor, i.roof);
+    range.forEach(r => {
+      if (!newRange.includes(r)) {
+        r.detachLabelsListener();
+        r.detachPlansListener();
+      }
+    });
+
+    const newDateRange = getRangeDates(newRange[0].start, newRange[newRange.length - 1].end);
+    const newDates = dates.filter(d => newDateRange.includes(d.date_str));
+
+    setLoading(true);
+    dispatchDates({ type: 'replace', dates: newDates });
+    setRange(newRange);
+    setTimeout(() => {
+      document.querySelector('#datenode-container').scrollTop = 80;
+      setLoading(false);
+    }, 100); // timeout is necessary because destroying elements above 'today' will set scroll to 0. 
+    // find a better implementation...
+  }
+
   return (
+  <>
+    <button 
+      onClick={handleToday} 
+      style={{position: 'absolute', top: '54px', left: '16px'}}
+    >today</button>
     <ul
       id={'datenode-container'} 
       ref={datenodeContainer}
@@ -230,6 +261,7 @@ function ScrollHandler({children}) {
       {(loading === "FRONT" || loading === "INIT") && <div style={{width: '100%', order: -1, position: 'absolute'}}>loading</div>}
       {(loading === "END") && <div style={{position: 'absolute'}}>loading</div>}
     </ul>
+  </>
   )
 }
 

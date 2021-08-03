@@ -1,16 +1,16 @@
-const dayStart = 'MON';
-const numWeeksStart = 5;
-const paginateWeeksNext = 4;
-const paginateWeeksPrv = 3;
+export const DAY_START = 'MON';
+export const NUM_WEEKS_START = 5;
+export const PAGINATE_WEEKS_NXT = 4;
+export const PAGINATE_WEEKS_PRV = 3;
 
 export function getDayStart() {
-  switch (dayStart) {
+  switch (DAY_START) {
     case 'SUN':
       return 0;
     case 'MON':
       return 1;
     default:
-      console.log(`Unrecognised dayStart: ${dayStart}`);
+      console.log(`Unrecognised dayStart: ${DAY_START}`);
       return 0;
   }
 }
@@ -31,6 +31,20 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
   let d = strToDate(dateStr);
   d.setDate(d.getDate() + numDays);
   return dateToStr(d);
+}
+
+/**
+ * Return an array of DateStr within the given range
+ * @param {DateStr} dateStart 
+ * @param {DateStr} dateEnd 
+ * @returns 
+ */
+export function getRangeDates(dateStart, dateEnd) {
+  const ret = [];
+  for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
+    ret.push(curDate);
+  }
+  return ret;
 }
 
 export function getRange(dateStart, dateEnd) {
@@ -55,17 +69,17 @@ export function getUpdateRange(dateStart, dateEnd) {
 export function newDateRange(plans, dir="INIT") {
   if (dir === "INIT") {
     const start = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);
-    const end = adjustDays(start, 7 * numWeeksStart);
+    const end = adjustDays(start, 7 * NUM_WEEKS_START);
     return [getRange(start, end), start, end];
   } 
   else if (dir === "END") {
     const start = adjustDays(plans[plans.length - 1].date_str, 1);
-    const end = adjustDays(start, 7 * paginateWeeksNext);
+    const end = adjustDays(start, 7 * PAGINATE_WEEKS_NXT);
     return [getRange(start, end), start, end];
   }
   else if (dir === "FRONT") {
     const end = plans[0].date_str;
-    const start = adjustDays(end, -7 * paginateWeeksPrv);
+    const start = adjustDays(end, -7 * PAGINATE_WEEKS_PRV);
     return [getRange(start, end), start, end];
   }
   else {
@@ -87,4 +101,47 @@ export function getPlan(dates, planId) {
   }
 
   return null;
+}
+
+/**
+ * @precondition a range of dates are startDate <= date < endDate. The number of dates can be separated into weeks
+ * @param {DateStr} startDate 
+ * @param {DateStr} endDate 
+ * @returns an array of objects containing start and end
+ */
+export function getWeeklyRanges(startDate, endDate) {
+  const ret = []
+  const cur = {}
+  let curRange = 0;
+  for (let i = startDate; i <= endDate; i = adjustDays(i, 1)) {
+    if (curRange === 0) {
+      cur.start = i;
+    }
+    if (curRange === 7) {
+      cur.end = i;
+      ret.push({...cur});
+      cur.start = i;
+      curRange = 0;
+    }
+    curRange++;
+  }
+  return ret;
+}
+
+/**
+ * Return the indices to keep upon a reset 
+ * @param {Array<Range>} range 
+ */
+export function getResetIndices(range) {
+  let curWeek = 0;
+  for (let i = 0; i < range.length; i++) {
+    if (getRangeDates(range[i].start, range[i].end).includes(dateToStr())) {
+      curWeek = i;
+      break;
+    }
+  }
+  return {
+    floor: curWeek - 1,
+    roof: curWeek - 1 + NUM_WEEKS_START,
+  }
 }
