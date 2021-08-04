@@ -226,38 +226,41 @@ function ScrollHandler({children}) {
   }
 
   const handleToday = () => {
+    setLoading(true);
     datenodeContainer.current.style.scrollBehavior = 'smooth';
     // eslint-disable-next-line
     let m = datenodeContainer.current.offsetTop; // flush styles
     datenodeContainer.current.scrollTop = getInitScrollHeight(datenodeContainer.current);
-    setLoading(true);
 
-    setTimeout(() => {
-      datenodeContainer.current.style.scrollBehavior = '';
-    // eslint-disable-next-line
-      let m = datenodeContainer.current.offsetTop;// flush styles
+    let timer; // listen for smooth scroll to be finish
+    function scrollStopCallback() {
+      clearTimeout( timer );
+      timer = setTimeout( () => { // function to run when smooth scroll finishes
+        datenodeContainer.current.removeEventListener( 'scroll', scrollStopCallback);
+        datenodeContainer.current.style.scrollBehavior = '';
 
-      const i = getResetIndices(range);
-  
-      const newRange = range.slice(i.floor, i.roof);
-      range.forEach(r => {
-        if (!newRange.includes(r)) {
-          r.detachLabelsListener();
-          r.detachPlansListener();
-        }
-      });
-  
-      const newDateRange = getRangeDates(newRange[0].start, newRange[newRange.length - 1].end);
-      const newDates = dates.filter(d => newDateRange.includes(d.date_str));
-  
-      dispatchDates({ type: 'replace', dates: newDates });
-      setRange(newRange);
-      setTimeout(() => {
-        datenodeContainer.current.scrollTop = getInitScrollHeight(datenodeContainer.current);
+        // find dates to unload
+        const i = getResetIndices(range);
+    
+        const newRange = range.slice(i.floor, i.roof);
+        range.forEach(r => {
+          if (!newRange.includes(r)) {
+            r.detachLabelsListener();
+            r.detachPlansListener();
+          }
+        });
+    
+        const newDateRange = getRangeDates(newRange[0].start, newRange[newRange.length - 1].end);
+        const newDates = dates.filter(d => newDateRange.includes(d.date_str));
+    
+        // unload the dates
+        dispatchDates({ type: 'replace', dates: newDates });
+        setRange(newRange);
         setLoading(false);
-      }, 100); // timeout is necessary because destroying elements above 'today' will set scroll to 0. 
-      // find a better implementation...
-    }, 800);
+      }, 50 );
+    }
+    datenodeContainer.current.addEventListener( 'scroll', scrollStopCallback, { passive: true } );
+    scrollStopCallback();
   }
 
   return (
