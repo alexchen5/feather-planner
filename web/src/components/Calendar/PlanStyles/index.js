@@ -44,7 +44,11 @@ function PlanStyles({ planId, currentStyleId }) {
   }
 
   return (<StyleEditContext.Provider value={{inEdit, setInEdit}}>
-    <div fp-role="labels">
+    <div 
+      fp-role="labels" 
+      onMouseEnter={() => setStyleOpen(true)}
+      onMouseLeave={() => setStyleOpen(false)}
+    >
       <PlanStyle planStyle={{ id: `${currentStyleId || "default"}`, defaultLabel: "Normal Plan", handleClick: handlePlanStyleSelection }}/>
       {
         styleOpen &&
