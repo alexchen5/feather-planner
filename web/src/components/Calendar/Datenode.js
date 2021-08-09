@@ -39,7 +39,7 @@ function Datenode({date_str, label, children}) {
     if (e.target.className === 'datenode-item') {
       addPlan.current && 
       !document.querySelector('#calendar-container').contains(document.activeElement) && 
-      !document.querySelector('div[plan][state="edit"]') &&
+      !document.querySelector('div[plan][state^="edit"]') &&
       addPlan.current.click()
     }
   }

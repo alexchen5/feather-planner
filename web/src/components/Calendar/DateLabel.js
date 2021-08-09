@@ -42,7 +42,7 @@ function AddDateLabel({ date_str }) {
       onMouseDown={e => {
         if (
           document.querySelector('#calendar-container').contains(document.activeElement) ||
-          document.querySelector('div[plan][state="edit"]')
+          document.querySelector('div[plan][state^="edit"]')
         ) return;
         e.stopPropagation();
         getFocus();

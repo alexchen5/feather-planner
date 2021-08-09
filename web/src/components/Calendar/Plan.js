@@ -1,4 +1,4 @@
-import { Delete, FormatBold, FormatItalic, FormatUnderlined } from "@material-ui/icons";
+import { Delete, FormatBold, FormatItalic, FormatUnderlined, MoreVert } from "@material-ui/icons";
 import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding, RichUtils, SelectionState } from "draft-js";
 import React, { useState } from "react";
 import { CalendarContext } from ".";
@@ -10,7 +10,9 @@ import PlanStyles from "./PlanStyles";
 const PlanState = {
   Normal: "normal",
   Edit: "edit",
+  EditExpand: "edit-expand",
   Dragging: "dragging",
+  isEdit: (state) => state === "edit" || state === "edit-expand",
 }
 
 /**
@@ -121,6 +123,15 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     timeOutSubscription = setTimeout(() => setState(PlanState.Normal)); // set normal state, with timeout so that the editor blur event has time to fire 
     // eslint-disable-next-line
   }, []);
+
+  /**
+   * Handle mousedown of clicking expand edit options
+   * @param {MouseEvent} e 
+   */
+  const handleExpandEditMouseDown = e => {
+    e.preventDefault();
+    setState(PlanState.EditExpand); // set edit expand state
+  }
 
   const toggleDone = (e) => {
     e.preventDefault();
@@ -283,37 +294,48 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
     state={state} // the state of this plan - see PlanState at top of this file
   >
-    {state === PlanState.Edit && <div fp-role="edit-panel">
-      <div fp-role="styling">
-        <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
-          onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
-        >
-          <FormatBold/>
-        </div>
-        <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
-          onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
-        >
-          <FormatItalic/>
-        </div>
-        <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
-          onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
-        >
-          <FormatUnderlined/>
-        </div>
+    {PlanState.isEdit(state) && 
+      <div fp-role="edit-panel">
+        {state === PlanState.EditExpand ? 
+          <> {/* Case: fully expanded */}
+            <div fp-role="styling">
+            <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
+              onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
+            >
+              <FormatBold/>
+            </div>
+            <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
+              onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
+            >
+              <FormatItalic/>
+            </div>
+            <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
+              onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
+            >
+              <FormatUnderlined/>
+            </div>
+            </div>
+            <div fp-role="delete-icon" onMouseDown={e => {e.preventDefault(); deleteSelf();}}>
+              <Delete/>
+            </div>
+            <div fp-role="labels-anchor">
+              <StyleOpenContext.Provider value={{styleOpen, setStyleOpen}}>
+                <PlanStyles planId={plan_id} currentStyleId={styleId}/>
+              </StyleOpenContext.Provider>
+            </div>
+          </>
+          : <> {/* Case: half expanded */}
+            <div fp-role="expand-icon" onMouseDown={handleExpandEditMouseDown}>
+              <MoreVert/>
+            </div>
+          </>
+        }
       </div>
-      <div fp-role="delete-icon" onMouseDown={e => {e.preventDefault(); deleteSelf();}}>
-        <Delete/>
-      </div>
-      <div fp-role="labels-anchor">
-        <StyleOpenContext.Provider value={{styleOpen, setStyleOpen}}>
-          <PlanStyles planId={plan_id} currentStyleId={styleId}/>
-        </StyleOpenContext.Provider>
-      </div>
-    </div>}
+    }
     <div fp-role="content" style={{color: `var(--plan-color${(content && content.done) ? '-done' : ''}-${styleId || 'default'})`}}>
       <Editor 
         ref={textEdit}
-        readOnly={state !== PlanState.Edit}
+        readOnly={!PlanState.isEdit(state)}
         editorState={editorState} 
         handleKeyCommand={handleKeyCommand}
         onChange={handleChange}
@@ -321,7 +343,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
         onFocus={handleFocus}
         onBlur={handleBlur}
       />
-      <div fp-role="toggle-container">
+      <div fp-role="toggle-container" style={{color: `var(--plan-color${(content && content.done) ? '-done' : '-done'}-${styleId || 'default'})`}}>
         <span 
           fp-role="toggle-button"
           onMouseDown={e => {e.stopPropagation(); e.preventDefault()}}
