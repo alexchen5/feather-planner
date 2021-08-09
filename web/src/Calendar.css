@@ -105,7 +105,7 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     position: relative;
     cursor: default;
 }
-.plan-node[state="edit"] {
+.plan-node[state^="edit"] {
     cursor: auto;
 }
 
@@ -120,7 +120,7 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 .plan-node[state="normal"]:hover div[fp-role="content"] {
     box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
 }
-.plan-node[state="edit"] div[fp-role="content"] {
+.plan-node[state^="edit"] div[fp-role="content"] {
     background-color: white;
     z-index: 2;
 }
@@ -143,7 +143,7 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
     pointer-events: all;
     right: 4px
 }
-.plan-node[state="edit"] div[fp-role="content"] div[fp-role="toggle-container"] {
+.plan-node[state^="edit"] div[fp-role="content"] div[fp-role="toggle-container"] {
     opacity: 1;
     pointer-events: all;
     right: 4px
@@ -184,7 +184,6 @@ div[fp-role="edit-panel"] div[fp-role="delete-icon"] {
     cursor: pointer;
 }
 div[fp-role="edit-panel"] div[fp-role="styling"] div[fp-role="icon"] {
-    background-color: white;
     height: 22px;
     width: 22px;
     margin: 0px 3px;
@@ -199,8 +198,17 @@ div[fp-role="edit-panel"] div[fp-role="styling"] div[fp-role="icon"] {
 div[fp-role="edit-panel"] div[fp-role="styling"] div[fp-role="icon"] svg {
     height: 100%;
     width: 100%;
-    color: #365050;
 }
+div[fp-role="edit-panel"] div[fp-role="styling"] div[fp-role="icon"][state="inactive"] {
+    color: #365050;
+    background-color: white;
+}
+div[fp-role="edit-panel"] div[fp-role="styling"] div[fp-role="icon"][state="active"] {
+    color: #098899;
+    background-color: #ebf5f7;
+}
+
+
 div[fp-role="edit-panel"] div[fp-role="delete-icon"] svg {
     height: 100%;
     width: 100%;
