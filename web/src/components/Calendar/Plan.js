@@ -1,5 +1,5 @@
 import { Delete, FormatBold, FormatItalic, FormatUnderlined } from "@material-ui/icons";
-import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding, RichUtils } from "draft-js";
+import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding, RichUtils, SelectionState } from "draft-js";
 import React, { useState } from "react";
 import { CalendarContext } from ".";
 import PlanStyles from "./PlanStyles";
@@ -83,6 +83,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     e.stopPropagation(); // prevent event from propagating further
     if (state === PlanState.Normal) { // register edit state
       registerPlanEdit(); 
+      selectAllText();
     } else if (state === PlanState.Edit) { // click while in edit state
 
     }
@@ -172,11 +173,11 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
 
   /**
    * Callback on every key, to check if submit was called
-   * @param {*} e 
+   * @param {KeyboardEvent} e 
    * @returns 
    */
   const checkSubmit = e => {
-    if (e.keyCode === 13 && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
       submitPlanChanges(
         editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
         true
@@ -202,6 +203,27 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
       editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
       false
     )
+    setTimeout(selectAllText); // set timeout so that blur event has time to finish firing 
+  }
+
+  /**
+   * Helper function to reset selection to all text so that styling buttons affect all text
+   */
+  const selectAllText = () => {
+    const currentContent = editorState.getCurrentContent();
+    const firstBlock = currentContent.getBlockMap().first();
+    const lastBlock = currentContent.getBlockMap().last();
+    const firstBlockKey = firstBlock.getKey();
+    const lastBlockKey = lastBlock.getKey();
+    const lengthOfLastBlock = lastBlock.getLength();
+    
+    const selection = new SelectionState({
+      anchorKey: firstBlockKey,
+      anchorOffset: 0,
+      focusKey: lastBlockKey,
+      focusOffset: lengthOfLastBlock,
+    });
+    setEditorState(EditorState.acceptSelection(editorState, selection));
   }
 
   /**
@@ -233,17 +255,38 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
   >
     {state === PlanState.Edit && <div fp-role="edit-panel">
       <div fp-role="styling">
-        <div fp-role="icon">
+        <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
+          onMouseDown={
+            e => {
+              e.preventDefault(); 
+              setEditorState(RichUtils.toggleInlineStyle(editorState, 'BOLD'));
+            }
+          }
+        >
           <FormatBold/>
         </div>
-        <div fp-role="icon">
+        <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
+          onMouseDown={
+            e => {
+              e.preventDefault(); 
+              setEditorState(RichUtils.toggleInlineStyle(editorState, 'ITALIC'));
+            }
+          }
+        >
           <FormatItalic/>
         </div>
-        <div fp-role="icon">
+        <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
+          onMouseDown={
+            e => {
+              e.preventDefault(); 
+              setEditorState(RichUtils.toggleInlineStyle(editorState, 'UNDERLINE'));
+            }
+          }
+        >
           <FormatUnderlined/>
         </div>
       </div>
-      <div fp-role="delete-icon" onClick={deleteSelf}>
+      <div fp-role="delete-icon" onMouseDown={e => {e.preventDefault(); deleteSelf();}}>
         <Delete/>
       </div>
       <div fp-role="labels-anchor">
