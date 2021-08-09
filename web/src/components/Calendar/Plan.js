@@ -34,6 +34,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
       typeof init === 'string' ? ContentState.createFromText(init) : convertFromRaw(init)
     ),
   );
+  const [originalState, setOriginalState] = useState(editorState);
   const [didChange, setDidChange] = React.useState(false);
 
   /**
@@ -55,22 +56,25 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
 
   /**
    * Take the necessary steps to submit plan changes to the db
-   * @param {string} val the current text content
+   * @param {RawDraftContentState || boolean} val the current text content
    * @param {boolean} shouldClose true if we want to lose edit state
+   * @param {boolean} hasChange true if the submission contains meaningful content changes
    */
-  const submitPlanChanges = (val, shouldClose) => {
+  const submitPlanChanges = (val, shouldClose, hasChange) => {
     console.log('submit');
     if (!val) { // run delete first
       deleteSelf();
       return;
     }
     if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
-    if (didChange) { // dispatch changes to the plan content
+    if (hasChange) { // dispatch changes to the plan content
       const entries = {
         ...content,
         textContent: val,
       }
       dispatchDates({type: 'edit', date_str, plan_id, entries});
+    } else {
+      // no changes to dispatch
     }
   }
 
@@ -163,9 +167,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
   const handleKeyCommand = command => {
     const newState = RichUtils.handleKeyCommand(editorState, command);
     if (newState) {
-      // set change when styles change
-      setDidChange(true);
-      setEditorState(newState);
+      handleChange(newState);
       return 'handled';
     }
     return 'not-handled';
@@ -180,7 +182,8 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     if (e.key === 'Enter' && !e.shiftKey) {
       submitPlanChanges(
         editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
-        true
+        true,
+        didChange
       );
       return 'submit';
     }
@@ -193,6 +196,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    */
   const handleFocus = () => {
     setDidChange(false);
+    setOriginalState(editorState);
   }
 
   /**
@@ -201,9 +205,32 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
   const handleBlur = () => {
     submitPlanChanges(
       editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
-      false
+      false,
+      didChange
     )
+    setDidChange(false);
     setTimeout(selectAllText); // set timeout so that blur event has time to finish firing 
+  }
+
+  /**
+   * Handle the editor style changes that should occur when a toggle button is pressed
+   * @param {MouseEvent} e 
+   * @param {string} style
+   */
+  const handleStyleToggleMouseDown = (e, style) => {
+    e.preventDefault(); 
+    const newState = RichUtils.toggleInlineStyle(editorState, style);
+    handleChange(newState);
+    if (document.activeElement === textEdit.current.editor) {
+      // editor is focused at the moment, edits will be pushed to db later
+    } else {
+      // push changes to db immediately
+      submitPlanChanges(
+        convertToRaw(newState.getCurrentContent()),
+        false,
+        true
+      )
+    }
   }
 
   /**
@@ -223,22 +250,25 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
       focusKey: lastBlockKey,
       focusOffset: lengthOfLastBlock,
     });
-    setEditorState(EditorState.acceptSelection(editorState, selection));
+    handleChange(EditorState.acceptSelection(editorState, selection));
   }
 
   /**
-   * Callback when editor state is changed
+   * Wrapper function to set editor state. Used to log changes so that db writes 
+   * are not wasted
    * @param {EditorState} newState 
    */
   const handleChange = (newState) => {
-    const currentContentState = editorState.getCurrentContent()
+    const currentContentState = originalState.getCurrentContent()
     const newContentState = newState.getCurrentContent()
   
+    // note that this comparison of variables is incomplete
     if (currentContentState !== newContentState) {
       // There was a change in the content  
       setDidChange(true);
     } else {
-      // The change was triggered by a change in focus/selection
+      // No change from original / the change was triggered by a change in focus/selection
+      setDidChange(false);
     }
     setEditorState(newState);
   }
@@ -256,32 +286,17 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     {state === PlanState.Edit && <div fp-role="edit-panel">
       <div fp-role="styling">
         <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
-          onMouseDown={
-            e => {
-              e.preventDefault(); 
-              setEditorState(RichUtils.toggleInlineStyle(editorState, 'BOLD'));
-            }
-          }
+          onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
         >
           <FormatBold/>
         </div>
         <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
-          onMouseDown={
-            e => {
-              e.preventDefault(); 
-              setEditorState(RichUtils.toggleInlineStyle(editorState, 'ITALIC'));
-            }
-          }
+          onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
         >
           <FormatItalic/>
         </div>
         <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
-          onMouseDown={
-            e => {
-              e.preventDefault(); 
-              setEditorState(RichUtils.toggleInlineStyle(editorState, 'UNDERLINE'));
-            }
-          }
+          onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
         >
           <FormatUnderlined/>
         </div>
