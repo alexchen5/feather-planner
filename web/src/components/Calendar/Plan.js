@@ -1,7 +1,7 @@
 import { Delete, FormatBold, FormatItalic, FormatUnderlined } from "@material-ui/icons";
+import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding, RichUtils } from "draft-js";
 import React, { useState } from "react";
 import { CalendarContext } from ".";
-import TextEdit from "../TextEdit";
 import PlanStyles from "./PlanStyles";
 
 /**
@@ -23,9 +23,18 @@ let timeOutSubscription; // track any timeout functions being used
 function Plan({plan: {date_str, plan_id, styleId, content}}) {
   const {dispatchDates} = React.useContext(CalendarContext);
   const planRef = React.useRef();
-  const textEdit = React.createRef(null);
   const [state, setState] = useState(PlanState.Normal);
   const [styleOpen, setStyleOpen] = useState(false);
+
+  // text editor management
+  const textEdit = React.createRef(null);
+  const init = ((content && content.textContent) || '');
+  const [editorState, setEditorState] = React.useState(
+    () => EditorState.createWithContent(
+      typeof init === 'string' ? ContentState.createFromText(init) : convertFromRaw(init)
+    ),
+  );
+  const [didChange, setDidChange] = React.useState(false);
 
   /**
    * Helper function to take the necessary steps to delete self
@@ -44,25 +53,26 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     // eslint-disable-next-line
   }, []);
 
-  const textEditOptions = {
-    readOnly: state !== PlanState.Edit,
-    init: ((content && content.textContent) || ''),
-    submit: (val, didChange, shouldClose) => {
-      console.log('submit');
-      if (!val) { // run delete first
-        deleteSelf();
-        return;
+  /**
+   * Take the necessary steps to submit plan changes to the db
+   * @param {string} val the current text content
+   * @param {boolean} shouldClose true if we want to lose edit state
+   */
+  const submitPlanChanges = (val, shouldClose) => {
+    console.log('submit');
+    if (!val) { // run delete first
+      deleteSelf();
+      return;
+    }
+    if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
+    if (didChange) { // dispatch changes to the plan content
+      const entries = {
+        ...content,
+        textContent: val,
       }
-      if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
-      if (didChange) { // dispatch changes to the plan content
-        const entries = {
-          ...content,
-          textContent: val,
-        }
-        dispatchDates({type: 'edit', date_str, plan_id, entries});
-      }
-    },
-  };
+      dispatchDates({type: 'edit', date_str, plan_id, entries});
+    }
+  }
 
   /**
    * Handle the click event of a plan. 
@@ -100,11 +110,12 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
   /**
    * Take the necessary steps to deregister current plan as edit
    */
-  const deregisterPlanEdit = () => {
+  const deregisterPlanEdit = React.useCallback(() => { // useCallback to preserve referential equality between renders 
     document.removeEventListener('keydown', handleKeyDown); // remove keydown handler
     document.removeEventListener('mousedown', deregisterPlanEdit); // remove deregister event
     timeOutSubscription = setTimeout(() => setState(PlanState.Normal)); // set normal state, with timeout so that the editor blur event has time to fire 
-  }
+    // eslint-disable-next-line
+  }, []);
 
   const toggleDone = (e) => {
     e.preventDefault();
@@ -122,7 +133,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * plan is in edit state.
    * @param {KeyboardEvent} e 
    */
-  const handleKeyDown = (e) => {
+  const handleKeyDown = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
     if (e.key === 'c' && e.getModifierState('Meta')) {
       e.stopPropagation();
       dispatchDates({type: 'menu-c', date_str, plan_id});
@@ -140,6 +151,74 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
       deregisterPlanEdit();
     }
     // else console.log(e.key)
+    // eslint-disable-next-line
+  }, [date_str, plan_id]);
+
+  /**
+   * Handle key-styling command for text edit
+   * @param {string} command 
+   * @returns 
+   */
+  const handleKeyCommand = command => {
+    const newState = RichUtils.handleKeyCommand(editorState, command);
+    if (newState) {
+      // set change when styles change
+      setDidChange(true);
+      setEditorState(newState);
+      return 'handled';
+    }
+    return 'not-handled';
+  }
+
+  /**
+   * Callback on every key, to check if submit was called
+   * @param {*} e 
+   * @returns 
+   */
+  const checkSubmit = e => {
+    if (e.keyCode === 13 && !e.shiftKey) {
+      submitPlanChanges(
+        editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
+        true
+      );
+      return 'submit';
+    }
+    return getDefaultKeyBinding(e);
+  }
+
+  /**
+   * Callback when the editor element is focused. We reset our 
+   * change event listener
+   */
+  const handleFocus = () => {
+    setDidChange(false);
+  }
+
+  /**
+   * Callback when the editor loses focus. Call the submit event.
+   */
+  const handleBlur = () => {
+    submitPlanChanges(
+      editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
+      false
+    )
+  }
+
+  /**
+   * Callback when editor state is changed
+   * @param {EditorState} newState 
+   */
+  const handleChange = (newState) => {
+    const currentContentState = editorState.getCurrentContent()
+    const newContentState = newState.getCurrentContent()
+  
+    if (currentContentState !== newContentState) {
+      // There was a change in the content  
+      setDidChange(true);
+    } else {
+      // The change was triggered by a change in focus/selection
+    }
+    setEditorState(newState);
   }
 
   return (<div
@@ -174,7 +253,16 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
       </div>
     </div>}
     <div fp-role="content" style={{color: `var(--plan-color${(content && content.done) ? '-done' : ''}-${styleId || 'default'})`}}>
-      <TextEdit ref={textEdit} options={textEditOptions}/>
+      <Editor 
+        ref={textEdit}
+        readOnly={state !== PlanState.Edit}
+        editorState={editorState} 
+        handleKeyCommand={handleKeyCommand}
+        onChange={handleChange}
+        keyBindingFn={checkSubmit}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+      />
       <div fp-role="toggle-container">
         <span 
           fp-role="toggle-button"
