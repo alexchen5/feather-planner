@@ -108,6 +108,9 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 .plan-node[state^="edit"] {
     cursor: auto;
 }
+.plan-node[state="dragging"] {
+    cursor: grabbing;
+}
 
 .plan-node div[fp-role="content"] {
     padding: 2px 12px 2px 2px;
@@ -120,6 +123,12 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 }
 .plan-node[state="normal"]:hover div[fp-role="content"] {
     box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
+}
+.plan-node[state="dragging"] div[fp-role="content"] {
+    background-color: var(--bg-greyblue);
+    box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
+    z-index: 99;
+    opacity: 0.7;
 }
 .plan-node[state^="edit"] div[fp-role="content"] {
     background-color: white;
@@ -147,6 +156,11 @@ li.-calendar-bg:nth-child(7n + 0) .datenode-header {
 .plan-node:hover div[fp-role="content"] div[fp-role="toggle-container"] {
     opacity: 1;
     pointer-events: all;
+    right: 4px
+}
+.plan-node[state="dragging"] div[fp-role="content"] div[fp-role="toggle-container"] {
+    opacity: 1;
+    pointer-events: none;
     right: 4px
 }
 .plan-node[state^="edit"] div[fp-role="content"] div[fp-role="toggle-container"] {
@@ -295,18 +309,6 @@ div[fp-role="edit-panel"]  div[fp-role="labels-anchor"] div[fp-role="edit"] {
     padding: 2px 2px;
 }
 
-
-
-.plan-node[state="dragging"] {
-
-}
-.plan-node[dragging] {
-    background-color: var(--bg-greyblue);
-    width: 100%;
-    left: 0;
-    transition: all 0ms ease;
-}
-
 .plan-add {
     display: flex;
     flex-direction: column;
@@ -320,5 +322,9 @@ div[fp-role="edit-panel"]  div[fp-role="labels-anchor"] div[fp-role="edit"] {
 
 div[placeholder] {
     background-color: var(--node-focus-bg-color);
-    border-radius: 8px;
+    border-radius: 4px;
+    pointer-events: none;
+    position: relative;
+    z-index: 2;
+    opacity: 0.8;
 }

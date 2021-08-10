@@ -80,7 +80,7 @@ function smoothMove(container, placeholder, afterElement) {
   }).forEach(step => step && window.requestAnimationFrame(step));
 }
 function getDragAfterElement(container, y) {
-  const draggableElements = [...container.querySelectorAll('[plan]:not([dragging])')];
+  const draggableElements = [...container.querySelectorAll('[plan]:not([state="dragging"])')];
   
   return draggableElements.reduce((closest, child) => {
     const box = child.getBoundingClientRect();
@@ -93,7 +93,7 @@ function getDragAfterElement(container, y) {
   }, { offset: Number.NEGATIVE_INFINITY}).element;
 }
 export function dragFinalised() {
-  const target = document.querySelector('[dragging]');
+  const target = document.querySelector('[state="dragging"]');
   const placeholder = document.querySelector('[placeholder]');
   if (target) {
     target.removeAttribute('dragging');

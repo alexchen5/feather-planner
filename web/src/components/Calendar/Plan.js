@@ -3,6 +3,7 @@ import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDef
 import React, { useState } from "react";
 import { CalendarContext } from ".";
 import PlanStyles from "./PlanStyles";
+import { getDragAfterElement, getTargetDatenode, smoothMove } from "./DragUtil";
 
 /**
  * Enum for the state of the plan. Note that text values are connected to stylesheets.
@@ -20,7 +21,9 @@ const PlanState = {
  */
 export const StyleOpenContext = React.createContext(null);
 
-let timeOutSubscription; // track any timeout functions being used
+const timeOutSubscriptions = []; // track any timeout functions being used
+let pos1, pos2, pos3, pos4 = 0; // track drag positions
+let placeholder; // current placeholder for drag
 
 function Plan({plan: {date_str, plan_id, styleId, content}}) {
   const {dispatchDates} = React.useContext(CalendarContext);
@@ -50,8 +53,9 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
 
   React.useEffect(() => {
     return function cleanup() {
+      console.log('cleanup');
       deregisterPlanEdit(); // deregister plan on cleanup
-      clearTimeout(timeOutSubscription); // remove unused timeouts
+      timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove unused timeouts at end of cleanup
     }
     // eslint-disable-next-line
   }, []);
@@ -92,23 +96,41 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
       selectAllText();
     } else if (state === PlanState.Edit) { // click while in edit state
 
+    } else if (state === PlanState.Dragging) {
+      console.log('click handle');
+      // completeDragEnd();
     }
   }
   /**
    * Handle the mousedown event of a plan
    * This will handle de-registering the edit states of other plans - if current plan is not in edit state
+   * Also initiates drag events
    * @param {MouseEvent} e 
    */
   const handleMouseDown = (e) => {
+    const initiateDrag = () => { // helper function to set up drag from mousedown
+      // log starting position
+      pos3 = e.clientX;
+      pos4 = e.clientY;
+      
+      // set up drag listeners
+      document.addEventListener('mousemove', startDrag);
+      document.addEventListener('mouseup', cancelStartDrag);
+    }
+
     e.stopPropagation(); // prevent event from propagating further
     if (state === PlanState.Normal) {
       document.dispatchEvent(new MouseEvent('mousedown')); // trigger deregister events on other plans in edit
+      initiateDrag();
+    } else if (PlanState.isEdit(state) && e.target.getAttribute('fp-role') === 'edit-panel') {
+      initiateDrag();
     }
   }
   /**
    * Take the necessary steps to register current plan as edit
    */
   const registerPlanEdit = () => {
+    console.log('reg');
     document.dispatchEvent(new MouseEvent('mousedown')); // (called in handleMouseDown, but leave for safety)
     document.addEventListener('keydown', handleKeyDown); // keydown events to be handled by this plan
     document.addEventListener('mousedown', deregisterPlanEdit); // add own deregister event
@@ -118,11 +140,163 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * Take the necessary steps to deregister current plan as edit
    */
   const deregisterPlanEdit = React.useCallback(() => { // useCallback to preserve referential equality between renders 
+    console.log('dereg');
     document.removeEventListener('keydown', handleKeyDown); // remove keydown handler
     document.removeEventListener('mousedown', deregisterPlanEdit); // remove deregister event
-    timeOutSubscription = setTimeout(() => setState(PlanState.Normal)); // set normal state, with timeout so that the editor blur event has time to fire 
+    timeOutSubscriptions.push(setTimeout(() => setState(PlanState.Normal))); // set normal state, with timeout so that the editor blur event has time to fire 
     // eslint-disable-next-line
   }, []);
+
+  /**
+   * Callback to start drag on the plan
+   */
+  const startDrag = React.useCallback((e) => {
+    if (Math.abs(e.clientX - pos3) > 2 || Math.abs(e.clientY - pos4) > 2) {
+      console.log('start');
+    } else {
+      console.log('false start');
+      return;
+    }
+    document.removeEventListener('mousemove', startDrag);
+    document.removeEventListener('mouseup', cancelStartDrag);
+    e.preventDefault();
+
+    // set up starting conditions
+    pos3 = e.clientX;
+    pos4 = e.clientY;
+    planRef.current.style.width = getComputedStyle(planRef.current).width;
+    planRef.current.style.position = 'absolute';
+
+    const r = planRef.current.getBoundingClientRect();
+    const x = r.x + (r.width ) / 2;
+    const y = r.y + (r.height ) / 2;
+    planRef.current.style.top = (planRef.current.offsetTop + e.clientY - y) + "px";
+    planRef.current.style.left = (planRef.current.offsetLeft + e.clientX - x) + "px";
+
+    setState(PlanState.Dragging); // set state to dragging
+
+    // add placeholder
+    if (placeholder) placeholder.remove();
+    placeholder = document.createElement('div');
+    placeholder.setAttribute('placeholder', date_str);
+    const container = planRef.current.closest('.datenode-item');
+    container.insertBefore(placeholder, planRef.current);
+    placeholder.style.height = window.getComputedStyle(planRef.current).height;
+
+    // add drag handle listeners 
+    document.addEventListener('mousemove', elementDrag);
+    document.addEventListener('mouseup', closeDragElement);
+
+    // eslint-disable-next-line
+  }, [date_str]);
+
+  /**
+   * Callback to cancel the start drag listener
+   */
+  const cancelStartDrag = React.useCallback(() => {
+    document.removeEventListener('mousemove', startDrag);
+    document.removeEventListener('mouseup', cancelStartDrag);
+
+    // eslint-disable-next-line
+  }, []);
+
+  /**
+   * Callback to handle the dragging of the plan
+   */
+  const elementDrag = React.useCallback(e => {
+    e.preventDefault();
+    pos1 = pos3 - e.clientX;
+    pos2 = pos4 - e.clientY;
+    pos4 = e.clientY;
+    pos3 = e.clientX;
+
+    planRef.current.style.top = (planRef.current.offsetTop - pos2) + "px";
+    planRef.current.style.left = (planRef.current.offsetLeft - pos1) + "px";
+
+    const datenodeRoot = getTargetDatenode(e.clientX, e.clientY);
+    const datenode = datenodeRoot?.firstElementChild;
+    if (datenode) {
+      const afterElement = getDragAfterElement(datenode, e.clientY) || datenode.querySelector('.plan-add');
+      smoothMove(datenode, placeholder, afterElement);
+    } else {
+      const container = document.querySelector(`[datenode="${placeholder.getAttribute('placeholder')}"]`).firstElementChild;
+      smoothMove(container, placeholder, planRef.current);
+    }
+  }, []);
+
+  /**
+   * Callback to handle the mouseup after dragging
+   */
+  const closeDragElement = React.useCallback((e) => {
+    console.log('close');
+    e.preventDefault();
+
+    const targetDatenodeRoot = getTargetDatenode(e.clientX, e.clientY);
+    if (targetDatenodeRoot) {
+      const to_date = targetDatenodeRoot.getAttribute('datenode');
+      const from_date = placeholder.getAttribute('placeholder');
+
+      const plansTo = [...targetDatenodeRoot.querySelectorAll('[placeholder], [plan]:not([state="dragging"])')];
+      const to_index = plansTo.indexOf(placeholder);
+      const to_prv_id = (plansTo[to_index - 1] || '') && plansTo[to_index - 1].getAttribute('plan');
+      const to_nxt_id = (plansTo[to_index + 1] || '') && plansTo[to_index + 1].getAttribute('plan');
+
+      const plansFrom = [...document.querySelector(`[datenode="${from_date}"]`).querySelectorAll('[plan]')];
+      const from_index = plansFrom.indexOf(planRef.current);
+      const from_prv_id = (plansFrom[from_index - 1] || '') && plansFrom[from_index - 1].getAttribute('plan');
+      const from_nxt_id = (plansFrom[from_index + 1] || '') && plansFrom[from_index + 1].getAttribute('plan');
+
+      if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) {
+        // no need to move position
+        timeOutSubscriptions.push(setTimeout(() => {
+          completeDragEndDrop(); 
+        }, 10));
+      } else {
+        if (to_date === from_date) {
+          timeOutSubscriptions.push(setTimeout(() => {
+            completeDragEndDrop(); 
+          }, 0));
+
+          // completeDragEndDrop(); // no re-render will occur so we deal with it here
+        }
+        dispatchDates({type: 'move', plan_id, to_date, from_prv_id, from_nxt_id, to_prv_id, to_nxt_id });
+      }
+    } else { // no target when dropped
+      completeDragEndDrop(); 
+    }
+  
+    document.removeEventListener('mouseup', closeDragElement);
+    document.removeEventListener('mousemove', elementDrag);
+
+    // timeOutSubscriptions.push(setTimeout(() => {
+    //   // we hope for set state normal to be called through the click event that fires
+    //   // afterwards, but if the plan is dropped then it must be called here
+    //   completeDragEndDrop(); 
+    // }, 10));
+
+    // eslint-disable-next-line
+  }, [date_str, plan_id]);
+
+  // const completeDragEnd = () => {
+  //   timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove redundant setState timeout
+  //   completeDragEndDrop();
+  // }
+  /**
+   * Complete the minimum steps to turn a dragging plan back to normal
+   */
+  const completeDragEndDrop = () => {
+    console.log('end');
+    setState(PlanState.Normal); 
+    planRef.current.style.width = '';
+    planRef.current.style.position = '';
+    planRef.current.style.top = '';
+    planRef.current.style.left = '';
+
+    if (placeholder) placeholder.remove();
+    // eslint-disable-next-line
+    let m = planRef.current.offsetTop;
+    placeholder = null;
+  }
 
   /**
    * Handle mousedown of clicking expand edit options
@@ -288,7 +462,6 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     ref={planRef}
     plan={plan_id}
     className={'plan-node'}
-    draggable={state === PlanState.Normal} // TODO: complete definition
     onClick={handleClick}
     onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
