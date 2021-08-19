@@ -41,9 +41,25 @@ const reducer = (state, action) => {
   }
 }
 
+/**
+ * Interface for planStyles object, each planStyle is indexed by its id
+ */
+interface PlanStyles {
+  [styleId: string]: PlanStyle;
+}
+
+/**
+ * Interface for planStyle object
+ */
+interface PlanStyle {
+  label: string, // label of the style e.g. normal plane, deadline, ... 
+  color: string, // css color string
+  colorDone: string, // css color string
+}
+
 function Calendar() {
   const [{ dates }, dispatch] = useReducer(reducer, {dates: []});
-  const [planStyles, setPlanStyles] = React.useState({});
+  const [planStyles, setPlanStyles] = React.useState({} as PlanStyles);
   const [range, setRange] = React.useState([]);
   const {uid} = React.useContext(UidContext);
 

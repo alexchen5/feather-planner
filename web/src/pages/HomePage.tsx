@@ -36,10 +36,10 @@ const uiConfig = {
   },
 };
 
-function HomePage(props) {
+function HomePage() {
   const [loading, setLoading] = React.useState(true);
   const {uid, setUid} = React.useContext(UidContext);
-  const [layout, setLayout] = React.useState({});
+  // const [layout, setLayout] = React.useState({});
   const [homeApp, setHomeapp] = React.useState('calendar');
 
   // Listen to the Firebase Auth state and set the local state.
@@ -51,14 +51,14 @@ function HomePage(props) {
     return () => unregisterAuthObserver(); // Make sure we un-register Firebase observers when the component unmounts.
   }, [setUid]);
 
-  React.useEffect(() => {
-    if (uid) {
-      db.doc(`users/${uid}/preferences/layout`)
-        .onSnapshot(snapshot => {
-          setLayout(snapshot.exists ? snapshot.data() : {});
-        })
-    }
-  }, [uid]);
+  // React.useEffect(() => {
+  //   if (uid) {
+  //     db.doc(`users/${uid}/preferences/layout`)
+  //       .onSnapshot(snapshot => {
+  //         setLayout(snapshot.exists ? snapshot.data() : {});
+  //       })
+  //   }
+  // }, [uid]);
 
   if (loading) {
     return (<></>)
@@ -66,7 +66,7 @@ function HomePage(props) {
   if (!uid) {
     return (
       <div>
-        <h1>My App</h1>
+        <h1>Welcome to Feather Planner</h1>
         <p>Please sign-in:</p>
         <StyledFirebaseAuth uiConfig={uiConfig} firebaseAuth={firebase.auth()} />
       </div>
@@ -74,7 +74,7 @@ function HomePage(props) {
   }
 
   return (
-    <userLayout.Provider value={{layout, setLayout}}>
+    // <userLayout.Provider value={{layout, setLayout}}>
       <div id="home-layout"> 
         <div id="home-menu">
           <button onClick={() => firebase.auth().signOut()}>Sign Out</button>
@@ -87,7 +87,7 @@ function HomePage(props) {
         </div>
       </div>
 
-      {/* <div
+      /* <div
         style={{
           display: 'flex',
           height: '100vh',
@@ -136,8 +136,8 @@ function HomePage(props) {
           </div>}
           <StyleMenu/>
         </div>
-      </div> */}
-    </userLayout.Provider>
+      </div> */
+    // </userLayout.Provider>
   );
 }
 

@@ -1,4 +1,4 @@
-export const DAY_START = 'MON';
+export const DAY_START: 'MON' | 'SUN' = 'MON';
 export const NUM_WEEKS_START = 5;
 export const PAGINATE_WEEKS_NXT = 4;
 export const PAGINATE_WEEKS_PRV = 3;
@@ -18,13 +18,13 @@ export function getDayStart() {
 export function dateToStr(date = new Date()) {
   // Given a Date object, returns a string in the form 'YYYYMMDD' (where MM is from 01 - 12)
   // Defaults to the Date of today
-  return `${date.getFullYear()}` + `${date.getMonth()}`.padStart(2, 0) + `${date.getDate()}`.padStart(2, 0);
+  return `${date.getFullYear()}` + `${date.getMonth()}`.padStart(2, '0') + `${date.getDate()}`.padStart(2, '0');
 }
 
 export function strToDate(dateStr = dateToStr()) {
   // Given a dateStr, returns a date object
   // Defaults to a date object of today, at 00:00:00
-  return new Date(dateStr.substring(0, 4), dateStr.substring(4, 6), dateStr.substring(6));
+  return new Date(parseInt(dateStr.substring(0, 4)), parseInt(dateStr.substring(4, 6)), parseInt(dateStr.substring(6)));
 }
 
 export function adjustDays(dateStr = dateToStr(), numDays = 0) {
@@ -34,12 +34,13 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
 }
 
 /**
- * Return an array of DateStr within the given range
- * @param {DateStr} dateStart 
- * @param {DateStr} dateEnd 
- * @returns 
+ * Return an array of DateStr within the given range, from dateStart
+ * to not including dateEnd
+ * @param dateStart 
+ * @param dateEnd 
+ * @returns array of date strings
  */
-export function getRangeDates(dateStart, dateEnd) {
+export function getRangeDates(dateStart: string, dateEnd: string) {
   const ret = [];
   for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
     ret.push(curDate);

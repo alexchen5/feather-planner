@@ -38,7 +38,8 @@ const uiConfig = {
   ],
 };
 
-function LoginPage({ newToken, ...props }) {
+// function LoginPage({ newToken, ...props }) {
+function LoginPage() {
 	return (
     <div>
       <h1>My App</h1>
