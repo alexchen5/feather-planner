@@ -4,66 +4,54 @@ import '../../Calendar.css'
 
 import { getPlanIds, getUpdateRange, getWeeklyRanges} from './util';
 import Plan from './Plan'
-import ScrollHandler, { dragFinalised } from "./ScrollHandler";
+import ScrollHandler from "./ScrollHandler";
 import Datenode from "./Datenode";
 import DayHeaders from "./DayHeaders";
 import CalendarContainer from "./CalendarContainer";
 import { db } from "../../pages/HomePage";
 import { UidContext } from "../../App";
+import { Calendar, CalendarAction, CalendarContext } from "types/calendar";
 
-export const CalendarContext = createContext(null);
+export const calendarContext = createContext({} as CalendarContext);
 
-const reducer = (state, action) => {
+const reducer = (state: Calendar, action: CalendarAction):Calendar => {
   switch (action.type) {
     case 'replace':
-      return {dates: [...action.dates]};
+      return { ...state, dates: [...action.dates] };
     case 'load': 
       return action.dir === 'END' ? {
-        dates: [...state.dates, ...action.dates]
+        ...state,
+        dates: [...state.dates, ...action.dates],
       } : {
-        dates: [...action.dates, ...state.dates]
+        ...state,
+        dates: [...action.dates, ...state.dates],
       }
     case 'update':
       return {
+        ...state,
         dates: state.dates.map(date => 
-          action.plans[date.date_str] ? { ...date, plans: action.plans[date.date_str] } : date
-        )
+          action.plans[date.dateStr] ? { ...date, plans: action.plans[date.dateStr] } : date
+        ),
       }
     case 'update-label':
       return {
         dates: state.dates.map(date =>
-          action.labels[date.date_str] ? { ...date, label: action.labels[date.date_str] } : date
+          action.labels[date.dateStr] ? { ...date, label: action.labels[date.dateStr] } : date
         )
       }
     default:
-      console.log(`Unknown action type: ${action.type}`);
-      return state;
+      const _exhaustiveCheck: never = action;
+      return _exhaustiveCheck;
   }
 }
 
-/**
- * Interface for planStyles object, each planStyle is indexed by its id
- */
-interface PlanStyles {
-  [styleId: string]: PlanStyle;
-}
-
-/**
- * Interface for planStyle object
- */
-interface PlanStyle {
-  label: string, // label of the style e.g. normal plane, deadline, ... 
-  color: string, // css color string
-  colorDone: string, // css color string
-}
-
-function Calendar() {
-  const [{ dates }, dispatch] = useReducer(reducer, {dates: []});
-  const [planStyles, setPlanStyles] = React.useState({} as PlanStyles);
-  const [range, setRange] = React.useState([]);
+function CalendarComponent() {
+  const [calendar, dispatchCore] = useReducer(reducer, {dates: [], activeRange: [], planStyles: {}} as Calendar);
+  // const [planStyles, setPlanStyles] = React.useState({} as PlanStyles);
+  // const [range, setRange] = React.useState([]);
   const {uid} = React.useContext(UidContext);
 
-  const dispatchWrapper = useCallback(async (action) => {
+  const dispatch = useCallback(async (action: CalendarAction) => {
     try {
       switch (action.type) {
         case 'add': {
@@ -103,7 +91,7 @@ function Calendar() {
           break;
         }
         case 'load': {
-          dispatch({...action, dates: action.dateRange});
+          dispatchCore({...action, dates: action.dateRange});
           db.collection(`users/${uid}/plan-style`) // user plan styling
             .onSnapshot((snapshot) => {
               const newStyles = {...planStyles};
@@ -133,7 +121,7 @@ function Calendar() {
                     content: d.content,
                   };
                 })
-                dispatch({ type: 'update-label', labels: newLabels });
+                dispatchCore({ type: 'update-label', labels: newLabels });
 
                 // snapshot.docChanges().forEach(change => {
                 //   console.log(change.doc.data(), change.type)
@@ -177,8 +165,7 @@ function Calendar() {
                   r.plan.prv = '';
                   newPlans[r.date].push(r.plan);
                 })
-                dispatch({ type: 'update', plans: newPlans });
-                dragFinalised();
+                dispatchCore({ type: 'update', plans: newPlans });
 
                 // snapshot.docChanges().forEach(change => {
                 //   console.log(change.doc.data(), change.type)
@@ -193,7 +180,7 @@ function Calendar() {
           break;
         }
         case 'replace':
-          dispatch({...action});
+          dispatchCore({...action});
           break;
         default: {
           console.warn(`Unknown action type: ${action.type}`);
@@ -206,24 +193,24 @@ function Calendar() {
   // const clipboard = React.useRef();
 
   return (
-    <CalendarContext.Provider value={{dates: dates, planStyles: planStyles, range: range, setRange: setRange, dispatchDates: dispatchWrapper}}>
+    <calendarContext.Provider value={{ calendar, dispatch }}>
       <CalendarContainer>
         <DayHeaders />
         <ScrollHandler>
-          {dates.map(date => <Datenode
-            key={date.date_str}
-            date_str={date.date_str}
+          {calendar.dates.map(date => <Datenode
+            key={date.dateStr}
+            dateStr={date.dateStr}
             label={date.label}
           >
             {date.plans.map(plan => <Plan
-              key={plan.plan_id}
-              plan={{date_str: date.date_str, ...plan}}
+              key={plan.planId}
+              plan={{dateStr: date.dateStr, ...plan}}
             />)}
           </Datenode>)}
         </ScrollHandler>
       </CalendarContainer>
-    </CalendarContext.Provider>
+    </calendarContext.Provider>
   );
 }
 
-export default Calendar;
+export default CalendarComponent;

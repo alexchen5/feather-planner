@@ -1,5 +1,4 @@
 import React from 'react';
-import Calendar from '../components/Calendar';
 import SideNotes from '../components/SideNotes';
 import StyledFirebaseAuth from 'react-firebaseui/StyledFirebaseAuth';
 import firebase from "firebase/app";
@@ -7,6 +6,7 @@ import "firebase/auth";
 import "firebase/firestore";
 import "firebaseui";
 import { UidContext } from '../App';
+import CalendarComponent from 'components/Calendar';
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -82,7 +82,7 @@ function HomePage() {
           <button onClick={() => setHomeapp('notes')}>Show Notes</button>
         </div>
         <div id="home-app">
-          <div style={{display: `${homeApp === 'calendar' ? 'block' : 'none'}`, height: '100%'}}><Calendar/></div>
+          <div style={{display: `${homeApp === 'calendar' ? 'block' : 'none'}`, height: '100%'}}><CalendarComponent/></div>
           <div style={{display: `${homeApp === 'notes' ? 'block' : 'none'}`}}><SideNotes/></div>
         </div>
       </div>

@@ -10,15 +10,7 @@ axios.defaults.headers.put['Content-Type'] = 'application/json';
 axios.defaults.headers.post['Content-Type'] = 'application/json';
 axios.defaults.headers.delete['Content-Type'] = 'application/json';
 
-export const UidContext = React.createContext({} as UidState);
-
-/**
- * Interface used for global uid context
- */
-interface UidState {
-  uid: string | false; // this is the uid, or false if no uid
-  setUid: React.Dispatch<React.SetStateAction<string | false>>; // setter function for the uid
-}
+export const UidContext = React.createContext({} as UidContext);
 
 function App() {
   const [uid, setUid] = useState(false as string | false); 

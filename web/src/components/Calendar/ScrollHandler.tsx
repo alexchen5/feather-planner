@@ -1,28 +1,18 @@
-import React, { useEffect } from "react";
+import React, { ReactNode, useEffect } from "react";
 
 import {CalendarContext} from '.'
 import {newDateRange, dateToStr, getResetIndices, getRangeDates } from './util';
 
-export function dragFinalised() {
-  const target = document.querySelector('[state="dragging"]');
-  const placeholder = document.querySelector('[placeholder]');
-  if (target) {
-    target.removeAttribute('dragging');
-    target.style.display = '';
-  }
-  if (placeholder) placeholder.remove();
-}
-
-function getInitScrollHeight(datenodeEl) {
+function getInitScrollHeight(datenodeEl: Element) {
   const targetY = -150;
-  let todayY = document.querySelector(`[datenode="${dateToStr()}"]`)?.getBoundingClientRect()?.y;
+  let todayY = document.querySelector(`[datenode="${dateToStr()}"]`)?.getBoundingClientRect()?.y || 0;
   let calendarY = datenodeEl.getBoundingClientRect().y;
   // console.log(targetY - (calendarY - todayY));
   if (Math.abs(targetY - (calendarY - todayY)) > 20) return datenodeEl.scrollTop + targetY - (calendarY - todayY);
   return datenodeEl.scrollTop;
 }
 
-function ScrollHandler({children}) {
+function ScrollHandler({children} : {children: ReactNode}) {
   const {dates, range, setRange, dispatchDates} = React.useContext(CalendarContext);
   const [loading, setLoading] = React.useState(false);
   const datenodeContainer = React.useRef(null);

@@ -48,7 +48,7 @@ export function getRangeDates(dateStart: string, dateEnd: string) {
   return ret;
 }
 
-export function getRange(dateStart, dateEnd) {
+export function getRange(dateStart: string, dateEnd: string) {
   const ret = [];
   for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
     ret.push({
@@ -59,7 +59,7 @@ export function getRange(dateStart, dateEnd) {
   return ret;
 }
 
-export function getUpdateRange(dateStart, dateEnd) {
+export function getUpdateRange(dateStart: string, dateEnd: string): { [dateStr: string]: Array<CalendarPlan> } {
   const ret = {};
   for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
     ret[curDate] = [];

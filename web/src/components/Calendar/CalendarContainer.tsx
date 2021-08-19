@@ -1,6 +1,6 @@
-import React from "react";
+import { ReactNode } from "react";
 
-function CalendarContainer({children}) {
+function CalendarContainer({children} : {children: ReactNode}) {
 
   return (
     <div id={'calendar-container'}>
