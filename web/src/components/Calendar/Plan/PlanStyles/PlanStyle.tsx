@@ -1,13 +1,9 @@
 import { ContentState, convertFromRaw, Editor, EditorState, Modifier } from 'draft-js';
 import React from 'react';
 import { StyleEditContext } from '.';
-import { CalendarContext } from '..';
-// import { StyleOpenContext } from '../Plan';
 
-function PlanStyle({ planStyle: { id, defaultLabel, handleClick } }) {
-  const editor = React.createRef(null);
-  const { planStyles } = React.useContext(CalendarContext);
-  const label = planStyles[id]?.label || defaultLabel;
+function PlanStyle({ styleId, label, handleClick } : { styleId: string, label: string, handleClick?: (styleId: string) => void }) {
+  const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(
     () => EditorState.createWithContent(
       typeof label === 'string' ? ContentState.createFromText(label) : convertFromRaw(label)
@@ -37,7 +33,7 @@ function PlanStyle({ planStyle: { id, defaultLabel, handleClick } }) {
     // eslint-disable-next-line
   }, [label]);
 
-  return (<div fp-role="label" onClick={() => handleClick(id)}>
+  return (<div fp-role="label" onClick={() => handleClick && handleClick(styleId)}>
     <div fp-role="header">
       <Editor
         ref={editor}
@@ -48,8 +44,8 @@ function PlanStyle({ planStyle: { id, defaultLabel, handleClick } }) {
       />
     </div>
     <div fp-role="color-pickers">
-      <div fp-role="picker" style={id && {backgroundColor: `var(--plan-color-${id})`}}></div>
-      <div fp-role="picker" style={id && {backgroundColor: `var(--plan-color-done-${id})`}}></div>
+      <div fp-role="picker" style={styleId ? {backgroundColor: `var(--plan-color-${styleId})`} : {}}></div>
+      <div fp-role="picker" style={styleId ? {backgroundColor: `var(--plan-color-done-${styleId})`} : {}}></div>
     </div>
   </div>)
 }

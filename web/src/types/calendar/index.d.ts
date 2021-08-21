@@ -2,14 +2,6 @@
 
 import { RawDraftContentState } from "draft-js";
 
-/**
- * Interface for calendar context and mutating its state
- */
-interface CalendarContext {
-    calendar: Calendar; // calendar state object
-    dispatch: (action: CalendarAction) => Promise<void>;
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Calendar state export interfaces 
 
@@ -18,8 +10,15 @@ interface CalendarContext {
  */
 interface Calendar {
     dates: Array<CalendarDate>; // each loaded date of the calendar
-    activeRange: Array<string>; // the current range of rendered dates
-    planStyles: { [styleId: string] : CalendarPlanStyle }; // plan styles
+    weekRanges: Array<WeekRange>; // the current range of rendered dates
+    planStyles: { [styleId: string] : ?CalendarPlanStyle }; // undefined because id='default' may not exist
+}
+
+interface WeekRange {
+    startDate: string;
+    endDate: string;
+    detachLabelsListener: () => void;
+    detachPlansListener: () => void;
 }
 
 /**
@@ -27,20 +26,28 @@ interface Calendar {
  */
 interface CalendarDate {
     dateStr: string; // the dateStr of the date e.g. 20210719 for 2021 Aug 19th
-    label: CalendarDateLabel; // the text label of the date
+    label?: CalendarDateLabel; // the text label of the date
     plans: Array<CalendarPlan>; // the plans belonging to the current date
 }
 
+/**
+ * CalendarDateLabel structure
+ */
 interface CalendarDateLabel {
-    labelId: string;
-    content: RawDraftContentState;
+    labelId: string; // from document id
+    content: RawDraftContentState | string; // label should be deleted if content doesnt exist
 }
 
+/**
+ * Calendar Plan structure
+ */
 interface CalendarPlan {
     planId: string;
-    content: RawDraftContentState;
+    dateStr: string;
+    isDone: boolean;
+    content: RawDraftContentState | string; 
     styleId: string;
-    prv: string;
+    prv: string; // empty string if no previous
 }
 
 interface CalendarPlanStyle {
@@ -55,25 +62,43 @@ interface CalendarPlanStyle {
 /**
  * Types of CalendarContext dispatches
  */
-type CalendarAction = ReplaceDispatch | LoadDispatch | UpdateDispatch | UpdateLabel;
+type CalendarAction = InitDispatch | LoadRawDates | LoadDates | SetDates | SetWeekRanges | SetLabels | SetStyles | SetPlans;
 
-interface ReplaceDispatch {
-    type: 'replace';
-    dates: Array<CalendarDate>;
+interface InitDispatch { 
+    type: 'init'; 
 }
 
-interface LoadDispatch {
-    type: 'load';
-    dir: 'END' | 'START';
-    dates: Array<CalendarDate>;
+interface LoadDates {
+    type: 'load-dates';
+    dir: 'start' | 'end';
+    startDate: string;
+    endDate: string;
 }
 
-interface UpdateDispatch {
-    type: 'update';
-    plans: { [planId: string] : CalendarPlan };
+interface LoadRawDates extends LoadDates {
+    type: 'load-raw-dates';
 }
 
-interface UpdateLabel {
-    type: 'update-label';
-    labels: { [labelId: string] : CalendarDateLabel };
+interface SetDates {
+    type: 'set-dates';
+    dates: CalendarDate[];
+}
+
+interface SetWeekRanges {
+    type: 'set-week-ranges';
+    weekRanges: WeekRange[];
+}
+interface SetStyles {
+    type: 'set-styles';
+    planStyles: { [styleId: string] : CalendarPlanStyle };
+}
+
+interface SetLabels {
+    type: 'set-labels';
+    labels: { [dateStr: string]: CalendarDateLabel | {} | undefined};
+}
+
+interface SetPlans {
+    type: 'set-plans';
+    plans: { [dateStr: string] : CalendarPlan[] };
 }

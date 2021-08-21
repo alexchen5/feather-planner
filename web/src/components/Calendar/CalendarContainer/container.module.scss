@@ -1,0 +1,37 @@
+.root {
+    margin: 4px;
+    height: 100%;
+    overflow: hidden;
+
+    .headers {
+        margin: 0;
+        padding: 0px 4px;
+
+        .day {
+            position: relative;
+            text-align: right;
+            font-size: var(--day-label-font-size);
+            font-weight: 300;
+            color: #333;
+        }
+    }
+
+    .today {
+        position: absolute; 
+        top: 54px; 
+        left: 16px;
+    }
+
+    .dates {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        height: calc(100% - 42px);
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0px;
+        padding: 0px 4px;
+
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}

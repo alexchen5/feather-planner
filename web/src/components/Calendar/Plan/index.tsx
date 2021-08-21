@@ -1,42 +1,47 @@
 import { Delete, FormatBold, FormatItalic, FormatUnderlined, MoreVert } from "@material-ui/icons";
-import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding, RichUtils, SelectionState } from "draft-js";
-import React, { useState } from "react";
-import { CalendarContext } from ".";
+import { ContentState, convertFromRaw, convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState, RichUtils, SelectionState } from "draft-js";
+import React, { KeyboardEvent, useState } from "react";
 import PlanStyles from "./PlanStyles";
-import { getDragAfterElement, getTargetDatenode, smoothMove } from "./DragUtil";
+import { CalendarPlan } from "types/calendar";
+import { db, UidContext } from "globalContext";
+import { MouseEventHandler } from "react";
+import { CalendarContext } from "..";
+import { getPlanIds } from "../utils/dateUtil";
+import { getDragAfterElement, getTargetDatenode, smoothMove } from "../utils/dragUtil";
+
+import style from './plan.module.scss';
 
 /**
- * Enum for the state of the plan. Note that text values are connected to stylesheets.
+ * Describes the state of the plan. Note that text values are connected to stylesheets.
  */
-const PlanState = {
-  Normal: "normal",
-  Edit: "edit",
-  EditExpand: "edit-expand",
-  Dragging: "dragging",
-  isEdit: (state) => state === "edit" || state === "edit-expand",
+type PlanState = 'normal' | 'edit' | 'edit-expand' | 'dragging';
+
+function isEdit(state: PlanState): boolean {
+  return state === "edit" || state === "edit-expand";
 }
 
 /**
  * Context for if the plan style menu is open. Boolean.
  */
-export const StyleOpenContext = React.createContext(null);
+export const StyleOpenContext = React.createContext({} as { styleOpen: boolean; setStyleOpen: React.Dispatch<React.SetStateAction<boolean>>; });
 
-const timeOutSubscriptions = []; // track any timeout functions being used
-let pos1, pos2, pos3, pos4 = 0; // track drag positions
-let placeholder; // current placeholder for drag
+const timeOutSubscriptions: NodeJS.Timeout[] = []; // track any timeout functions being used
+let pos1, pos2, pos3: number, pos4 = 0; // track drag positions
+let placeholder: HTMLElement | null = null; // current placeholder for drag
 
-function Plan({plan: {date_str, plan_id, styleId, content}}) {
-  const {dispatchDates} = React.useContext(CalendarContext);
-  const planRef = React.useRef();
-  const [state, setState] = useState(PlanState.Normal);
+function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: CalendarPlan}) {
+  const { calendar } = React.useContext(CalendarContext);
+  const planRef = React.useRef<HTMLDivElement>(null);
+  const [state, setState] = useState('normal' as PlanState);
   const [styleOpen, setStyleOpen] = useState(false);
 
+  const {uid} = React.useContext(UidContext);
+
   // text editor management
-  const textEdit = React.createRef(null);
-  const init = ((content && content.textContent) || '');
+  const textEdit = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(
     () => EditorState.createWithContent(
-      typeof init === 'string' ? ContentState.createFromText(init) : convertFromRaw(init)
+      typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
     ),
   );
   const [originalState, setOriginalState] = useState(editorState);
@@ -45,11 +50,18 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
   /**
    * Helper function to take the necessary steps to delete self
    */
-  const deleteSelf = () => {
-    dispatchDates({type: 'delete', date_str, plan_id});
+  const deleteSelf = React.useCallback(() => {
+    // delete plan from db
+    const ids = getPlanIds(calendar.dates, dateStr);
+    const p = ids.indexOf(planId);
+
+    const delBatch = db.batch();
+    if (ids[p+1]) delBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', ids[p-1] || '');
+    delBatch.delete(db.doc(`users/${uid}/plans/${planId}`));
+    delBatch.commit();
+
     // deregisterPlanEdit will then be called in useEffect cleanup
-  }
-  if (!content) deleteSelf();
+  }, [uid, calendar, dateStr, planId]);
 
   React.useEffect(() => {
     return function cleanup() {
@@ -62,11 +74,11 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
 
   /**
    * Take the necessary steps to submit plan changes to the db
-   * @param {RawDraftContentState || boolean} val the current text content
-   * @param {boolean} shouldClose true if we want to lose edit state
-   * @param {boolean} hasChange true if the submission contains meaningful content changes
+   * @param val the current text content
+   * @param shouldClose true if we want to lose edit state
+   * @param hasChange true if the submission contains meaningful content changes
    */
-  const submitPlanChanges = (val, shouldClose, hasChange) => {
+  const submitPlanChanges = (val: RawDraftContentState | false, shouldClose: boolean, hasChange: boolean) => {
     console.log('submit');
     if (!val) { // run delete first
       deleteSelf();
@@ -74,11 +86,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     }
     if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
     if (hasChange) { // dispatch changes to the plan content
-      const entries = {
-        ...content,
-        textContent: val,
-      }
-      dispatchDates({type: 'edit', date_str, plan_id, entries});
+      db.doc(`users/${uid}/plans/${planId}`).update('header', val);
     } else {
       // no changes to dispatch
     }
@@ -87,16 +95,16 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
   /**
    * Handle the click event of a plan. 
    * This will handle registering the edit state of the plan, and de-focusing any other plans.
-   * @param {MouseEvent} e 
+   * @param e 
    */
-  const handleClick = (e) => {
+  const handleClick: MouseEventHandler = (e) => {
     e.stopPropagation(); // prevent event from propagating further
-    if (state === PlanState.Normal) { // register edit state
+    if (state === 'normal') { // register edit state
       registerPlanEdit(); 
       selectAllText();
-    } else if (state === PlanState.Edit) { // click while in edit state
+    } else if (state === 'edit') { // click while in edit state
 
-    } else if (state === PlanState.Dragging) {
+    } else if (state === 'dragging') {
       console.log('click handle');
       // completeDragEnd();
     }
@@ -105,9 +113,9 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * Handle the mousedown event of a plan
    * This will handle de-registering the edit states of other plans - if current plan is not in edit state
    * Also initiates drag events
-   * @param {MouseEvent} e 
+   * @param e 
    */
-  const handleMouseDown = (e) => {
+  const handleMouseDown: MouseEventHandler = (e) => {
     const initiateDrag = () => { // helper function to set up drag from mousedown
       // log starting position
       pos3 = e.clientX;
@@ -119,10 +127,11 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     }
 
     e.stopPropagation(); // prevent event from propagating further
-    if (state === PlanState.Normal) {
+    const target = e.target as HTMLElement; // assume target is html element
+    if (state === 'normal') {
       document.dispatchEvent(new MouseEvent('mousedown')); // trigger deregister events on other plans in edit
       initiateDrag();
-    } else if (PlanState.isEdit(state) && e.target.getAttribute('fp-role') === 'edit-panel') {
+    } else if (isEdit(state) && target.getAttribute('fp-role') === 'edit-panel') {
       initiateDrag();
     }
   }
@@ -134,7 +143,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     document.dispatchEvent(new MouseEvent('mousedown')); // (called in handleMouseDown, but leave for safety)
     document.addEventListener('keydown', handleKeyDown); // keydown events to be handled by this plan
     document.addEventListener('mousedown', deregisterPlanEdit); // add own deregister event
-    setState(PlanState.Edit); // set edit state
+    setState('edit'); // set edit state
   }
   /**
    * Take the necessary steps to deregister current plan as edit
@@ -143,7 +152,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     console.log('dereg');
     document.removeEventListener('keydown', handleKeyDown); // remove keydown handler
     document.removeEventListener('mousedown', deregisterPlanEdit); // remove deregister event
-    timeOutSubscriptions.push(setTimeout(() => setState(PlanState.Normal))); // set normal state, with timeout so that the editor blur event has time to fire 
+    timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
     // eslint-disable-next-line
   }, []);
 
@@ -151,6 +160,11 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * Callback to start drag on the plan
    */
   const startDrag = React.useCallback((e) => {
+    if (!planRef.current) {
+      console.error('Expected planRef during drag');
+      return;
+    }
+
     if (Math.abs(e.clientX - pos3) > 2 || Math.abs(e.clientY - pos4) > 2) {
       console.log('start');
     } else {
@@ -173,14 +187,14 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     planRef.current.style.top = (planRef.current.offsetTop + e.clientY - y) + "px";
     planRef.current.style.left = (planRef.current.offsetLeft + e.clientX - x) + "px";
 
-    setState(PlanState.Dragging); // set state to dragging
+    setState('dragging'); // set state to dragging
 
     // add placeholder
     if (placeholder) placeholder.remove();
     placeholder = document.createElement('div');
-    placeholder.setAttribute('placeholder', date_str);
+    placeholder.setAttribute('placeholder', dateStr);
     const container = planRef.current.closest('.datenode-item');
-    container.insertBefore(placeholder, planRef.current);
+    container?.insertBefore(placeholder, planRef.current);
     placeholder.style.height = window.getComputedStyle(planRef.current).height;
 
     // add drag handle listeners 
@@ -188,7 +202,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     document.addEventListener('mouseup', closeDragElement);
 
     // eslint-disable-next-line
-  }, [date_str]);
+  }, [dateStr]);
 
   /**
    * Callback to cancel the start drag listener
@@ -205,6 +219,12 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    */
   const elementDrag = React.useCallback(e => {
     e.preventDefault();
+
+    if (!planRef.current) {
+      console.error('Expected planRef during drag');
+      return;
+    }
+
     pos1 = pos3 - e.clientX;
     pos2 = pos4 - e.clientY;
     pos4 = e.clientY;
@@ -217,10 +237,10 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     const datenode = datenodeRoot?.firstElementChild;
     if (datenode) {
       const afterElement = getDragAfterElement(datenode, e.clientY) || datenode.querySelector('.plan-add');
-      smoothMove(datenode, placeholder, afterElement);
+      smoothMove(datenode, placeholder!, afterElement!);
     } else {
-      const container = document.querySelector(`[datenode="${placeholder.getAttribute('placeholder')}"]`).firstElementChild;
-      smoothMove(container, placeholder, planRef.current);
+      const container = document.querySelector(`[datenode="${placeholder?.getAttribute('placeholder')}"]`)?.firstElementChild;
+      smoothMove(container!, placeholder!, planRef.current);
     }
   }, []);
 
@@ -232,7 +252,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     e.preventDefault();
 
     const targetDatenodeRoot = getTargetDatenode(e.clientX, e.clientY);
-    if (targetDatenodeRoot) {
+    if (targetDatenodeRoot && placeholder) {
       const to_date = targetDatenodeRoot.getAttribute('datenode');
       const from_date = placeholder.getAttribute('placeholder');
 
@@ -241,7 +261,9 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
       const to_prv_id = (plansTo[to_index - 1] || '') && plansTo[to_index - 1].getAttribute('plan');
       const to_nxt_id = (plansTo[to_index + 1] || '') && plansTo[to_index + 1].getAttribute('plan');
 
-      const plansFrom = [...document.querySelector(`[datenode="${from_date}"]`).querySelectorAll('[plan]')];
+      // TODO: complete definition
+      // @ts-ignore
+      const plansFrom = [...document.querySelector(`[datenode="${from_date}"]`)?.querySelectorAll('[plan]')];
       const from_index = plansFrom.indexOf(planRef.current);
       const from_prv_id = (plansFrom[from_index - 1] || '') && plansFrom[from_index - 1].getAttribute('plan');
       const from_nxt_id = (plansFrom[from_index + 1] || '') && plansFrom[from_index + 1].getAttribute('plan');
@@ -259,7 +281,13 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
 
           // completeDragEndDrop(); // no re-render will occur so we deal with it here
         }
-        dispatchDates({type: 'move', plan_id, to_date, from_prv_id, from_nxt_id, to_prv_id, to_nxt_id });
+        
+        // update db
+        const moveBatch = db.batch();
+        if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', planId);
+        moveBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', to_date, 'prv', to_prv_id);
+        if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
+        moveBatch.commit();
       }
     } else { // no target when dropped
       completeDragEndDrop(); 
@@ -275,7 +303,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
     // }, 10));
 
     // eslint-disable-next-line
-  }, [date_str, plan_id]);
+  }, [dateStr, planId]);
 
   // const completeDragEnd = () => {
   //   timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove redundant setState timeout
@@ -286,7 +314,13 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    */
   const completeDragEndDrop = () => {
     console.log('end');
-    setState(PlanState.Normal); 
+    setState('normal'); 
+
+    if (!planRef.current) {
+      console.error('Expected planRef at drag end');
+      return;
+    }
+
     planRef.current.style.width = '';
     planRef.current.style.position = '';
     planRef.current.style.top = '';
@@ -302,20 +336,16 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * Handle mousedown of clicking expand edit options
    * @param {MouseEvent} e 
    */
-  const handleExpandEditMouseDown = e => {
+  const handleExpandEditMouseDown: MouseEventHandler  = (e) => {
     e.preventDefault();
-    setState(PlanState.EditExpand); // set edit expand state
+    setState('edit-expand'); // set edit expand state
   }
 
-  const toggleDone = (e) => {
+  const toggleDone: MouseEventHandler = (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const entries = {
-      ...content,
-      done: !(content.done),
-    }
-    dispatchDates({type: 'edit', date_str, plan_id, entries});
+    db.doc(`users/${uid}/plans/${planId}`).update('done', !isDone);
   }
 
   /**
@@ -324,32 +354,23 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * @param {KeyboardEvent} e 
    */
   const handleKeyDown = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
-    if (e.key === 'c' && e.getModifierState('Meta')) {
+    if (e.key === 'Backspace') {
       e.stopPropagation();
-      dispatchDates({type: 'menu-c', date_str, plan_id});
-    }
-    else if (e.key === 'v' && e.getModifierState('Meta')) {
-      e.stopPropagation();
-      dispatchDates({type: 'menu-v', date_str});
-    }
-    else if (e.key === 'Backspace') {
-      e.stopPropagation();
-      dispatchDates({type: 'delete', date_str, plan_id});
+      deleteSelf();
     }
     else if (e.key === 'Enter') {
       e.stopPropagation();
       deregisterPlanEdit();
     }
     // else console.log(e.key)
-    // eslint-disable-next-line
-  }, [date_str, plan_id]);
+  }, [deleteSelf, deregisterPlanEdit]);
 
   /**
    * Handle key-styling command for text edit
    * @param {string} command 
    * @returns 
    */
-  const handleKeyCommand = command => {
+  const handleKeyCommand = (command: string): DraftHandleValue => {
     const newState = RichUtils.handleKeyCommand(editorState, command);
     if (newState) {
       handleChange(newState);
@@ -363,7 +384,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * @param {KeyboardEvent} e 
    * @returns 
    */
-  const checkSubmit = e => {
+  const checkSubmit = (e: KeyboardEvent): string | null => {
     if (e.key === 'Enter' && !e.shiftKey) {
       submitPlanChanges(
         editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
@@ -402,11 +423,13 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * @param {MouseEvent} e 
    * @param {string} style
    */
-  const handleStyleToggleMouseDown = (e, style) => {
+  const handleStyleToggleMouseDown = (e: React.MouseEvent, style: string) => {
     e.preventDefault(); 
     const newState = RichUtils.toggleInlineStyle(editorState, style);
     handleChange(newState);
-    if (document.activeElement === textEdit.current.editor) {
+    // TODO: find proper way to implement textEdit.current?.editor
+    // @ts-ignore 
+    if (document.activeElement === textEdit.current?.editor) {
       // editor is focused at the moment, edits will be pushed to db later
     } else {
       // push changes to db immediately
@@ -443,7 +466,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
    * are not wasted
    * @param {EditorState} newState 
    */
-  const handleChange = (newState) => {
+  const handleChange = (newState: EditorState) => {
     const currentContentState = originalState.getCurrentContent()
     const newContentState = newState.getCurrentContent()
   
@@ -460,29 +483,29 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
 
   return (<div
     ref={planRef}
-    plan={plan_id}
-    className={'plan-node'}
+    data-id={planId}
+    className={style.root}
     onClick={handleClick}
     onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
-    state={state} // the state of this plan - see PlanState at top of this file
+    data-state={state} // the state of this plan - see PlanState at top of this file
   >
-    {PlanState.isEdit(state) && 
+    {isEdit(state) && 
       <div fp-role="edit-panel">
-        {state === PlanState.EditExpand ? 
+        {state === "edit-expand" ? 
           <> {/* Case: fully expanded */}
             <div fp-role="styling">
-            <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
+            <div fp-role="icon" data-state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
               onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
             >
               <FormatBold/>
             </div>
-            <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
+            <div fp-role="icon" data-state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
               onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
             >
               <FormatItalic/>
             </div>
-            <div fp-role="icon" state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
+            <div fp-role="icon" data-state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
               onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
             >
               <FormatUnderlined/>
@@ -493,7 +516,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
             </div>
             <div fp-role="labels-anchor">
               <StyleOpenContext.Provider value={{styleOpen, setStyleOpen}}>
-                <PlanStyles planId={plan_id} currentStyleId={styleId}/>
+                <PlanStyles planId={planId} currentStyleId={styleId}/>
               </StyleOpenContext.Provider>
             </div>
           </>
@@ -505,10 +528,10 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
         }
       </div>
     }
-    <div fp-role="content" style={{color: `var(--plan-color${(content && content.done) ? '-done' : ''}-${styleId || 'default'})`}}>
+    <div className={style.content} style={{color: `var(--plan-color${isDone ? '-done' : ''}-${styleId || 'default'})`}}>
       <Editor 
         ref={textEdit}
-        readOnly={!PlanState.isEdit(state)}
+        readOnly={!isEdit(state)}
         editorState={editorState} 
         handleKeyCommand={handleKeyCommand}
         onChange={handleChange}
@@ -516,7 +539,7 @@ function Plan({plan: {date_str, plan_id, styleId, content}}) {
         onFocus={handleFocus}
         onBlur={handleBlur}
       />
-      <div fp-role="toggle-container" style={{color: `var(--plan-color${(content && content.done) ? '-done' : '-done'}-${styleId || 'default'})`}}>
+      <div className={style.toggler} style={{color: `var(--plan-color${isDone ? '-done' : '-done'}-${styleId || 'default'})`}}>
         <span 
           fp-role="toggle-button"
           onMouseDown={e => {e.stopPropagation(); e.preventDefault()}}

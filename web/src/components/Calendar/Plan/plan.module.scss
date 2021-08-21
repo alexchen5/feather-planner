@@ -1,0 +1,86 @@
+.root {
+    box-sizing: border-box;
+    position: relative;
+    cursor: default;
+
+    .content {
+        padding: 2px 12px 2px 2px;
+        margin: 0px;
+        border-radius: 4px;
+        border: 1px solid transparent;
+        transition: all 200ms ease;
+        font-size: var(--plan-font-size);
+        position: relative;
+
+        .toggler {
+            position: absolute;
+            z-index: 2;
+            top: 0px;
+            right: -8px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 200ms ease, right 200ms ease, color 500ms ease;
+        }
+    }
+
+    &[data-state="hover"] {
+        .content {
+            box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
+
+            .toggler {
+                opacity: 1;
+                pointer-events: all;
+                right: 4px
+            }
+        }
+    }
+
+    &[data-state="dragging"] {
+        cursor: grabbing;
+
+        .content {
+            background-color: var(--bg-greyblue);
+            box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
+            z-index: 99;
+            opacity: 0.7;
+
+            .toggler {
+                opacity: 1;
+                pointer-events: none;
+                right: 4px
+            }
+        }
+    }
+
+    &[data-state^="edit"] {
+        cursor: auto;
+
+        .content {
+            background-color: white;
+            z-index: 2;
+            margin: 0px 8px 0px 0px;
+            padding: 2px 4px 2px 2px;
+
+            .toggler {
+                opacity: 1;
+                pointer-events: all;
+                right: -4px;
+            }
+        }
+    }
+
+    &[data-state^="edit-expand"] {
+        .content {
+            padding: 2px 12px 2px 2px;
+            margin: 0px;
+
+            .toggler {
+                right: 4px;
+            }
+        }
+    }
+
+}

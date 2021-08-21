@@ -1,17 +1,21 @@
-import React from "react";
+import React, { KeyboardEvent, MouseEventHandler } from "react";
 
 import IconButton from '@material-ui/core/IconButton';
 import { AddCircle } from "@material-ui/icons";
-import { CalendarContext } from ".";
-import { convertToRaw, Editor, EditorState, getDefaultKeyBinding, RichUtils } from "draft-js";
+import { CalendarContext } from "..";
+import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RichUtils } from "draft-js";
+import { getPlanIds } from "../utils/dateUtil";
+import { db, UidContext } from "globalContext";
 
-const AddPlan = React.forwardRef(({date_str}, ref) => {
-  const {dispatchDates} = React.useContext(CalendarContext);
+const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateStr}, ref) => {
+  const { calendar } = React.useContext(CalendarContext);
   const [isAdding, setIsAdding] = React.useState(false);
-  const editor = React.createRef(null);
+  const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(() => EditorState.createEmpty());
 
-  const handleAddClick = (e) => {
+  const {uid} = React.useContext(UidContext);
+
+  const handleAddClick: MouseEventHandler = (e) => {
     e.stopPropagation();
     setIsAdding(true);
   }
@@ -24,13 +28,21 @@ const AddPlan = React.forwardRef(({date_str}, ref) => {
       setIsAdding(false);
       return;
     }
-    dispatchDates({ type: 'add', date_str, entries: { textContent: convertToRaw(editorState.getCurrentContent()) } });
+
+    const ids = getPlanIds(calendar.dates, dateStr);
+    const prv = ids[ids.length - 1] || '';
+    db.collection(`users/${uid}/plans`).add({
+      date: dateStr,
+      content: { textContent: convertToRaw(editorState.getCurrentContent()) },
+      prv: prv,
+    });
+
     setIsAdding(false);
   }
 
   React.useEffect(() => {
     if (isAdding) {
-      editor.current.focus();
+      editor.current?.focus();
     }
     if (editorState.getCurrentContent().hasText()) {
       setEditorState(() => EditorState.createEmpty());
@@ -38,7 +50,7 @@ const AddPlan = React.forwardRef(({date_str}, ref) => {
     // eslint-disable-next-line
   }, [isAdding]);
 
-  const handleKeyCommand = command => {
+  const handleKeyCommand = (command: string): DraftHandleValue => {
     const newState = RichUtils.handleKeyCommand(editorState, command);
     if (newState) {
       setEditorState(newState);
@@ -47,8 +59,8 @@ const AddPlan = React.forwardRef(({date_str}, ref) => {
     return 'not-handled';
   }
 
-  const checkSubmit = e => {
-    if (e.keyCode === 13 && !e.shiftKey) {
+  const checkSubmit = (e: KeyboardEvent): string | null => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       handleSubmission();
       return 'submit';
     }

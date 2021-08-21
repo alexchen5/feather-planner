@@ -1,5 +1,7 @@
 import { GridList } from "@material-ui/core";
-import { getDayStart } from "./util";
+import { getDayStart } from "../utils/dateUtil";
+
+import style from "./container.module.scss";
 
 function DayHeaders() {
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -9,24 +11,15 @@ function DayHeaders() {
   return (
     <GridList
       cols={7} spacing={0} 
-      style={{margin: '0', padding: '0px 4px'}}
+      className={style.headers}
     >
       {weekdays.map(day => 
         <li 
           key={day} 
-          style={{height: '', padding: '', position: 'relative'}}
+          className={style.day}
+          style={{ height: '', padding: '' }}
         >
-          <div 
-            style={{
-              textAlign: 'right',
-              fontSize: 'var(--day-label-font-size)',
-              fontWeight: 300,
-              padding: '4px 6px',
-              color: '#333',
-            }}
-          >
-            {day}
-          </div>
+          {day}
         </li>
       )} 
     </GridList>

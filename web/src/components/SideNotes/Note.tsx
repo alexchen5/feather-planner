@@ -1,13 +1,14 @@
-import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, RichUtils } from "draft-js";
+import { ContentState, convertFromRaw, convertToRaw, DraftHandleValue, Editor, EditorState, RichUtils } from "draft-js";
 import React from "react";
-import { UidContext } from "../../App";
-import { db } from "../../pages/HomePage";
+import { KeyboardEventHandler } from "react";
+import { MouseEventHandler } from "react";
+import { db, UidContext } from "globalContext";
 
-let pos1, pos2, pos3, pos4 = 0;
+let pos1, pos2, pos3: number, pos4 = 0;
 
-function Note({ id, content, position, size }) {
-  const note = React.createRef(null);
-  const editor = React.createRef(null);
+function Note({ id, content, position, size } : any) {
+  const note = React.createRef<HTMLDivElement>();
+  const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(
     () => EditorState.createWithContent(
       typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
@@ -16,7 +17,7 @@ function Note({ id, content, position, size }) {
   const [editing, setEditing] = React.useState(false);
   const {uid} = React.useContext(UidContext);
 
-  const handleKeyCommand = command => {
+  const handleKeyCommand = (command: string): DraftHandleValue => {
     const newState = RichUtils.handleKeyCommand(editorState, command);
     if (newState) {
       setEditorState(newState);
@@ -34,14 +35,14 @@ function Note({ id, content, position, size }) {
 
   const getFocus = () => {
     setEditing(true);
-    editor.current.focus();
+    editor.current?.focus();
   }
-  const handleBlur = e => {
+  const handleBlur = () => {
     setEditing(false);
     saveNoteContent();
   }
 
-  const handleMouseDownDrag = e => {
+  const handleMouseDownDrag: MouseEventHandler = e => {
     if (editing) return;
     pos3 = e.clientX;
     pos4 = e.clientY;
@@ -49,7 +50,7 @@ function Note({ id, content, position, size }) {
     document.addEventListener('mousemove', elementDrag);
   }
 
-  const handleMouseDownResize = e => {
+  const handleMouseDownResize: MouseEventHandler = e => {
     if (editing) return;
     pos3 = e.clientX;
     pos4 = e.clientY;
@@ -57,20 +58,22 @@ function Note({ id, content, position, size }) {
     document.addEventListener('mousemove', elementResize);
   }
 
-  const elementDrag = e => {
+  const elementDrag = (e: MouseEvent) => {
     e.preventDefault();
     pos1 = pos3 - e.clientX;
     pos2 = pos4 - e.clientY;
+    if (!note.current) return;
     if (note.current.offsetTop - pos2 >= 0) pos4 = e.clientY;
     if (note.current.offsetLeft - pos1 >= 8) pos3 = e.clientX;
     note.current.style.top = Math.max(0, note.current.offsetTop - pos2) + "px";
     note.current.style.left = Math.max(8, note.current.offsetLeft - pos1) + "px";
   }
 
-  const elementResize = e => {
+  const elementResize = (e: MouseEvent) => {
     e.preventDefault();
     pos1 = pos3 - e.clientX;
     pos2 = pos4 - e.clientY;
+    if (!note.current) return;
     if (parseInt(getComputedStyle(note.current).height) - pos2 >= 25) pos4 = e.clientY;
     if (parseInt(getComputedStyle(note.current).width) - pos1 >= 25) pos3 = e.clientX;
     note.current.style.height = Math.max(25, parseInt(getComputedStyle(note.current).height) - pos2) + "px";
@@ -80,6 +83,7 @@ function Note({ id, content, position, size }) {
   const closeDragElement = () => {
     document.removeEventListener('mouseup', closeDragElement);
     document.removeEventListener('mousemove', elementDrag);
+    if (!note.current) return;
     db.doc(`users/${uid}/notes/${id}`).update(
       'position.left', note.current.style.left,
       'position.top', note.current.style.top
@@ -89,13 +93,14 @@ function Note({ id, content, position, size }) {
   const closeResizeElement = () => {
     document.removeEventListener('mouseup', closeResizeElement);
     document.removeEventListener('mousemove', elementResize);
+    if (!note.current) return;
     db.doc(`users/${uid}/notes/${id}`).update(
       'size.width', note.current.style.width,
       'size.height', note.current.style.height
     );
   }
 
-  const menuEvent = e => {
+  const handleKeyDown: KeyboardEventHandler = e => {
     if (e.currentTarget !== e.target) return;
 
     if (e.key === 'Backspace') {
@@ -107,14 +112,14 @@ function Note({ id, content, position, size }) {
   return (<div 
     ref={note}
     className={'sidenote'} 
-    editing={`${editing}`}
+    data-state={`${editing}`}
     onClick={e => {
       e.stopPropagation();
       if(e.detail === 2) getFocus();
     }}
-    tabIndex='0'
+    tabIndex={0}
     style={{left: position && position.left, top: position && position.top, width: size && size.width, height: size && size.height}}
-    onKeyDown={menuEvent}
+    onKeyDown={handleKeyDown}
   >
     <div onMouseDown={handleMouseDownDrag} className={'border-capture top'}/>
     <div onMouseDown={handleMouseDownDrag} className={'border-capture right'}/>

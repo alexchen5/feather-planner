@@ -1,18 +1,17 @@
 import React from 'react';
-import { CalendarContext } from '..';
-import { UidContext } from '../../../App';
-import { db } from '../../../pages/HomePage';
-import { StyleOpenContext } from '../Plan';
+import { CalendarContext } from '../..';
+import { db, UidContext } from "globalContext";
+import { StyleOpenContext } from '..';
 import PlanStyle from './PlanStyle';
 
 /**
  * Context for if the plan style menu is in edit state. Boolean.
  */
- export const StyleEditContext = React.createContext(null);
+ export const StyleEditContext = React.createContext({} as { inEdit: boolean, setInEdit: React.Dispatch<React.SetStateAction<boolean>>});
 
-function PlanStyles({ planId, currentStyleId }) {
+function PlanStyles({ planId, currentStyleId }: { planId: string, currentStyleId: string }) {
   const { styleOpen, setStyleOpen } = React.useContext(StyleOpenContext);
-  const { planStyles } = React.useContext(CalendarContext);
+  const { calendar: { planStyles } } = React.useContext(CalendarContext);
   const [ inEdit, setInEdit ] = React.useState(false);
   const {uid} = React.useContext(UidContext);
 
@@ -34,7 +33,7 @@ function PlanStyles({ planId, currentStyleId }) {
     });
   }
 
-  const handlePlanStyleSelection = (styleId) => {
+  const handlePlanStyleSelection = (styleId: string) => {
     if (styleId !== currentStyleId) {
       db.doc(`users/${uid}/plans/${planId}`).set(
         { planStyleId: styleId }, { merge: true }
@@ -49,13 +48,13 @@ function PlanStyles({ planId, currentStyleId }) {
       onMouseEnter={() => setStyleOpen(true)}
       onMouseLeave={() => setStyleOpen(false)}
     >
-      <PlanStyle planStyle={{ id: `${currentStyleId || "default"}`, defaultLabel: "Normal Plan", handleClick: handlePlanStyleSelection }}/>
+      <PlanStyle styleId={currentStyleId} label={planStyles[currentStyleId]?.label || "Normal Plan"} handleClick={handlePlanStyleSelection}/>
       {
         styleOpen &&
         <>
         {
           Object.keys(planStyles).filter(id => id !== currentStyleId).map(styleId => 
-            <PlanStyle key={styleId} planStyle={{ id: styleId, defaultLabel: "", handleClick: handlePlanStyleSelection }}/>
+            <PlanStyle key={styleId} styleId={styleId} label={planStyles[currentStyleId]!.label} handleClick={handlePlanStyleSelection}/>
           )
         }
         {
@@ -67,7 +66,7 @@ function PlanStyles({ planId, currentStyleId }) {
         }
         {
           inEdit && 
-          <PlanStyle planStyle={{ id: null, label: "" }}/>
+          <PlanStyle styleId={'unused add new style'} label={''}/>
         }
         </>
       }

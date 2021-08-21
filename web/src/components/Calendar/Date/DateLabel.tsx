@@ -1,26 +1,27 @@
-import React from "react";
-import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
+import React, { KeyboardEvent } from "react";
+import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState } from "draft-js";
+import { db, UidContext } from "globalContext";
+import { CalendarDateLabel } from "types/calendar";
 
-import { UidContext } from "../../App";
-import { db } from "../../pages/HomePage";
+import style from "./date.module.scss";
 
-function AddDateLabel({ date_str }) {
+function AddDateLabel({ dateStr }: { dateStr: string }) {
   const {uid} = React.useContext(UidContext);
-  const editor = React.createRef(null);
+  const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(
     () => EditorState.createEmpty()
   );
   const [editing, setEditing] = React.useState(false);
 
-  const handleBlur = e => {
+  const handleBlur = () => {
     handleSubmission();
   }
   const getFocus = () => {
     setEditing(true);
-    editor.current.focus();
+    editor.current?.focus();
   }
-  const checkSubmit = e => {
-    if (e.keyCode === 13 && !e.shiftKey) {
+  const checkSubmit = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       handleSubmission();
       return 'submit';
     }
@@ -29,7 +30,7 @@ function AddDateLabel({ date_str }) {
   const handleSubmission = () => {
     if (editorState.getCurrentContent().hasText()) {
       db.collection(`users/${uid}/date-labels`).add({
-        date: date_str,
+        date: dateStr,
         content: convertToRaw(editorState.getCurrentContent()),
       });
     }
@@ -41,7 +42,7 @@ function AddDateLabel({ date_str }) {
       className={'datenode-label' + (editing ? ' editing' : '')}
       onMouseDown={e => {
         if (
-          document.querySelector('#calendar-container').contains(document.activeElement) ||
+          document.querySelector('#calendar-container')?.contains(document.activeElement) ||
           document.querySelector('div[plan][state^="edit"]')
         ) return;
         e.stopPropagation();
@@ -60,9 +61,9 @@ function AddDateLabel({ date_str }) {
   )
 }
 
-function EditDateLabel({ label_id, content }) {
+function EditDateLabel({ labelId, content }: { labelId: string, content: RawDraftContentState | string }) {
   const {uid} = React.useContext(UidContext);
-  const editor = React.createRef(null);
+  const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(
     () => EditorState.createWithContent(
       typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
@@ -70,15 +71,15 @@ function EditDateLabel({ label_id, content }) {
   );
   const [editing, setEditing] = React.useState(false);
 
-  const handleBlur = e => {
+  const handleBlur = () => {
     handleSubmission();
   }
   const getFocus = () => {
     setEditing(true);
-    editor.current.focus();
+    editor.current?.focus();
   }
-  const checkSubmit = e => {
-    if (e.keyCode === 13 && !e.shiftKey) {
+  const checkSubmit = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       handleSubmission();
       return 'submit';
     }
@@ -86,20 +87,21 @@ function EditDateLabel({ label_id, content }) {
   }
   const handleSubmission = () => {
     if (editorState.getCurrentContent().hasText()) {
-      db.doc(`users/${uid}/date-labels/${label_id}`).set(
+      db.doc(`users/${uid}/date-labels/${labelId}`).set(
         { content: convertToRaw(editorState.getCurrentContent()) }, { merge: true }
       );
     } else {
-      db.doc(`users/${uid}/date-labels/${label_id}`).delete();
+      db.doc(`users/${uid}/date-labels/${labelId}`).delete();
     }
     setEditing(false);
   }
 
   return (
     <div 
-      className={'datenode-label' + (editing ? ' editing' : '')}
+      className={style.label}
+      data-state={editing ? 'edit' : 'normal'}
       onMouseDown={e => {
-        if (document.querySelector('#calendar-container').contains(document.activeElement)) return;
+        if (document.querySelector('#calendar-container')?.contains(document.activeElement)) return;
         e.stopPropagation();
         getFocus();
       }}
@@ -116,13 +118,13 @@ function EditDateLabel({ label_id, content }) {
   )
 }
 
-function DateLabel({ date_str, label }) {
+function DateLabel({ dateStr, label } : { dateStr: string, label?: CalendarDateLabel }) {
   return (
   <>{
     label ?
-      <EditDateLabel date_str={date_str} label_id={label.label_id} content={label.content} />
+      <EditDateLabel labelId={label.labelId} content={label.content} />
       :
-      <AddDateLabel date_str={date_str}/>
+      <AddDateLabel dateStr={dateStr}/>
   }</>
   )
 }

@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import axios from 'axios';
 import { Redirect, Route } from 'react-router-dom';
 
-function ProtectedRoute(props) {
+function ProtectedRoute(props: any) {
   const [loading, setLoading] = React.useState(true);
   const [status, setStatus] = React.useState(false);
 

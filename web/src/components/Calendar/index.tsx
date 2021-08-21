@@ -1,103 +1,101 @@
 import React, { createContext, useCallback, useReducer } from "react";
 
-import '../../Calendar.css'
-
-import { getPlanIds, getUpdateRange, getWeeklyRanges} from './util';
+import { getEmptyCalendarDates, getUpdateRange, getWeekRanges, newDateRange} from './utils/dateUtil';
 import Plan from './Plan'
-import ScrollHandler from "./ScrollHandler";
-import Datenode from "./Datenode";
-import DayHeaders from "./DayHeaders";
+import Date from "./Date";
 import CalendarContainer from "./CalendarContainer";
-import { db } from "../../pages/HomePage";
-import { UidContext } from "../../App";
-import { Calendar, CalendarAction, CalendarContext } from "types/calendar";
+import { db, UidContext } from "globalContext";
+import { Calendar, CalendarAction, CalendarPlan, InitDispatch, LoadDates, SetLabels, SetPlans, SetStyles, WeekRange } from "types/calendar";
+import { RawDraftContentState } from "draft-js";
 
-export const calendarContext = createContext({} as CalendarContext);
+export const CalendarContext = createContext({} as { calendar: Calendar, dispatch: (action: CalendarAction) => Promise<void> });
 
-const reducer = (state: Calendar, action: CalendarAction):Calendar => {
+const init = (_noArg: never): Calendar => {
+  const [ startDate, endDate ] = newDateRange([], "init");
+
+  return {
+    dates: getEmptyCalendarDates(startDate, endDate), 
+    weekRanges: [],
+    planStyles: {},
+  }
+}
+
+const reducer = (state: Calendar, action: CalendarAction): Calendar => {
   switch (action.type) {
-    case 'replace':
-      return { ...state, dates: [...action.dates] };
-    case 'load': 
-      return action.dir === 'END' ? {
+    case 'set-dates': 
+      return {
         ...state,
-        dates: [...state.dates, ...action.dates],
-      } : {
-        ...state,
-        dates: [...action.dates, ...state.dates],
+        dates: [...action.dates],
       }
-    case 'update':
+    case 'set-week-ranges': 
+      return {
+        ...state,
+        weekRanges: [...action.weekRanges],
+      }
+    case 'set-styles': 
+      return {
+        ...state,
+        planStyles: {...action.planStyles},
+      }
+    case 'set-labels': 
+      return {
+        ...state,
+        dates: state.dates.map(date => {
+          const label = action.labels[date.dateStr];
+          if (label && ('labelId' in label)) {
+            return { ...date, label: label }
+          }
+          return date;
+        }),
+      }
+    case 'set-plans': 
       return {
         ...state,
         dates: state.dates.map(date => 
           action.plans[date.dateStr] ? { ...date, plans: action.plans[date.dateStr] } : date
         ),
       }
-    case 'update-label':
-      return {
-        dates: state.dates.map(date =>
-          action.labels[date.dateStr] ? { ...date, label: action.labels[date.dateStr] } : date
-        )
+    case 'load-raw-dates': 
+      return action.dir === 'end' ? {
+        ...state,
+        dates: [...state.dates, ...getEmptyCalendarDates(action.startDate, action.endDate)],
+      } : {
+        ...state,
+        dates: [...getEmptyCalendarDates(action.startDate, action.endDate), ...state.dates],
       }
     default:
-      const _exhaustiveCheck: never = action;
-      return _exhaustiveCheck;
+      const _exhaustiveCheck: InitDispatch | LoadDates = action;
+      return _exhaustiveCheck as never;
   }
 }
 
 function CalendarComponent() {
-  const [calendar, dispatchCore] = useReducer(reducer, {dates: [], activeRange: [], planStyles: {}} as Calendar);
-  // const [planStyles, setPlanStyles] = React.useState({} as PlanStyles);
-  // const [range, setRange] = React.useState([]);
   const {uid} = React.useContext(UidContext);
+  const [calendar, dispatchCore] = useReducer(reducer, null as never, init);
 
   const dispatch = useCallback(async (action: CalendarAction) => {
     try {
       switch (action.type) {
-        case 'add': {
-          const ids = getPlanIds(dates, action.date_str);
-          const prv = ids[ids.length - 1] || '';
-          db.collection(`users/${uid}/plans`).add({
-            date: action.date_str,
-            content: action.entries,
-            prv: prv,
-          });
+        case 'set-dates':
+        case 'set-week-ranges':
+        case 'load-raw-dates':
+        case 'set-styles': 
+        case 'set-labels': 
+        case 'set-plans': 
+          dispatchCore(action);
           break;
-        }
-        case 'edit': {
-          db.doc(`users/${uid}/plans/${action.plan_id}`).update('content', action.entries);
-          break;
-        }
-        case 'delete': {
-          const ids = getPlanIds(dates, action.date_str);
-          const p = ids.indexOf(action.plan_id);
-
-          const delBatch = db.batch();
-          if (ids[p+1]) delBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', ids[p-1] || '');
-          delBatch.delete(db.doc(`users/${uid}/plans/${action.plan_id}`));
-          delBatch.commit();
-
-          break;
-        }
-        case 'move': {
-          const {plan_id, to_date, from_prv_id, from_nxt_id, to_prv_id, to_nxt_id } = action;
-          
-          const moveBatch = db.batch();
-          if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', plan_id);
-          moveBatch.update(db.doc(`users/${uid}/plans/${plan_id}`), 'date', to_date, 'prv', to_prv_id);
-          if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
-          moveBatch.commit();
-
-          break;
-        }
-        case 'load': {
-          dispatchCore({...action, dates: action.dateRange});
-          db.collection(`users/${uid}/plan-style`) // user plan styling
+        case 'init': {
+          // attach db listeners to plan styles 
+          db.collection(`users/${uid}/plan-style`) 
             .onSnapshot((snapshot) => {
-              const newStyles = {...planStyles};
+              const action: SetStyles = {
+                type: 'set-styles',
+                planStyles: {},
+              }
               snapshot.forEach((doc) => {
                 const d = doc.data();
-                newStyles[doc.id] = {
+                // TODO: complete error checking protocol
+                action.planStyles[doc.id] = {
                   label: d.label,
                   color: d.color,
                   colorDone: d.colorDone,
@@ -105,57 +103,97 @@ function CalendarComponent() {
                 document.documentElement.style.setProperty(`--plan-color-${doc.id}`, d.color);
                 document.documentElement.style.setProperty(`--plan-color-done-${doc.id}`, d.colorDone);
               });
-              setPlanStyles(newStyles);
-            })
-          const ranges = getWeeklyRanges(action.start, action.end);
-          ranges.forEach(r => {
+              dispatch(action);
+            });
+          
+          // dispatch loading for initial dates
+          const [ startDate, endDate ] = newDateRange([], "init");
+          const action: LoadDates = {
+            type: 'load-dates',
+            dir: 'start',
+            startDate,
+            endDate,
+          }
+          dispatch(action);
+
+          break;
+        }
+        case 'load-dates': {
+          // attach db listeners to dates
+          const weekRanges = getWeekRanges(action.startDate, action.endDate) as Array<WeekRange>;
+          weekRanges.forEach(r => {
             r.detachLabelsListener = db.collection(`users/${uid}/date-labels`) // labels for each date
-              .where('date', '>=', r.start)
-              .where('date', '<', r.end)
+              .where('date', '>=', r.startDate)
+              .where('date', '<', r.endDate)
               .onSnapshot((snapshot) => {
-                const newLabels = {};
+                const action: SetLabels = {
+                  type: 'set-labels', 
+                  labels: getUpdateRange(r.startDate, r.endDate, 'object'), 
+                }
                 snapshot.forEach((doc) => {
                   const d = doc.data();
-                  newLabels[d.date] = {
-                    label_id: doc.id,
-                    content: d.content,
-                  };
+                  const content = d.content as string | RawDraftContentState | undefined;
+                  if (!content) {
+                    console.error('Deleting date label due to empty content. labelId: ' + doc.id);
+                    db.doc(`users/${uid}/date-labels/${doc.id}`).delete();
+                  } else {
+                    action.labels[d.date] = {
+                      labelId: doc.id,
+                      content,
+                    };
+                  }
                 })
-                dispatchCore({ type: 'update-label', labels: newLabels });
-
-                // snapshot.docChanges().forEach(change => {
-                //   console.log(change.doc.data(), change.type)
-                // })
+                dispatch(action);
               });
 
             r.detachPlansListener = db.collection(`users/${uid}/plans`) // user's plans
-              .where('date', '>=', action.start)
-              .where('date', '<', action.end)
+              .where('date', '>=', r.startDate)
+              .where('date', '<', r.endDate)
               .onSnapshot((snapshot) => {
-                const newPlans = getUpdateRange(action.start, action.end);
-                let reserves = [];
+                const action: SetPlans = { 
+                  type: 'set-plans', 
+                  plans: getUpdateRange(r.startDate, r.endDate, 'array'), 
+                }
+                let reserves: { date: string, plan: CalendarPlan }[] = [];
                 snapshot.forEach((doc) => {
                   const d = doc.data();
-                  const newPlan = {
-                    plan_id: doc.id,
-                    content: d.content,
-                    styleId: d.planStyleId || "default",
-                    prv: d.prv,
-                  };
-                  if (!d.prv) {
-                    newPlans[d.date].push(newPlan);
+                  const dateStr = d.date                              as string | undefined;
+                  const isDone  = (d.done || d.content.done || false) as boolean;
+                  const content = (d.header || d.content.textContent) as string | RawDraftContentState | undefined;
+                  const styleId = (d.planStyleId || "default")        as string;
+                  const prv     = (d.prv || '')                       as string;
+
+                  if (!dateStr) {
+                    console.error('Deleting plan due to corrupt date string. planId: ' + doc.id);
+                    db.doc(`users/${uid}/plans/${doc.id}`).delete();
+                  } else if (!content) {
+                    console.error('Deleting plan due to empty content. planId: ' + doc.id);
+                    db.doc(`users/${uid}/plans/${doc.id}`).delete();
                   } else {
-                    const prv = newPlans[d.date].findIndex(plan => plan.plan_id === d.prv);
-                    if (prv !== -1) newPlans[d.date].splice(prv + 1, 0, newPlan);
-                    else reserves.push({date: d.date, plan: newPlan});
+                    const newPlan: CalendarPlan = {
+                      planId: doc.id,
+                      dateStr,
+                      isDone,
+                      content,
+                      styleId,
+                      prv,
+                    };
+
+                    if (!d.prv) {
+                      action.plans[d.date].push(newPlan);
+                    } else {
+                      const prv = action.plans[d.date].findIndex(plan => plan.planId === d.prv);
+                      if (prv !== -1) action.plans[d.date].splice(prv + 1, 0, newPlan);
+                      else reserves.push({ date: d.date, plan: newPlan });
+                    }
                   }
                 });
                 let prvlen;
                 while (reserves.length && reserves.length !== prvlen) {
-                  let nextReserves = [];
+                  let nextReserves: { date: string, plan: CalendarPlan }[] = [];
                   reserves.forEach(r => {
-                    const prv = newPlans[r.date].findIndex(plan => plan.plan_id === r.plan.prv);
-                    if (prv !== -1) newPlans[r.date].splice(prv + 1, 0, r.plan);
+                    const prv = action.plans[r.date].findIndex(plan => plan.planId === r.plan.prv);
+                    if (prv !== -1) action.plans[r.date].splice(prv + 1, 0, r.plan);
                     else nextReserves.push(r);
                   })
                   prvlen = reserves.length;
@@ -163,53 +201,50 @@ function CalendarComponent() {
                 }
                 reserves.forEach(r => {
                   r.plan.prv = '';
-                  newPlans[r.date].push(r.plan);
+                  action.plans[r.date].push(r.plan);
                 })
-                dispatchCore({ type: 'update', plans: newPlans });
-
-                // snapshot.docChanges().forEach(change => {
-                //   console.log(change.doc.data(), change.type)
-                // })
+                dispatch(action);
               });
           });
-          if (action.dir === 'END') {
-            setRange([...range, ...ranges]);
-          } else {
-            setRange([...ranges, ...range]);
-          }
+          dispatch({ type: 'set-week-ranges', weekRanges });
           break;
         }
-        case 'replace':
-          dispatchCore({...action});
-          break;
         default: {
-          console.warn(`Unknown action type: ${action.type}`);
+          // eslint-disable-next-line
+          const _exhaustiveCheck: never = action;
+          break;
         }
       }
     } catch (error) {
       console.log(action, error);
     }
-  }, [uid, dates, range, planStyles]);
-  // const clipboard = React.useRef();
+  }, [uid]);
+  
+  // calendar mount and unmount
+  React.useEffect(() => {
+    console.log('xd');
+    
+    dispatch({ type: 'init' });
+    return () => {
+      // action when uid changes
+    }
+  }, [dispatch]);
 
   return (
-    <calendarContext.Provider value={{ calendar, dispatch }}>
+    <CalendarContext.Provider value={{ calendar, dispatch }}>
       <CalendarContainer>
-        <DayHeaders />
-        <ScrollHandler>
-          {calendar.dates.map(date => <Datenode
-            key={date.dateStr}
-            dateStr={date.dateStr}
-            label={date.label}
-          >
-            {date.plans.map(plan => <Plan
-              key={plan.planId}
-              plan={{dateStr: date.dateStr, ...plan}}
-            />)}
-          </Datenode>)}
-        </ScrollHandler>
+        {calendar.dates.map(date => <Date
+          key={date.dateStr}
+          dateStr={date.dateStr}
+          label={date.label}
+        >
+          {date.plans.map(plan => <Plan
+            key={plan.planId}
+            plan={plan}
+          />)}
+        </Date>)}
       </CalendarContainer>
-    </calendarContext.Provider>
+    </CalendarContext.Provider>
   );
 }
 

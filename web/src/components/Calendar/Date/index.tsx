@@ -1,15 +1,16 @@
 import React, { MouseEventHandler, ReactNode } from "react";
+import { CalendarDateLabel } from "types/calendar";
 
-import {CalendarContext} from '.'
-import AddPlan from "./AddPlan";
+import AddPlan from "../Plan/AddPlan";
 import DateLabel from "./DateLabel";
-import { strToDate, dateToStr } from './util';
+import { strToDate, dateToStr } from '../utils/dateUtil';
 
-function Datenode({ dateStr, label, children }: { dateStr: string, label: CalendarDateLabel, children: ReactNode }) {
-  const { dispatch } = React.useContext(CalendarContext);
+import style from "./date.module.scss";
+
+function Date({ dateStr, label, children }: { dateStr: string, label?: CalendarDateLabel, children: ReactNode }) {
   const [isToday, setIsToday] = React.useState(dateStr === dateToStr());
   const thisDate = strToDate(dateStr);
-  const addPlan = React.createRef();
+  const addPlan = React.createRef<HTMLButtonElement>();
   
   React.useEffect(() => {
     if (dateStr < dateToStr()) return;
@@ -26,11 +27,11 @@ function Datenode({ dateStr, label, children }: { dateStr: string, label: Calend
    * activating a new plan
    * @param e 
    */
-  const handleMouseDown: MouseEventHandler = (event) => {
-    // console.log(e.target.className);
-    if (event.target.className === 'datenode-item') {
+  const handleMouseDown: MouseEventHandler<HTMLLIElement> = (event) => {
+    const target = event.target as HTMLElement; // assume target is a HTML element
+    if (target.className === 'datenode-item') {
       addPlan.current && 
-      !document.querySelector('#calendar-container').contains(document.activeElement) && 
+      !document.querySelector('#calendar-container')?.contains(document.activeElement) && 
       !document.querySelector('div[plan][state^="edit"]') &&
       addPlan.current.click()
     }
@@ -38,25 +39,23 @@ function Datenode({ dateStr, label, children }: { dateStr: string, label: Calend
 
   return (
     <li
-      // className={'datenode-root -calendar-bg'}
-      className={'datenode-root'}
-      datenode={dateStr}
-      onContextMenu={e => {
-        e.stopPropagation();
-        dispatch({type: 'menu', event: e, date_str: dateStr})
-      }}
+      className={style.root}
+      data-date={dateStr}
       onMouseDown={handleMouseDown}
     >
-      <div className={'datenode-item'}>
-        <div className={`datenode-header`}>
-          <DateLabel date_str={dateStr} label={label}/>
-          <div className={'datenode-date' + (isToday ? ' today' : '')}>
+      <div className={style.item}>
+        <div className={style.header}>
+          <DateLabel dateStr={dateStr} label={label}/>
+          <div 
+            className={style.date}
+            data-state={isToday ? 'highlight' : 'standard'}
+          >
             {thisDate.getDate() === 1 ? '1 ' + thisDate.toLocaleDateString('default', {month: 'short'}) : thisDate.getDate()}
           </div>
         </div>
         {children}
         <AddPlan
-          date_str={dateStr}
+          dateStr={dateStr}
           ref={addPlan}
         />
       </div>
@@ -64,4 +63,4 @@ function Datenode({ dateStr, label, children }: { dateStr: string, label: Calend
   )
 }
 
-export default Datenode;
+export default Date;
