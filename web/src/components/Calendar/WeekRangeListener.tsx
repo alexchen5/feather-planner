@@ -14,9 +14,7 @@ function WeekRangeListener({startDate, endDate}: {startDate: string, endDate: st
   const { dispatch } = React.useContext(CalendarContext);
   const { uid } = React.useContext(UidContext);
 
-  React.useEffect(() => {    
-    console.log('attaching listeners on: ' + startDate + ' to ' + endDate);
-
+  React.useEffect(() => { 
     const detachLabelListener = db.collection(`users/${uid}/date-labels`) // labels for each date
       .where('date', '>=', startDate)
       .where('date', '<=', endDate)

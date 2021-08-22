@@ -20,14 +20,13 @@ function CalendarContainer({children} : {children: ReactNode}) {
   const datesContainer = React.useRef<HTMLUListElement>(null);
 
   React.useLayoutEffect(() => {
-    console.log('container init');
     if (datesContainer.current) {
-      console.log('set scroll');
       datesContainer.current.scrollTop = getInitScrollHeight(datesContainer.current);
     }
   }, []);
 
   const handleNodePagination: UIEventHandler = (event) => {
+    // TODO: smarter pagination rendering, using speed of scroll to determine how much pagination is needed
     if (event.currentTarget.scrollHeight - event.currentTarget.scrollTop === event.currentTarget.clientHeight) {
       dispatch({ type: 'move-render-range', dir: 'down' });
     } else if (event.currentTarget.scrollTop === 0) {
