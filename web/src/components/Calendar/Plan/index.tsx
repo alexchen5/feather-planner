@@ -10,6 +10,7 @@ import { getPlanIds } from "../utils/dateUtil";
 import { getDragAfterElement, getTargetDatenode, smoothMove } from "../utils/dragUtil";
 
 import style from './plan.module.scss';
+import panelStyle from './editPanel.module.scss';
 
 /**
  * Describes the state of the plan. Note that text values are connected to stylesheets.
@@ -488,40 +489,40 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     onClick={handleClick}
     onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
-    data-state={state} // the state of this plan - see PlanState at top of this file
+    fp-state={state} // the state of this plan - see PlanState at top of this file
   >
     {isEdit(state) && 
-      <div fp-role="edit-panel">
+      <div className={style.editPanel}>
         {state === "edit-expand" ? 
           <> {/* Case: fully expanded */}
-            <div fp-role="styling">
-            <div fp-role="icon" data-state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
-              onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
-            >
-              <FormatBold/>
+            <div className={panelStyle.styleIcons}>
+              <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
+                onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
+              >
+                <FormatBold/>
+              </div>
+              <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
+                onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
+              >
+                <FormatItalic/>
+              </div>
+              <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
+                onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
+              >
+                <FormatUnderlined/>
+              </div>
             </div>
-            <div fp-role="icon" data-state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
-              onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
-            >
-              <FormatItalic/>
-            </div>
-            <div fp-role="icon" data-state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
-              onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
-            >
-              <FormatUnderlined/>
-            </div>
-            </div>
-            <div fp-role="delete-icon" onMouseDown={e => {e.preventDefault(); deleteSelf();}}>
+            <div className={panelStyle.deleteIcon} onMouseDown={e => {e.preventDefault(); deleteSelf();}}>
               <Delete/>
             </div>
-            <div fp-role="labels-anchor">
+            <div className={panelStyle.labelsAnchor}>
               <StyleOpenContext.Provider value={{styleOpen, setStyleOpen}}>
                 <PlanStyles planId={planId} currentStyleId={styleId}/>
               </StyleOpenContext.Provider>
             </div>
           </>
           : <> {/* Case: half expanded */}
-            <div fp-role="expand-icon" onMouseDown={handleExpandEditMouseDown}>
+            <div className={panelStyle.expandIcon} onMouseDown={handleExpandEditMouseDown}>
               <MoreVert/>
             </div>
           </>
@@ -541,7 +542,7 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
       />
       <div className={style.toggler} style={{color: `var(--plan-color${isDone ? '-done' : '-done'}-${styleId || 'default'})`}}>
         <span 
-          fp-role="toggle-button"
+          className={style.button}
           onMouseDown={e => {e.stopPropagation(); e.preventDefault()}}
           onClick={toggleDone}
         >

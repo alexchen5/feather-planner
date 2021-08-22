@@ -7,52 +7,52 @@
     position: relative;
     background-color: white;
     border: 1px solid #f9f9f9;
+}
 
-    .item {
-        border: 1px solid transparent;
-        margin: 1px;
-        border-radius: 1px;
-        height: 100%;
+.item {
+    border: 1px solid transparent;
+    margin: 1px;
+    border-radius: 1px;
+    height: 100%;
 
-        &:focus {
-            border: 1px solid var(--edge-blue);
-            outline: 0;
-        }
+    &:focus {
+        border: 1px solid var(--edge-blue);
+        outline: 0;
+    }
+}
 
-        .header {
-            font-weight: 300;
-            font-size: var(--datenode-header-font-size);
-            display: flex;
-            justify-content: space-between;
-            color: #333;
-            max-width: 100%;
+.header {
+    font-weight: 300;
+    font-size: var(--datenode-header-font-size);
+    display: flex;
+    justify-content: space-between;
+    color: #333;
+    max-width: 100%;
+}
 
-            .label {
-                border: 1px solid transparent;
-                border-radius: 2px;
-                flex-grow: 1;
-                padding: 2px;
-                margin-top: 2.3px;
-                margin-right: 2px;
-                font-weight: 400;
+.label {
+    border: 1px solid transparent;
+    border-radius: 2px;
+    flex-grow: 1;
+    padding: 2px;
+    margin-top: 2.3px;
+    margin-right: 2px;
+    font-weight: 400;
 
-                &[data-state="edit"] {
-                    border: 1px solid var(--edge-grey);
-                }
-            }
-        }
+    &[data-state="edit"] {
+        border: 1px solid var(--edge-grey);
+    }
+}
+    
+.date {
+    border-radius: 100%;
+    min-width: 28px;
+    flex-grow: 0 0 28px;
+    height: 28px;
+    text-align: center;
+    line-height: 28px;
 
-        .date {
-            border-radius: 100%;
-            min-width: 28px;
-            flex-grow: 0 0 28px;
-            height: 28px;
-            text-align: center;
-            line-height: 28px;
-
-            &[data-state="highlight"] {
-                background-color: var(--bg-greyblue);
-            }
-        }
+    &[fp-state="highlight"] {
+        background-color: var(--bg-greyblue);
     }
 }

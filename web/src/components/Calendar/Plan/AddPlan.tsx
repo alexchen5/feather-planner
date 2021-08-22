@@ -7,6 +7,8 @@ import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBindi
 import { getPlanIds } from "../utils/dateUtil";
 import { db, UidContext } from "globalContext";
 
+import style from './plan.module.scss';
+
 const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateStr}, ref) => {
   const { calendar } = React.useContext(CalendarContext);
   const [isAdding, setIsAdding] = React.useState(false);
@@ -87,7 +89,7 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
           onBlur={handleEditorBlur}
         />
       </div> :
-      <div className={'plan-add'} >
+      <div className={style.addButton} >
         <IconButton ref={ref} size='small' onClick={handleAddClick}><AddCircle/></IconButton> 
       </div>
     }

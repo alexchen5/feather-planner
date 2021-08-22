@@ -2,6 +2,8 @@ import { ContentState, convertFromRaw, Editor, EditorState, Modifier } from 'dra
 import React from 'react';
 import { StyleEditContext } from '.';
 
+import style from './labels.module.scss';
+
 function PlanStyle({ styleId, label, handleClick } : { styleId: string, label: string, handleClick?: (styleId: string) => void }) {
   const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(
@@ -33,8 +35,8 @@ function PlanStyle({ styleId, label, handleClick } : { styleId: string, label: s
     // eslint-disable-next-line
   }, [label]);
 
-  return (<div fp-role="label" onClick={() => handleClick && handleClick(styleId)}>
-    <div fp-role="header">
+  return (<div className={style.label} onClick={() => handleClick && handleClick(styleId)}>
+    <div className={style.header}>
       <Editor
         ref={editor}
         editorState={editorState} 
@@ -43,9 +45,9 @@ function PlanStyle({ styleId, label, handleClick } : { styleId: string, label: s
         onChange={setEditorState}
       />
     </div>
-    <div fp-role="color-pickers">
-      <div fp-role="picker" style={styleId ? {backgroundColor: `var(--plan-color-${styleId})`} : {}}></div>
-      <div fp-role="picker" style={styleId ? {backgroundColor: `var(--plan-color-done-${styleId})`} : {}}></div>
+    <div className={style.colorPickers}>
+      <div className={style.picker} style={styleId ? {backgroundColor: `var(--plan-color-${styleId})`} : {}}></div>
+      <div className={style.picker} style={styleId ? {backgroundColor: `var(--plan-color-done-${styleId})`} : {}}></div>
     </div>
   </div>)
 }

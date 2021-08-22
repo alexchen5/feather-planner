@@ -48,7 +48,7 @@ function Date({ dateStr, label, children }: { dateStr: string, label?: CalendarD
           <DateLabel dateStr={dateStr} label={label}/>
           <div 
             className={style.date}
-            data-state={isToday ? 'highlight' : 'standard'}
+            fp-state={isToday ? 'highlight' : 'standard'}
           >
             {thisDate.getDate() === 1 ? '1 ' + thisDate.toLocaleDateString('default', {month: 'short'}) : thisDate.getDate()}
           </div>

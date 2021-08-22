@@ -4,6 +4,8 @@ import { db, UidContext } from "globalContext";
 import { StyleOpenContext } from '..';
 import PlanStyle from './PlanStyle';
 
+import style from './labels.module.scss';
+
 /**
  * Context for if the plan style menu is in edit state. Boolean.
  */
@@ -44,7 +46,7 @@ function PlanStyles({ planId, currentStyleId }: { planId: string, currentStyleId
 
   return (<StyleEditContext.Provider value={{inEdit, setInEdit}}>
     <div 
-      fp-role="labels" 
+      className={style.root}
       onMouseEnter={() => setStyleOpen(true)}
       onMouseLeave={() => setStyleOpen(false)}
     >
@@ -59,10 +61,10 @@ function PlanStyles({ planId, currentStyleId }: { planId: string, currentStyleId
         }
         {
           !!Object.keys(planStyles).filter(id => id !== currentStyleId).length ||
-          <div fp-role="edit" onClick={getDefaultLabels}>Get Default Labels</div>
+          <div className={style.edit} onClick={getDefaultLabels}>Get Default Labels</div>
         }
         {
-          <div fp-role="edit">Edit Labels</div>
+          <div className={style.edit}>Edit Labels</div>
         }
         {
           inEdit && 

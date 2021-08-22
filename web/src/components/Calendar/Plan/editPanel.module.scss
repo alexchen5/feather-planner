@@ -1,0 +1,74 @@
+.expandIcon {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    right: 2px;
+    top: 5px;
+    bottom: 5px;
+    width: 10px;
+    cursor: pointer;
+    color: #165353;
+    overflow: hidden;
+}
+
+.deleteIcon {
+    height: 20px;
+    width: 20px;
+    position: absolute;
+    top: 6px;
+    right: 4px;
+    cursor: pointer;
+
+    svg {
+        height: 100%;
+        width: 100%;
+        color: #8ca1a1b0;
+    }
+}
+
+.styleIcons {
+    display: flex;
+    position: absolute;
+    top: 6px;
+    left: 5px;
+    justify-content: space-between;
+}
+
+.icon {
+    height: 22px;
+    width: 22px;
+    margin: 0px 3px;
+    border-radius: 100%;
+    padding: 1px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    &[fp-state=inactive] {
+        color: #365050;
+        background-color: white;
+    }
+
+    &[fp-state=active] {
+        color: #098899;
+        background-color: #ebf5f7;
+    }
+
+    svg {
+        height: 100%;
+        width: 100%;
+    }
+}
+
+.labelsAnchor {
+    position: absolute;
+    bottom: 22px;
+    right: 8px;
+    height: 1px;
+    width: 60%;
+    min-width: 100px;
+    cursor: default;
+}
