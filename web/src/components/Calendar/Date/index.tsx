@@ -25,14 +25,13 @@ function Date({ dateStr, label, children }: { dateStr: string, label?: CalendarD
    * 
    * We use mousedown because we want to check for focused elements before
    * activating a new plan
-   * @param e 
    */
   const handleMouseDown: MouseEventHandler<HTMLLIElement> = (event) => {
     const target = event.target as HTMLElement; // assume target is a HTML element
-    if (target.className === 'datenode-item') {
+    if (target.getAttribute('fp-role') === 'calendar-date') {
       addPlan.current && 
-      !document.querySelector('#calendar-container')?.contains(document.activeElement) && 
-      !document.querySelector('div[plan][state^="edit"]') &&
+      !document.querySelector('[fp-role="calendar-container"]')?.contains(document.activeElement) && 
+      !document.querySelector('[fp-role="calendar-plan"][fp-state^="edit"]') &&
       addPlan.current.click()
     }
   }
@@ -40,10 +39,11 @@ function Date({ dateStr, label, children }: { dateStr: string, label?: CalendarD
   return (
     <li
       className={style.root}
+      fp-role={'calendar-date-root'}
       data-date={dateStr}
       onMouseDown={handleMouseDown}
     >
-      <div className={style.item}>
+      <div fp-role={'calendar-date'} className={style.item}>
         <div className={style.header}>
           <DateLabel dateStr={dateStr} label={label}/>
           <div 

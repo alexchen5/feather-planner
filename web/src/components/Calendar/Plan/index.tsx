@@ -61,6 +61,8 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     delBatch.delete(db.doc(`users/${uid}/plans/${planId}`));
     delBatch.commit();
 
+    console.log('delet');
+    
     // deregisterPlanEdit will then be called in useEffect cleanup
   }, [uid, calendar, dateStr, planId]);
 
@@ -194,7 +196,7 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     if (placeholder) placeholder.remove();
     placeholder = document.createElement('div');
     placeholder.setAttribute('placeholder', dateStr);
-    const container = planRef.current.closest('.datenode-item');
+    const container = planRef.current.closest('[fp-role="calendar-date"]');
     container?.insertBefore(placeholder, planRef.current);
     placeholder.style.height = window.getComputedStyle(planRef.current).height;
 
@@ -237,10 +239,10 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     const datenodeRoot = getTargetDatenode(e.clientX, e.clientY);
     const datenode = datenodeRoot?.firstElementChild;
     if (datenode) {
-      const afterElement = getDragAfterElement(datenode, e.clientY) || datenode.querySelector('.plan-add');
+      const afterElement = getDragAfterElement(datenode, e.clientY) || datenode.querySelector('[fp-role="plan-add"]');
       smoothMove(datenode, placeholder!, afterElement!);
     } else {
-      const container = document.querySelector(`[datenode="${placeholder?.getAttribute('placeholder')}"]`)?.firstElementChild;
+      const container = document.querySelector(`[fp-role="calendar-date-root"][data-date="${placeholder?.getAttribute('placeholder')}"]`)?.firstElementChild;
       smoothMove(container!, placeholder!, planRef.current);
     }
   }, []);
@@ -254,34 +256,34 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
 
     const targetDatenodeRoot = getTargetDatenode(e.clientX, e.clientY);
     if (targetDatenodeRoot && placeholder) {
-      const to_date = targetDatenodeRoot.getAttribute('datenode');
+      const to_date = targetDatenodeRoot.getAttribute('data-date');
       const from_date = placeholder.getAttribute('placeholder');
 
-      const plansTo = [...targetDatenodeRoot.querySelectorAll('[placeholder], [plan]:not([state="dragging"])')];
+      const plansTo = [...targetDatenodeRoot.querySelectorAll('[placeholder], [fp-role="calendar-plan"]:not([state="dragging"])')];
       const to_index = plansTo.indexOf(placeholder);
       const to_prv_id = (plansTo[to_index - 1] || '') && plansTo[to_index - 1].getAttribute('plan');
       const to_nxt_id = (plansTo[to_index + 1] || '') && plansTo[to_index + 1].getAttribute('plan');
 
       // TODO: complete definition
       // @ts-ignore
-      const plansFrom = [...document.querySelector(`[datenode="${from_date}"]`)?.querySelectorAll('[plan]')];
+      const plansFrom = [...document.querySelector(`[fp-role="calendar-date-root"][data-date="${from_date}"]`)?.querySelectorAll('[fp-role="calendar-plan"]')];
       const from_index = plansFrom.indexOf(planRef.current);
       const from_prv_id = (plansFrom[from_index - 1] || '') && plansFrom[from_index - 1].getAttribute('plan');
       const from_nxt_id = (plansFrom[from_index + 1] || '') && plansFrom[from_index + 1].getAttribute('plan');
 
       if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) {
         // no need to move position
-        timeOutSubscriptions.push(setTimeout(() => {
-          completeDragEndDrop(); 
-        }, 10));
+        // timeOutSubscriptions.push(setTimeout(() => {
+        //   completeDragEndDrop(); 
+        // }, 10));
       } else {
-        if (to_date === from_date) {
-          timeOutSubscriptions.push(setTimeout(() => {
-            completeDragEndDrop(); 
-          }, 0));
+        // if (to_date === from_date) {
+        //   timeOutSubscriptions.push(setTimeout(() => {
+        //     completeDragEndDrop(); 
+        //   }, 0));
 
-          // completeDragEndDrop(); // no re-render will occur so we deal with it here
-        }
+        //   // completeDragEndDrop(); // no re-render will occur so we deal with it here
+        // }
         
         // update db
         const moveBatch = db.batch();
@@ -289,13 +291,17 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
         moveBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', to_date, 'prv', to_prv_id);
         if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
         moveBatch.commit();
+
+        // completeDragEndDrop(); 
       }
     } else { // no target when dropped
-      completeDragEndDrop(); 
+      // completeDragEndDrop(); 
     }
   
     document.removeEventListener('mouseup', closeDragElement);
     document.removeEventListener('mousemove', elementDrag);
+
+        completeDragEndDrop(); 
 
     // timeOutSubscriptions.push(setTimeout(() => {
     //   // we hope for set state normal to be called through the click event that fires
@@ -489,6 +495,7 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     onClick={handleClick}
     onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
+    fp-role={"calendar-plan"}
     fp-state={state} // the state of this plan - see PlanState at top of this file
   >
     {isEdit(state) && 

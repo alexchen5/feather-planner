@@ -8,7 +8,7 @@ import style from "./container.module.scss";
 
 function getInitScrollHeight(datenodeEl: Element) {
   const targetY = -150;
-  let todayY = document.querySelector(`[datenode="${dateToStr()}"]`)?.getBoundingClientRect()?.y || 0;
+  let todayY = document.querySelector(`[fp-role="calendar-date-root"][data-date="${dateToStr()}"]`)?.getBoundingClientRect()?.y || 0;
   let calendarY = datenodeEl.getBoundingClientRect().y;
   // console.log(targetY - (calendarY - todayY));
   if (Math.abs(targetY - (calendarY - todayY)) > 20) return datenodeEl.scrollTop + targetY - (calendarY - todayY);
@@ -17,7 +17,7 @@ function getInitScrollHeight(datenodeEl: Element) {
 
 function CalendarContainer({children} : {children: ReactNode}) {
   const { calendar, dispatch } = React.useContext(CalendarContext);
-  const datenodeContainer = React.useRef<HTMLUListElement>(null);
+  const datesContainer = React.useRef<HTMLUListElement>(null);
 
   // const loadDates = async (dateRange, dir, start, end) => {
   //   if (loading) return;
@@ -36,7 +36,7 @@ function CalendarContainer({children} : {children: ReactNode}) {
       dispatch({ type: 'load-raw-dates', dir: 'end', startDate, endDate });
       dispatch({ type: 'load-dates', dir: 'end', startDate, endDate });
     } else if (event.currentTarget.scrollTop === 0) {
-      if (datenodeContainer.current) datenodeContainer.current.scrollTop = 1;  
+      if (datesContainer.current) datesContainer.current.scrollTop = 1;  
 
       const [startDate, endDate] = newDateRange(calendar.dates, "start")
       dispatch({ type: 'load-raw-dates', dir: 'start', startDate, endDate });
@@ -45,25 +45,25 @@ function CalendarContainer({children} : {children: ReactNode}) {
   }
 
   const handleToday = () => {
-    if (!datenodeContainer.current) {
+    if (!datesContainer.current) {
       console.error('Expected Datenode Container');
       return;
     };
-    datenodeContainer.current.style.scrollBehavior = 'smooth';
+    datesContainer.current.style.scrollBehavior = 'smooth';
     // eslint-disable-next-line
-    let m = datenodeContainer.current.offsetTop; // flush styles
-    datenodeContainer.current.scrollTop = getInitScrollHeight(datenodeContainer.current);
+    let m = datesContainer.current.offsetTop; // flush styles
+    datesContainer.current.scrollTop = getInitScrollHeight(datesContainer.current);
 
     let timer: NodeJS.Timeout; // listen for smooth scroll to be finish
     function scrollStopCallback() {
       clearTimeout( timer );
       timer = setTimeout( () => { // function to run when smooth scroll finishes
-        if (!datenodeContainer.current) {
+        if (!datesContainer.current) {
           console.error('Expected Datenode Container');
           return;
         };
-        datenodeContainer.current.removeEventListener( 'scroll', scrollStopCallback);
-        datenodeContainer.current.style.scrollBehavior = '';
+        datesContainer.current.removeEventListener( 'scroll', scrollStopCallback);
+        datesContainer.current.style.scrollBehavior = '';
 
         // find dates to unload
         const i = getResetIndices(calendar.weekRanges);
@@ -84,12 +84,12 @@ function CalendarContainer({children} : {children: ReactNode}) {
         dispatch({ type: 'set-week-ranges', weekRanges: newRange });
       }, 50 );
     }
-    datenodeContainer.current.addEventListener( 'scroll', scrollStopCallback, { passive: true } );
+    datesContainer.current.addEventListener( 'scroll', scrollStopCallback, { passive: true } );
     scrollStopCallback();
   }
 
   return (
-    <div className={style.root}>
+    <div fp-role={"calendar-container"} className={style.root}>
       <button 
         onClick={handleToday} 
         className={style.today}
@@ -97,7 +97,7 @@ function CalendarContainer({children} : {children: ReactNode}) {
       <DayHeaders />
       <ul
         className={style.dates}
-        ref={datenodeContainer}
+        ref={datesContainer}
         onScroll={handleNodePagination}
       >
         {children}

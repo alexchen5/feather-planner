@@ -39,11 +39,12 @@ function AddDateLabel({ dateStr }: { dateStr: string }) {
 
   return (
     <div 
-      className={'datenode-label' + (editing ? ' editing' : '')}
+      className={style.label}
+      data-state={editing ? 'edit' : 'normal'}
       onMouseDown={e => {
         if (
-          document.querySelector('#calendar-container')?.contains(document.activeElement) ||
-          document.querySelector('div[plan][state^="edit"]')
+          document.querySelector('[fp-role="calendar-container"]')?.contains(document.activeElement) ||
+          document.querySelector('[fp-role="calendar-plan"][fp-state^="edit"]')
         ) return;
         e.stopPropagation();
         getFocus();
@@ -101,7 +102,7 @@ function EditDateLabel({ labelId, content }: { labelId: string, content: RawDraf
       className={style.label}
       data-state={editing ? 'edit' : 'normal'}
       onMouseDown={e => {
-        if (document.querySelector('#calendar-container')?.contains(document.activeElement)) return;
+        if (document.querySelector('[fp-role="calendar-container"]')?.contains(document.activeElement)) return;
         e.stopPropagation();
         getFocus();
       }}

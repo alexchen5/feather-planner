@@ -6,7 +6,7 @@ function easeOutCubic(x: number) {
 }
 
 export function getTargetDatenode(clientX: number, clientY: number) {
-  return [...document.querySelectorAll('[datenode]')].find(node => {
+  return [...document.querySelectorAll('[fp-role="calendar-date-root"]')].find(node => {
     const r = node.getBoundingClientRect();
     return (
       r.x <= clientX && clientX <= r.right 
@@ -17,7 +17,7 @@ export function getTargetDatenode(clientX: number, clientY: number) {
 }
 
 export function getDragAfterElement(container: Element, y: number) {
-  const draggableElements = [...container.querySelectorAll('[plan]:not([state="dragging"])')];
+  const draggableElements = [...container.querySelectorAll('[fp-role="calendar-plan"]:not([state="dragging"])')];
 
   return draggableElements.reduce((closest, child) => {
     const box = child.getBoundingClientRect();
@@ -34,9 +34,9 @@ export function smoothMove(container: Element, placeholder: Element, afterElemen
   if (placeholder.nextSibling === afterElement) return;
 
   const moveTargets = [...new Set([
-    ...placeholder.closest('.datenode-item')!.children,
+    ...placeholder.closest('[fp-role="calendar-date"]')!.children,
     ...container.children,
-  ])].filter(plan => plan.getAttribute('state') !== 'dragging').reduce(
+  ])].filter(plan => plan.getAttribute('fp-state') !== 'dragging').reduce(
     (acc, cur) => [
       ...acc,
       {

@@ -56,7 +56,7 @@ function PlanStyles({ planId, currentStyleId }: { planId: string, currentStyleId
         <>
         {
           Object.keys(planStyles).filter(id => id !== currentStyleId).map(styleId => 
-            <PlanStyle key={styleId} styleId={styleId} label={planStyles[currentStyleId]!.label} handleClick={handlePlanStyleSelection}/>
+            <PlanStyle key={styleId} styleId={styleId} label={planStyles[styleId]!.label} handleClick={handlePlanStyleSelection}/>
           )
         }
         {

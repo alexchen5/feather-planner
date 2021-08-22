@@ -106,3 +106,12 @@ code {
   bottom: -4px;
   right: -4px;
 }
+
+div[placeholder] {
+  background-color: var(--node-focus-bg-color);
+  border-radius: 4px;
+  pointer-events: none;
+  position: relative;
+  z-index: 2;
+  opacity: 0.8;
+}

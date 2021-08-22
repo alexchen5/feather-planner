@@ -89,7 +89,7 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
           onBlur={handleEditorBlur}
         />
       </div> :
-      <div className={style.addButton} >
+      <div className={style.addButton} fp-role={'plan-add'}>
         <IconButton ref={ref} size='small' onClick={handleAddClick}><AddCircle/></IconButton> 
       </div>
     }
