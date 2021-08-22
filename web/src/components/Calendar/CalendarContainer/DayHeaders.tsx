@@ -11,15 +11,14 @@ function DayHeaders() {
   return (
     <GridList
       cols={7} spacing={0} 
-      className={style.headers}
+      style={{margin: '0px', padding: '0px 4px'}} // override materialUi styles
     >
       {weekdays.map(day => 
         <li 
           key={day} 
-          className={style.day}
-          style={{ height: '', padding: '' }}
+          style={{height: '', padding: '', position: 'relative'}} // override materialUi styles
         >
-          {day}
+          <div className={style.day}>{day}</div>
         </li>
       )} 
     </GridList>

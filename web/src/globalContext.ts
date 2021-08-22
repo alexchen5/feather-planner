@@ -14,8 +14,6 @@ const firebaseConfig = {
     measurementId: "G-FZCWXV0583"
 };
 firebase.initializeApp(firebaseConfig);
-console.log('init run');
-
 
 export const db = firebase.firestore();
 

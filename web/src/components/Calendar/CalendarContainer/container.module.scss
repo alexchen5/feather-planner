@@ -4,16 +4,11 @@
     overflow: hidden;
 }
 
-.headers {
-    margin: 0;
-    padding: 0px 4px;
-}
-
 .day {
-    position: relative;
     text-align: right;
     font-size: var(--day-label-font-size);
     font-weight: 300;
+    padding: 4px 6px;
     color: #333;
 }
 
@@ -32,6 +27,8 @@
     margin: 0px;
     padding: 0px 4px;
 
-    -ms-overflow-style: none;
     scrollbar-width: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
 }

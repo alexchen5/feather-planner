@@ -4,6 +4,7 @@ export const DAY_START: 'MON' | 'SUN' = 'MON';
 export const NUM_WEEKS_START = 5;
 export const PAGINATE_WEEKS_NXT = 4;
 export const PAGINATE_WEEKS_PRV = 3;
+export const NUM_WEEKS_ON_SCREEN = 7;
 
 export function getDayStart() {
   switch (DAY_START) {
@@ -44,7 +45,7 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
  */
 export function getRangeDates(dateStart: string, dateEnd: string) {
   const ret = [];
-  for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
+  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
     ret.push(curDate);
   }
   return ret;
@@ -52,10 +53,29 @@ export function getRangeDates(dateStart: string, dateEnd: string) {
 
 export function getEmptyCalendarDates(dateStart: string, dateEnd: string) {
   const ret: CalendarDate[] = [];
-  for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
+  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
     ret.push({
       dateStr: curDate,
       plans: [] as CalendarPlan[],
+    });
+  }
+  return ret;
+}
+
+export function getInitCalendarDates(localDates: any, dateStart: string, dateEnd: string) {
+  const ret: CalendarDate[] = [];
+  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
+    let plans;
+    try {
+      plans = localDates[curDate]['plans'];
+    } catch (error) {
+      plans = [];
+    }
+    if (!Array.isArray(plans)) plans = [];
+
+    ret.push({
+      dateStr: curDate,
+      plans: plans,
     });
   }
   return ret;
@@ -65,7 +85,7 @@ export function getUpdateRange(dateStart: string, dateEnd: string, type: 'object
 export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array'): { [dateStr: string]: [] };
 export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array' | 'object'): { [dateStr: string]: [] | {} } {
   const ret = {} as { [dateStr: string]: {} };
-  for (let curDate = dateStart; curDate !== dateEnd; curDate = adjustDays(curDate, 1)) {
+  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
     if (type === 'object')
       ret[curDate] = {};
     else 
@@ -77,7 +97,7 @@ export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array'
 export function newDateRange(dates: Array<CalendarDate>, dir: 'init' | 'start' | 'end'): [startDate: string, endDate: string] {
   if (dir === "init") {
     const start = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);
-    const end = adjustDays(start, 7 * NUM_WEEKS_START);
+    const end = adjustDays(start, 7 * NUM_WEEKS_START - 1);
     return [start, end];
   } 
   else if (dir === "end") {
@@ -93,6 +113,22 @@ export function newDateRange(dates: Array<CalendarDate>, dir: 'init' | 'start' |
   else {
     const _exhaustiveCheck: never = dir;
     return _exhaustiveCheck;
+  }
+}
+
+export function getScrollRange(dates: string[], dir: 'up' | 'down'): string[] {
+  const shouldExpand = dates.length < (NUM_WEEKS_ON_SCREEN * 7);
+  
+  if (dir === 'up') {
+    return getRangeDates(
+      adjustDays(dates[0], shouldExpand ? -14 : -7),
+      adjustDays(dates[dates.length - 1],  -7)
+    )
+  } else {
+    return getRangeDates(
+      adjustDays(dates[0], shouldExpand ? 0 : 7),
+      adjustDays(dates[dates.length - 1], 7)
+    )
   }
 }
 
@@ -119,7 +155,7 @@ export function getPlan(dates: Array<CalendarDate>, planId: string): CalendarPla
 }
 
 /**
- * @precondition a range of dates are startDate <= date < endDate. The number of dates can be separated into weeks
+ * @precondition a range of dates are startDate <= date <= endDate. The number of dates can be separated into weeks
  * @param {DateStr} startDate 
  * @param {DateStr} endDate 
  * @returns an array of objects containing start and end
@@ -132,14 +168,14 @@ export function getWeekRanges(startDate: string, endDate: string) {
     if (curRange === 0) {
       cur.startDate = i;
     }
-    if (curRange === 7) {
+    if (curRange === 6) {
       cur.endDate = i;
       ret.push({...cur});
-      cur.startDate = i;
-      curRange = 0;
+      curRange = -1;
     }
     curRange++;
   }
+  
   return ret;
 }
 
@@ -159,4 +195,28 @@ export function getResetIndices(range: WeekRange[]) {
     floor: curWeek - 1,
     roof: curWeek - 1 + NUM_WEEKS_START,
   }
+}
+
+/**
+ * Helper function to determine the next weekranges to load. Will add week ranges 
+ * for all extra render ranges.
+ * @param currentRange current weekrange 
+ * @param renderRange the range of dates to be rendered
+ * @returns the new week ranges
+ */
+export function addWeekRanges(currentRange: WeekRange[], renderRange: string[]) {
+  const ret = [...currentRange];
+
+  renderRange.forEach((dateStr, i) => {
+    // guaranteed that every 7th index should be start of a date 
+    if ((i % 7) === 0) {
+      // check if dateStr is in weekrange 
+      if (!ret.some(e => e.startDate === dateStr)) {
+        // dateStr is not in week range 
+        ret.push({ startDate: dateStr, endDate: adjustDays(dateStr, 6) })
+      }
+    }
+  })
+
+  return ret;
 }

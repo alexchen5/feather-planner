@@ -1,7 +1,7 @@
 import React, { ReactNode, UIEventHandler } from "react";
 
 import {CalendarContext} from '..'
-import {newDateRange, dateToStr, getResetIndices, getRangeDates } from '../utils/dateUtil';
+import {newDateRange, dateToStr, getRangeDates } from '../utils/dateUtil';
 import DayHeaders from "./DayHeaders";
 
 import style from "./container.module.scss";
@@ -19,28 +19,20 @@ function CalendarContainer({children} : {children: ReactNode}) {
   const { calendar, dispatch } = React.useContext(CalendarContext);
   const datesContainer = React.useRef<HTMLUListElement>(null);
 
-  // const loadDates = async (dateRange, dir, start, end) => {
-  //   if (loading) return;
-  //   setLoading(dir);
-  //   await dispatchDates({type: 'load', dir, dateRange, start, end});
-  //   if (dir === "INIT") {
-  //     datenodeContainer.current.scrollTop = getInitScrollHeight(datenodeContainer.current);
-  //     document.querySelector(`[datenode="${dateToStr()}"]`).firstElementChild.focus();
-  //   } 
-  //   setLoading(false);
-  // }
+  React.useLayoutEffect(() => {
+    console.log('container init');
+    if (datesContainer.current) {
+      console.log('set scroll');
+      datesContainer.current.scrollTop = getInitScrollHeight(datesContainer.current);
+    }
+  }, []);
 
   const handleNodePagination: UIEventHandler = (event) => {
     if (event.currentTarget.scrollHeight - event.currentTarget.scrollTop === event.currentTarget.clientHeight) {
-      const [startDate, endDate] = newDateRange(calendar.dates, "end");
-      dispatch({ type: 'load-raw-dates', dir: 'end', startDate, endDate });
-      dispatch({ type: 'load-dates', dir: 'end', startDate, endDate });
+      dispatch({ type: 'move-render-range', dir: 'down' });
     } else if (event.currentTarget.scrollTop === 0) {
       if (datesContainer.current) datesContainer.current.scrollTop = 1;  
-
-      const [startDate, endDate] = newDateRange(calendar.dates, "start")
-      dispatch({ type: 'load-raw-dates', dir: 'start', startDate, endDate });
-      dispatch({ type: 'load-dates', dir: 'start', startDate, endDate });
+      dispatch({ type: 'move-render-range', dir: 'up' });
     }
   }
 
@@ -49,43 +41,53 @@ function CalendarContainer({children} : {children: ReactNode}) {
       console.error('Expected Datenode Container');
       return;
     };
-    datesContainer.current.style.scrollBehavior = 'smooth';
-    // eslint-disable-next-line
-    let m = datesContainer.current.offsetTop; // flush styles
-    datesContainer.current.scrollTop = getInitScrollHeight(datesContainer.current);
 
-    let timer: NodeJS.Timeout; // listen for smooth scroll to be finish
-    function scrollStopCallback() {
-      clearTimeout( timer );
-      timer = setTimeout( () => { // function to run when smooth scroll finishes
-        if (!datesContainer.current) {
-          console.error('Expected Datenode Container');
-          return;
-        };
-        datesContainer.current.removeEventListener( 'scroll', scrollStopCallback);
-        datesContainer.current.style.scrollBehavior = '';
+    const firstDate = calendar.renderRange[0];
+    const lastDate = calendar.renderRange[calendar.renderRange.length - 1];
 
-        // find dates to unload
-        const i = getResetIndices(calendar.weekRanges);
-    
-        const newRange = calendar.weekRanges.slice(i.floor, i.roof);
-        calendar.weekRanges.forEach(r => {
-          if (!newRange.includes(r)) {
-            r.detachLabelsListener();
-            r.detachPlansListener();
-          }
-        });
-    
-        const newDateRange = getRangeDates(newRange[0].startDate, newRange[newRange.length - 1].endDate);
-        const newDates = calendar.dates.filter(d => newDateRange.includes(d.dateStr));
-    
-        // unload the dates
-        dispatch({ type: 'set-dates', dates: newDates });
-        dispatch({ type: 'set-week-ranges', weekRanges: newRange });
-      }, 50 );
+    // get new start and end dates
+    const [start, end] = newDateRange([], 'init');
+    if (firstDate < start) {
+      dispatch({ type: 'set-render-range', updateWeekRange: false, renderRange: getRangeDates(firstDate, end) })
+    } else if (lastDate > end) {
+      dispatch({ type: 'set-render-range', updateWeekRange: false, renderRange: getRangeDates(start, lastDate) })
     }
-    datesContainer.current.addEventListener( 'scroll', scrollStopCallback, { passive: true } );
-    scrollStopCallback();
+
+    let handle = setInterval(renderCompleteCallback, 10); // listen for today node to be rendered
+    function renderCompleteCallback() {
+      if (!document.querySelector(`[fp-role="calendar-date-root"][data-date="${dateToStr()}"]`)) {
+        return; // loop until today node is on the doc
+      }
+      clearInterval(handle);
+
+      if (!datesContainer.current) {
+        console.error('Expected Datenode Container');
+        return;
+      };
+
+      datesContainer.current.style.scrollBehavior = 'smooth';
+      // eslint-disable-next-line
+      let m = datesContainer.current.offsetTop; // flush styles
+      datesContainer.current.scrollTop = getInitScrollHeight(datesContainer.current);
+
+      let timer: NodeJS.Timeout; // listen for smooth scroll to finish
+      function scrollStopCallback() {
+        clearTimeout( timer );
+        timer = setTimeout( () => { // function to run when smooth scroll finishes
+          if (!datesContainer.current) {
+            console.error('Expected Datenode Container');
+            return;
+          };
+          datesContainer.current.removeEventListener( 'scroll', scrollStopCallback);
+          datesContainer.current.style.scrollBehavior = '';
+
+          // declare new render range
+          dispatch({ type: 'set-render-range', updateWeekRange: true, renderRange: getRangeDates(start, end) })
+        }, 50 );
+      }
+      datesContainer.current.addEventListener( 'scroll', scrollStopCallback, { passive: true } );
+      scrollStopCallback();
+    }
   }
 
   return (

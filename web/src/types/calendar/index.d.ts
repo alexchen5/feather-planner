@@ -9,16 +9,42 @@ import { RawDraftContentState } from "draft-js";
  * Interface for the object containing the calendar's general state
  */
 interface Calendar {
-    dates: Array<CalendarDate>; // each loaded date of the calendar
-    weekRanges: Array<WeekRange>; // the current range of rendered dates
+    /**
+     * Contains the data of all dates which have been loaded from db. This 
+     * is rarely (or never?) deleted
+     */
+    datesAll: { [dateStr: string]: ?CalendarDate }; 
+
+    /**
+     * Contains the detachment listeners for week ranges of date data. Call 
+     * these when we want to stop listening to updates on a range of dates  
+     */
+    weekRanges: Array<WeekRange>; 
+
+    /**
+     * dateStr[] of dates which should be rendered on the screen. 
+     * 
+     * When render range is updated, we will automatically update Calendar.dates based on new values. 
+     * 
+     * When datesAll is updated, we will sync updates on screen if the date is contained within
+     * this renderRange. 
+     */
+    renderRange: Array<string>; 
+
+    /**
+     * The dates passed down to our children components 
+     */
+    dates: Array<CalendarDate>; 
+
+    /**
+     * Contains the custom styling for plans 
+     */
     planStyles: { [styleId: string] : ?CalendarPlanStyle }; // undefined because id='default' may not exist
 }
 
 interface WeekRange {
     startDate: string;
     endDate: string;
-    detachLabelsListener: () => void;
-    detachPlansListener: () => void;
 }
 
 /**
@@ -62,31 +88,30 @@ interface CalendarPlanStyle {
 /**
  * Types of CalendarContext dispatches
  */
-type CalendarAction = InitDispatch | LoadRawDates | LoadDates | SetDates | SetWeekRanges | SetLabels | SetStyles | SetPlans;
+type CalendarAction = SetRenderRange | MoveRenderRange | SetLabels | SetStyles | SetPlans;
 
-interface InitDispatch { 
-    type: 'init'; 
+/**
+ * Dispatch a new range of dates to be rendered.
+ * 
+ * Will update Calendar.dates based on Calendar.datesAll, with no consideration
+ * whether datesAll has real data. 
+ * 
+ * Opt to update weekRanges automatically, so that week ranges will always cover the render range
+ * 
+ * Note to always use MoveRenderRange, if continuity is important.
+ */
+interface SetRenderRange {
+    type: 'set-render-range';
+    updateWeekRange: boolean; 
+    renderRange: string[]; // dateStr[]
 }
 
-interface LoadDates {
-    type: 'load-dates';
-    dir: 'start' | 'end';
-    startDate: string;
-    endDate: string;
-}
-
-interface LoadRawDates extends LoadDates {
-    type: 'load-raw-dates';
-}
-
-interface SetDates {
-    type: 'set-dates';
-    dates: CalendarDate[];
-}
-
-interface SetWeekRanges {
-    type: 'set-week-ranges';
-    weekRanges: WeekRange[];
+/**
+ * Move the current render range in a scroll direction
+ */
+interface MoveRenderRange {
+    type: 'move-render-range';
+    dir: 'up' | 'down';
 }
 interface SetStyles {
     type: 'set-styles';
