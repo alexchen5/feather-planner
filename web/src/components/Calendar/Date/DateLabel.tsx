@@ -119,7 +119,7 @@ function EditDateLabel({ labelId, content }: { labelId: string, content: RawDraf
   )
 }
 
-function DateLabel({ dateStr, label } : { dateStr: string, label?: CalendarDateLabel }) {
+function DateLabel({ dateStr, label } : { dateStr: string, label: CalendarDateLabel | null }) {
   return (
   <>{
     label ?

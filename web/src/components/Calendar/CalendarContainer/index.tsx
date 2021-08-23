@@ -1,7 +1,7 @@
 import React, { ReactNode, UIEventHandler } from "react";
 
 import {CalendarContext} from '..'
-import {newDateRange, dateToStr, getRangeDates } from '../utils/dateUtil';
+import { dateToStr, getRangeDates, getInitDateRange } from '../utils/dateUtil';
 import DayHeaders from "./DayHeaders";
 
 import style from "./container.module.scss";
@@ -45,11 +45,11 @@ function CalendarContainer({children} : {children: ReactNode}) {
     const lastDate = calendar.renderRange[calendar.renderRange.length - 1];
 
     // get new start and end dates
-    const [start, end] = newDateRange([], 'init');
-    if (firstDate < start) {
-      dispatch({ type: 'set-render-range', updateWeekRange: false, renderRange: getRangeDates(firstDate, end) })
-    } else if (lastDate > end) {
-      dispatch({ type: 'set-render-range', updateWeekRange: false, renderRange: getRangeDates(start, lastDate) })
+    const { startDate, endDate } = getInitDateRange();
+    if (firstDate < startDate) {
+      dispatch({ type: 'set-render-range', updateDateRanges: false, renderRange: getRangeDates(firstDate, endDate) })
+    } else if (lastDate > endDate) {
+      dispatch({ type: 'set-render-range', updateDateRanges: false, renderRange: getRangeDates(startDate, lastDate) })
     }
 
     let handle = setInterval(renderCompleteCallback, 10); // listen for today node to be rendered
@@ -81,7 +81,7 @@ function CalendarContainer({children} : {children: ReactNode}) {
           datesContainer.current.style.scrollBehavior = '';
 
           // declare new render range
-          dispatch({ type: 'set-render-range', updateWeekRange: true, renderRange: getRangeDates(start, end) })
+          dispatch({ type: 'set-render-range', updateDateRanges: true, renderRange: getRangeDates(startDate, endDate) })
         }, 50 );
       }
       datesContainer.current.addEventListener( 'scroll', scrollStopCallback, { passive: true } );

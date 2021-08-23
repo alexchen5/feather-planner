@@ -1,16 +1,16 @@
 import { RawDraftContentState } from "draft-js";
 import { db, UidContext } from "globalContext";
 import React from "react";
-import { CalendarPlan, SetLabels, SetPlans } from "types/calendar";
+import { CalendarPlan, DateRange, SetLabels, SetPlans } from "types/calendar";
 import { CalendarContext } from ".";
 import { getUpdateRange } from "./utils/dateUtil";
 
 /**
  * Dummy component that takes care of listening to db on a given range of 
- * @param props \{startDate: dateStr, endDate: dateStr}
+ * @param props given DateRange to listen to
  * @returns empty <></>
  */
-function WeekRangeListener({startDate, endDate}: {startDate: string, endDate: string}) {
+function DateRangeListener({startDate, endDate}: DateRange) {
   const { dispatch } = React.useContext(CalendarContext);
   const { uid } = React.useContext(UidContext);
 
@@ -64,12 +64,12 @@ function WeekRangeListener({startDate, endDate}: {startDate: string, endDate: st
             db.doc(`users/${uid}/plans/${doc.id}`).delete();
           } else {
             const newPlan: CalendarPlan = {
-            planId: doc.id,
-            dateStr,
-            isDone,
-            content,
-            styleId,
-            prv,
+              planId: doc.id,
+              dateStr,
+              isDone,
+              content,
+              styleId,
+              prv,
             };
   
             if (!d.prv) {
@@ -109,4 +109,4 @@ function WeekRangeListener({startDate, endDate}: {startDate: string, endDate: st
   return (<></>)
 }
 
-export default WeekRangeListener;
+export default DateRangeListener;

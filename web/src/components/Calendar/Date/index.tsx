@@ -7,7 +7,7 @@ import { strToDate, dateToStr } from '../utils/dateUtil';
 
 import style from "./date.module.scss";
 
-function Date({ dateStr, label, children }: { dateStr: string, label?: CalendarDateLabel, children: ReactNode }) {
+function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDateLabel | null, children: ReactNode }) {
   const [isToday, setIsToday] = React.useState(dateStr === dateToStr());
   const thisDate = strToDate(dateStr);
   const addPlan = React.createRef<HTMLButtonElement>();

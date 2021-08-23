@@ -1,17 +1,17 @@
-import React, { createContext, useCallback, useReducer } from "react";
+import React, { createContext, useReducer } from "react";
 
-import { addWeekRanges, getInitCalendarDates, getRangeDates, getScrollRange, getWeekRanges, newDateRange} from './utils/dateUtil';
+import { addWeekRanges, getInitCalendarDates, getInitDateRange, getRangeDates, getScrollRange, getWeekRanges } from './utils/dateUtil';
 import Plan from './Plan'
 import Date from "./Date";
 import CalendarContainer from "./CalendarContainer";
 import { db, UidContext } from "globalContext";
 import { Calendar, CalendarAction, SetStyles } from "types/calendar";
-import WeekRangeListener from "./WeekRangeListener";
+import DateRangeListener from "./DateRangeListener";
 
-export const CalendarContext = createContext({} as { calendar: Calendar, dispatch: (action: CalendarAction) => Promise<void> });
+export const CalendarContext = createContext({} as { calendar: Calendar, dispatch: React.Dispatch<CalendarAction> });
 
 const init = (_noArg: never): Calendar => {
-  const [ startDate, endDate ] = newDateRange([], "init");
+  const { startDate, endDate } = getInitDateRange();
 
   // TODO: trim local storage when it inevitably gets too big to load in at once
   console.time("Cache Loading Time")
@@ -29,142 +29,90 @@ const init = (_noArg: never): Calendar => {
   return {
     datesAll: localDatesAll || {}, 
     planStyles: localPlanStyles || {},
-    weekRanges: getWeekRanges(startDate, endDate),
+    dateRanges: getWeekRanges(startDate, endDate),
     renderRange: getRangeDates(startDate, endDate),
     dates: getInitCalendarDates(localDatesAll, startDate, endDate), // TODO: error checking for valid local storage is incomplete
   }
 }
 
+/**
+ * Wrapper for storing an object in localStorage
+ * 
+ * TODO: define error cases
+ * @precondition object is valid JSON 
+ * @param name name of object to be stored as 
+ * @param object object to store
+ */
+const cacheItem = (name: string, object: any) => {
+  try {
+    localStorage.setItem(name, JSON.stringify(object));
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 const reducer = (state: Calendar, action: CalendarAction): Calendar => {
-  switch (action.type) {
-    case 'set-styles': 
-      try {
-        localStorage.setItem('planStyles', JSON.stringify(action.planStyles));
-      } catch (error) {
-        console.error(error);
-      }
-      return {
-        ...state,
-        planStyles: {...action.planStyles},
-      }
-    case 'set-labels': {
-      const dateStrs = Object.keys(action.labels); // date strings of each label group
-      const newDatesAll = {...state.datesAll}; // instantiate the new object for datesAll
+  if (action.type === 'set-styles') {
+    cacheItem('planStyles', action.planStyles);
 
-      dateStrs.forEach(dateStr => {
-        const date = newDatesAll[dateStr];
-        const label = action.labels[dateStr];
-
-        if (label && ('labelId' in label)) { // if there exists a relevant label
-          if (date) { // if date exists 
-            newDatesAll[dateStr] = {...date, label}; // update the label
-          } else { // else date doesnt exist 
-            newDatesAll[dateStr] = { // make a new date item with label
-              dateStr, 
-              plans: [],
-              label,
-            }
-          }
-        } else { // no label
-          if (!date) { // no date
-            newDatesAll[dateStr] = { // add empty date
-              dateStr, 
-              plans: [],
-            }
-          }
-        }
-      })
-
-      try {
-        localStorage.setItem('datesAll', JSON.stringify(newDatesAll));
-      } catch (error) {
-        console.error(error);
-      }
-
-      return {
-        ...state,
-        datesAll: newDatesAll, // updated datesAll
-        dates: state.renderRange.map(dateStr => newDatesAll[dateStr] || {dateStr, plans: []}), // default date if outside of action range
-      }
+    return {
+      ...state,
+      planStyles: {...action.planStyles},
     }
-    case 'set-plans': {
-      const dateStrs = Object.keys(action.plans); // date strings of each plan group
-      const newDatesAll = {...state.datesAll}; // instantiate the new object for datesAll
+  } else if (action.type === 'set-labels' || action.type === 'set-plans') {
+    const dateStrs = action.type === 'set-labels' ? Object.keys(action.labels) : Object.keys(action.plans); // date strings for action
+    const newDatesAll = {...state.datesAll}; // instantiate the new object for datesAll
 
-      dateStrs.forEach(dateStr => {
-        const date = newDatesAll[dateStr];
-        if (date) { // if date exists 
-          newDatesAll[dateStr] = {...date, plans: action.plans[dateStr]}; // update the plans array 
-        } else { // else date doesnt exist 
-          newDatesAll[dateStr] = { // make a new date item with plans array
-            dateStr, 
-            plans: action.plans[dateStr],
-          }
-        }
-      })
-
-      try {
-        localStorage.setItem('datesAll', JSON.stringify(newDatesAll));
-      } catch (error) {
-        console.error(error);
+    dateStrs.forEach(dateStr => {
+      let label = newDatesAll[dateStr]?.label || null; // initiate date label
+      let plans = newDatesAll[dateStr]?.plans || []; // initiate date plans
+      if ('labels' in action) {
+        label = action.labels[dateStr]; // update label from action
+      } else {
+        plans = action.plans[dateStr]; // or update plans from action
       }
 
-      return {
-        ...state,
-        datesAll: newDatesAll, // updated datesAll
-        dates: state.renderRange.map(dateStr => newDatesAll[dateStr] || {dateStr, plans: []}), // default date if outside of action range
-      }
+      newDatesAll[dateStr] = { dateStr, label, plans }; // update date
+    });
+    cacheItem('datesAll', newDatesAll); // cache the resultant datesAll
+
+    return {
+      ...state,
+      datesAll: newDatesAll, // updated datesAll
+      dates: state.renderRange.map(dateStr => newDatesAll[dateStr] || {dateStr, label: null, plans: []}), // map to newDatesAll
     }
-    case 'move-render-range': {
-      const newRenderRange = getScrollRange(state.renderRange, action.dir);
+  } else if (action.type === 'move-render-range' || action.type === 'set-render-range') {
+    let newDateRanges;
+    let newRenderRange;
 
-      return {
-        ...state,
-        renderRange: newRenderRange,
-        weekRanges: addWeekRanges(state.weekRanges, newRenderRange),
-        dates: newRenderRange.map(dateStr => state.datesAll[dateStr] || { dateStr, plans: [] }),
-      }
+    if (action.type === 'set-render-range') {
+      newRenderRange = action.renderRange; // new render range from action 
+      newDateRanges = action.updateDateRanges ? addWeekRanges([], action.renderRange) : state.dateRanges; // optionally replace render range
+    } else {
+      newRenderRange = getScrollRange(state.renderRange, action.dir); // get render range from helper function
+      newDateRanges = addWeekRanges(state.dateRanges, newRenderRange); // expand date ranges based on new render range
     }
-    case 'set-render-range':
-      return {
-        ...state,
-        renderRange: [...action.renderRange],
-        weekRanges: action.updateWeekRange ? addWeekRanges([], action.renderRange) : state.weekRanges,
-        dates: action.renderRange.map(dateStr => state.datesAll[dateStr] || { dateStr, plans: [] }),
-      }
-    default:
-      const _exhaustiveCheck: never = action;
-      return _exhaustiveCheck;
+    
+    return {
+      ...state,
+      dateRanges: newDateRanges, // update date ranges
+      renderRange: newRenderRange, // update render range
+      dates: newRenderRange.map(dateStr => state.datesAll[dateStr] || { dateStr, label: null, plans: [] }), // map new render range
+    }
+  } else {
+    // ensure this is never reached
+    const _exhaustiveCheck: never = action;
+    return _exhaustiveCheck;
   }
 }
 
 function CalendarComponent() {
   const {uid} = React.useContext(UidContext);
-  const [calendar, dispatchCore] = useReducer(reducer, null as never, init);
-
-  const dispatch = useCallback(async (action: CalendarAction) => {
-    try {
-      switch (action.type) {
-        case 'set-styles': 
-        case 'set-labels': 
-        case 'set-plans': 
-        case 'set-render-range': 
-        case 'move-render-range': 
-          dispatchCore(action);
-          break;
-        default: {
-          // eslint-disable-next-line
-          const _exhaustiveCheck: never = action;
-          break;
-        }
-      }
-    } catch (error) {
-      console.log(action, error);
-    }
-  }, []);
+  const [calendar, dispatch] = useReducer(reducer, null as never, init);
   
   // calendar mount and unmount
   React.useEffect(() => {
+    // attach listener to db for plan styles 
     const detachPlanStyleListener = db.collection(`users/${uid}/plan-style`) 
       .onSnapshot((snapshot) => {
         const action: SetStyles = {
@@ -186,13 +134,14 @@ function CalendarComponent() {
       });
 
     return () => {
+      // detach db listeners 
       detachPlanStyleListener();
     }
-  }, [uid, dispatch]);
+  }, [uid]);
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>
-      {calendar.weekRanges.map(range => <WeekRangeListener key={range.startDate} startDate={range.startDate} endDate={range.endDate}/>)}
+      {calendar.dateRanges.map(range => <DateRangeListener key={range.startDate} startDate={range.startDate} endDate={range.endDate}/>)}
       <CalendarContainer>
         {calendar.dates.map(date => 
           <Date

@@ -1,10 +1,10 @@
-import { CalendarDate, CalendarPlan, WeekRange } from "types/calendar";
+// A set of helper functions for date manipulation and initialisation
+
+import { CalendarDate, DateRange } from "types/calendar";
 
 export const DAY_START: 'MON' | 'SUN' = 'MON';
-export const NUM_WEEKS_START = 5;
-export const PAGINATE_WEEKS_NXT = 4;
-export const PAGINATE_WEEKS_PRV = 3;
-export const NUM_WEEKS_ON_SCREEN = 7;
+const NUM_WEEKS_START = 5;
+const NUM_WEEKS_ON_SCREEN = 7;
 
 export function getDayStart() {
   switch (DAY_START) {
@@ -18,18 +18,33 @@ export function getDayStart() {
   }
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Date String manipulation helpers
+
+/**
+ * Given a Date object, returns a string in the form 'YYYYMMDD' (note MM is from 00 - 11)
+ * @param date the date object, defaulting to the Date of today
+ * @returns the associated dateStr
+ */
 export function dateToStr(date = new Date()) {
-  // Given a Date object, returns a string in the form 'YYYYMMDD' (where MM is from 01 - 12)
-  // Defaults to the Date of today
   return `${date.getFullYear()}` + `${date.getMonth()}`.padStart(2, '0') + `${date.getDate()}`.padStart(2, '0');
 }
 
+/**
+ * Given a dateStr, returns a date object, at 00:00:00
+ * @param dateStr the given dateStr, defaulting to the dateStr of today
+ * @returns the associated Date object
+ */
 export function strToDate(dateStr = dateToStr()) {
-  // Given a dateStr, returns a date object
-  // Defaults to a date object of today, at 00:00:00
   return new Date(parseInt(dateStr.substring(0, 4)), parseInt(dateStr.substring(4, 6)), parseInt(dateStr.substring(6)));
 }
 
+/**
+ * Adjust the days on a dateStr
+ * @param dateStr the dateStr, defaulting tothe dateStr of today
+ * @param numDays number of days to move, negative to move backwards
+ * @returns a new dateStr with adjusted days
+ */
 export function adjustDays(dateStr = dateToStr(), numDays = 0) {
   let d = strToDate(dateStr);
   d.setDate(d.getDate() + numDays);
@@ -37,10 +52,9 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
 }
 
 /**
- * Return an array of DateStr within the given range, from dateStart
- * to not including dateEnd
- * @param dateStart 
- * @param dateEnd 
+ * Return an array of DateStr within the given range
+ * @param dateStart inclusive start dateStr
+ * @param dateEnd inclusive end dateStr
  * @returns array of date strings
  */
 export function getRangeDates(dateStart: string, dateEnd: string) {
@@ -51,86 +65,8 @@ export function getRangeDates(dateStart: string, dateEnd: string) {
   return ret;
 }
 
-export function getEmptyCalendarDates(dateStart: string, dateEnd: string) {
-  const ret: CalendarDate[] = [];
-  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
-    ret.push({
-      dateStr: curDate,
-      plans: [] as CalendarPlan[],
-    });
-  }
-  return ret;
-}
-
-export function getInitCalendarDates(localDates: any, dateStart: string, dateEnd: string) {
-  const ret: CalendarDate[] = [];
-  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
-    let plans;
-    try {
-      plans = localDates[curDate]['plans'];
-    } catch (error) {
-      plans = [];
-    }
-    if (!Array.isArray(plans)) plans = [];
-
-    ret.push({
-      dateStr: curDate,
-      plans: plans,
-    });
-  }
-  return ret;
-}
-
-export function getUpdateRange(dateStart: string, dateEnd: string, type: 'object'): { [dateStr: string]: {} };
-export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array'): { [dateStr: string]: [] };
-export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array' | 'object'): { [dateStr: string]: [] | {} } {
-  const ret = {} as { [dateStr: string]: {} };
-  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
-    if (type === 'object')
-      ret[curDate] = {};
-    else 
-      ret[curDate] = [];
-  }
-  return ret;
-}
-
-export function newDateRange(dates: Array<CalendarDate>, dir: 'init' | 'start' | 'end'): [startDate: string, endDate: string] {
-  if (dir === "init") {
-    const start = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);
-    const end = adjustDays(start, 7 * NUM_WEEKS_START - 1);
-    return [start, end];
-  } 
-  else if (dir === "end") {
-    const start = adjustDays(dates[dates.length - 1].dateStr, 1);
-    const end = adjustDays(start, 7 * PAGINATE_WEEKS_NXT);
-    return [start, end];
-  }
-  else if (dir === "start") {
-    const end = dates[0].dateStr;
-    const start = adjustDays(end, -7 * PAGINATE_WEEKS_PRV);
-    return [start, end];
-  }
-  else {
-    const _exhaustiveCheck: never = dir;
-    return _exhaustiveCheck;
-  }
-}
-
-export function getScrollRange(dates: string[], dir: 'up' | 'down'): string[] {
-  const shouldExpand = dates.length < (NUM_WEEKS_ON_SCREEN * 7);
-  
-  if (dir === 'up') {
-    return getRangeDates(
-      adjustDays(dates[0], shouldExpand ? -14 : -7),
-      adjustDays(dates[dates.length - 1],  -7)
-    )
-  } else {
-    return getRangeDates(
-      adjustDays(dates[0], shouldExpand ? 0 : 7),
-      adjustDays(dates[dates.length - 1], 7)
-    )
-  }
-}
+///////////////////////////////////////////////////////////////////////////////
+// General helper functions 
 
 /**
  * Get the plan ids of a given date, in order of appearance 
@@ -143,25 +79,50 @@ export function getPlanIds(dates: Array<CalendarDate>, dateStr: string) {
   return datePlans.reduce((acc, cur) => {return [...acc, cur.planId]}, [] as Array<string>)
 }
 
-export function getPlan(dates: Array<CalendarDate>, planId: string): CalendarPlan | null {
-  for (let i = 0; i < dates.length; i++) {
-    for (let j = 0; j < dates[i].plans.length; j++) {
-      if (dates[i].plans[j].planId === planId) {
-        return {...dates[i].plans[j]}
-      }
-    }
-  }
-  return null;
+/**
+ * Helper function for getting the initial date range
+ * @returns DateRange which should be seen initially 
+ */
+ export function getInitDateRange(): DateRange {
+  const startDate = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);
+  const endDate = adjustDays(startDate, 7 * NUM_WEEKS_START - 1);
+
+  return {startDate, endDate};
 }
 
 /**
+ * Helper function useful for db listener functions. 
+ * 
+ * @param dateStart inclusive start dateStr
+ * @param dateEnd inclusive end dateStr
+ * @param type the type to be used for an empty date, 'array' or 'object' 
+ * @return new object with dateStr as keys, and the associated value is dependant on the type argument. 
+ * An empty array is used if type==='array', and null is used if type==='object'
+ */
+export function getUpdateRange(dateStart: string, dateEnd: string, type: 'object'): { [dateStr: string]: null };
+export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array'): { [dateStr: string]: [] };
+export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array' | 'object'): { [dateStr: string]: [] | null } {
+  const ret = {} as { [dateStr: string]: [] | null };
+  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
+    if (type === 'object')
+      ret[curDate] = null;
+    else 
+      ret[curDate] = [];
+  }
+  return ret;
+}
+
+/**
+ * Given a start date and end date, return an array of DateRange representing 
+ * each week in the given range. 
+ * 
  * @precondition a range of dates are startDate <= date <= endDate. The number of dates can be separated into weeks
  * @param {DateStr} startDate 
  * @param {DateStr} endDate 
- * @returns an array of objects containing start and end
+ * @returns DateRange[] of ranges 7 days
  */
-export function getWeekRanges(startDate: string, endDate: string) {
-  const ret: Array<{ startDate: string, endDate: string }> = [];
+export function getWeekRanges(startDate: string, endDate: string): DateRange[] {
+  const ret: DateRange[] = [];
   const cur = {} as { startDate: string, endDate: string };
   let curRange = 0;
   for (let i = startDate; i <= endDate; i = adjustDays(i, 1)) {
@@ -179,33 +140,69 @@ export function getWeekRanges(startDate: string, endDate: string) {
   return ret;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Other helper functions 
+
 /**
- * Return the indices to keep upon a reset 
- * @param {Array<Range>} range 
+ * Helper function for Calendar init, to extract dates from a potentially broken localDates argument
+ * 
+ * TODO: may break if localDates[curDate]['plans'] is broken, but this needs to be tested
+ * @param localDates hopefully in the form datesAll, i.e. { [dateStr: string]: ?CalendarDate }
+ * @param dateStart inclusive start dateStr
+ * @param dateEnd inclusive end dateStr
+ * @returns array to be used directly in Calendar.dates
  */
-export function getResetIndices(range: WeekRange[]) {
-  let curWeek = 0;
-  for (let i = 0; i < range.length; i++) {
-    if (getRangeDates(range[i].startDate, range[i].endDate).includes(dateToStr())) {
-      curWeek = i;
-      break;
+export function getInitCalendarDates(localDates: any, dateStart: string, dateEnd: string): CalendarDate[] {
+  const ret: CalendarDate[] = [];
+  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
+    let plans;
+    try {
+      plans = localDates[curDate]['plans'];
+    } catch (error) {
+      plans = [];
     }
+    if (!Array.isArray(plans)) plans = [];
+
+    ret.push({
+      dateStr: curDate,
+      label: null,
+      plans: plans,
+    });
   }
-  return {
-    floor: curWeek - 1,
-    roof: curWeek - 1 + NUM_WEEKS_START,
+  return ret;
+}
+
+/**
+ * Helper function for adding more dates onto a given range of dates. 
+ * @param dates current range of dateStr
+ * @param dir direction of scroll
+ * @returns a updated range of dateStr reflecting the scroll direction
+ */
+export function getScrollRange(dates: string[], dir: 'up' | 'down'): string[] {
+  const shouldExpand = dates.length < (NUM_WEEKS_ON_SCREEN * 7);
+  
+  if (dir === 'up') {
+    return getRangeDates(
+      adjustDays(dates[0], shouldExpand ? -14 : -7),
+      adjustDays(dates[dates.length - 1],  -7)
+    )
+  } else {
+    return getRangeDates(
+      adjustDays(dates[0], shouldExpand ? 0 : 7),
+      adjustDays(dates[dates.length - 1], 7)
+    )
   }
 }
 
 /**
- * Helper function to determine the next weekranges to load. Will add week ranges 
- * for all extra render ranges.
- * @param currentRange current weekrange 
+ * Helper function to determine the next DateRanges, given the current 
+ * DateRanges and the new renderRange. 
+ * @param currentRanges current DateRanges 
  * @param renderRange the range of dates to be rendered
- * @returns the new week ranges
+ * @returns a new array of DateRanges
  */
-export function addWeekRanges(currentRange: WeekRange[], renderRange: string[]) {
-  const ret = [...currentRange];
+export function addWeekRanges(currentRanges: DateRange[], renderRange: string[]) {
+  const ret = [...currentRanges];
 
   renderRange.forEach((dateStr, i) => {
     // guaranteed that every 7th index should be start of a date 
