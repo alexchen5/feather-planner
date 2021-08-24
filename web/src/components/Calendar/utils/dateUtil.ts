@@ -1,10 +1,10 @@
 // A set of helper functions for date manipulation and initialisation
 
+import { RangeListener } from "types";
 import { CalendarDate, DateRange } from "types/calendar";
 
 export const DAY_START: 'MON' | 'SUN' = 'MON';
 const NUM_WEEKS_START = 5;
-const NUM_WEEKS_ON_SCREEN = 7;
 
 export function getDayStart() {
   switch (DAY_START) {
@@ -52,6 +52,19 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
 }
 
 /**
+ * Get the number of days included in a date range
+ * @param dateStart starting date
+ * @param dateEnd ending date
+ * @returns number of days
+ */
+export function getRangeLength(dateStart: string, dateEnd: string) {
+  let dStart = strToDate(dateStart);
+  let dEnd   = strToDate(dateEnd);
+  
+  return ((dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+}
+
+/**
  * Return an array of DateStr within the given range
  * @param dateStart inclusive start dateStr
  * @param dateEnd inclusive end dateStr
@@ -77,6 +90,42 @@ export function getRangeDates(dateStart: string, dateEnd: string) {
 export function getPlanIds(dates: Array<CalendarDate>, dateStr: string) {
   const datePlans = dates.find(e => e.dateStr === dateStr)?.plans || [];
   return datePlans.reduce((acc, cur) => {return [...acc, cur.planId]}, [] as Array<string>)
+}
+
+/**
+ * Get the render range from a range of calendar dates
+ * @param dates the dates
+ * @returns the range
+ */
+export function getRenderRange(dates: Array<CalendarDate>): DateRange  {
+  return {
+    startDate: dates[0].dateStr,
+    endDate: dates[dates.length - 1].dateStr,
+  }
+}
+
+/**
+ * Find the CalendarDate object in an array of CalendarDates 
+ * @param dates given calendar dates
+ * @param dateStr date string of the calendarDate to return
+ * @returns the CalendarDate, or null if not found
+ */
+export function getDateByStr(dates: Array<CalendarDate>, dateStr: string): CalendarDate | null {
+  return dates.find(e => e.dateStr === dateStr) || null;
+}
+
+/**
+ * Get the date range rendered on the screen
+ * @returns the Daterange of dates actually on the screen at the current moment
+ */
+export function getRenderedDates(): DateRange | null {
+  const nodes = document.querySelectorAll(`[fp-role="calendar-date-root"]`);
+  
+  const start = nodes[0].getAttribute(`data-date`);
+  const end = nodes[nodes.length - 1].getAttribute(`data-date`);
+
+  if (start && end) return { startDate: start, endDate: end }
+  return null;
 }
 
 /**
@@ -155,21 +204,37 @@ export function getWeekRanges(startDate: string, endDate: string): DateRange[] {
 export function getInitCalendarDates(localDates: any, dateStart: string, dateEnd: string): CalendarDate[] {
   const ret: CalendarDate[] = [];
   for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
-    let plans;
+    let plans, label;
     try {
       plans = localDates[curDate]['plans'];
     } catch (error) {
       plans = [];
     }
+    try {
+      label = localDates[curDate]['label'] || null;
+    } catch (error) {
+      label = null;
+    }
     if (!Array.isArray(plans)) plans = [];
 
     ret.push({
       dateStr: curDate,
-      label: null,
-      plans: plans,
+      label,
+      plans,
     });
   }
   return ret;
+}
+
+/**
+ * Positive number of dates over the optimum amount to be diplayed
+ * @param dates dates to be rendered
+ * @returns 
+ */
+function getNumDaysOverflow(dates: DateRange) {
+  const num = getRangeLength(dates.startDate, dates.endDate);
+  
+  return Math.max(num - (NUM_WEEKS_START * 7), 0);
 }
 
 /**
@@ -178,19 +243,41 @@ export function getInitCalendarDates(localDates: any, dateStart: string, dateEnd
  * @param dir direction of scroll
  * @returns a updated range of dateStr reflecting the scroll direction
  */
-export function getScrollRange(dates: string[], dir: 'up' | 'down'): string[] {
-  const shouldExpand = dates.length < (NUM_WEEKS_ON_SCREEN * 7);
-  
+export function getScrollRange(dates: DateRange, dir: 'up' | 'down', speed: 1 | 2 | 3): DateRange {
   if (dir === 'up') {
-    return getRangeDates(
-      adjustDays(dates[0], shouldExpand ? -14 : -7),
-      adjustDays(dates[dates.length - 1],  -7)
-    )
+    if (speed === 3) {
+      return {
+        startDate: adjustDays(dates.startDate, -21),
+        endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
+      }
+    }
+    if (speed === 2) {
+      return {
+        startDate: adjustDays(dates.startDate, -14),
+        endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
+      }
+    } 
+    return {
+      startDate: adjustDays(dates.startDate, -7),
+      endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
+    }
   } else {
-    return getRangeDates(
-      adjustDays(dates[0], shouldExpand ? 0 : 7),
-      adjustDays(dates[dates.length - 1], 7)
-    )
+    if (speed === 3) {
+      return {
+        startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
+        endDate: adjustDays(dates.endDate, 21)
+      }
+    }
+    if (speed === 2) {
+      return {
+        startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
+        endDate: adjustDays(dates.endDate, 14)
+      }
+    }
+    return {
+      startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
+      endDate: adjustDays(dates.endDate, 7)
+    }
   }
 }
 
@@ -201,18 +288,13 @@ export function getScrollRange(dates: string[], dir: 'up' | 'down'): string[] {
  * @param renderRange the range of dates to be rendered
  * @returns a new array of DateRanges
  */
-export function addWeekRanges(currentRanges: DateRange[], renderRange: string[]) {
-  const ret = [...currentRanges];
+export function addRangeListeners(currentRanges: RangeListener[], renderRange: DateRange): RangeListener[] {
+  const newRanges = getWeekRanges(renderRange.startDate, renderRange.endDate);
+  const ret = newRanges.map(r => {return { ...r, onScreen: true }});
 
-  renderRange.forEach((dateStr, i) => {
-    // guaranteed that every 7th index should be start of a date 
-    if ((i % 7) === 0) {
-      // check if dateStr is in weekrange 
-      if (!ret.some(e => e.startDate === dateStr)) {
-        // dateStr is not in week range 
-        ret.push({ startDate: dateStr, endDate: adjustDays(dateStr, 6) })
-      }
-    }
+  currentRanges.forEach(range => {
+    if (!ret.some(r => r.startDate === range.startDate)) 
+      ret.push({ ...range, onScreen: false });
   })
 
   return ret;

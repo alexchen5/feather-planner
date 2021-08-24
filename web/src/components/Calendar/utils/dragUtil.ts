@@ -17,7 +17,7 @@ export function getTargetDatenode(clientX: number, clientY: number) {
 }
 
 export function getDragAfterElement(container: Element, y: number) {
-  const draggableElements = [...container.querySelectorAll('[fp-role="calendar-plan"]:not([state="dragging"])')];
+  const draggableElements = [...container.querySelectorAll('[fp-role="calendar-plan"]:not([fp-state="dragging"])')];
 
   return draggableElements.reduce((closest, child) => {
     const box = child.getBoundingClientRect();

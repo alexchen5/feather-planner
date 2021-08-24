@@ -1,10 +1,10 @@
 import React from 'react';
-import { CalendarContext } from '../..';
 import { db, UidContext } from "globalContext";
 import { StyleOpenContext } from '..';
 import PlanStyle from './PlanStyle';
 
 import style from './labels.module.scss';
+import { FeatherContext } from 'pages/HomePage';
 
 /**
  * Context for if the plan style menu is in edit state. Boolean.
@@ -13,7 +13,7 @@ import style from './labels.module.scss';
 
 function PlanStyles({ planId, currentStyleId }: { planId: string, currentStyleId: string }) {
   const { styleOpen, setStyleOpen } = React.useContext(StyleOpenContext);
-  const { calendar: { planStyles } } = React.useContext(CalendarContext);
+  const { featherPlanner: { calendarPlanStyles: planStyles } } = React.useContext(FeatherContext);
   const [ inEdit, setInEdit ] = React.useState(false);
   const {uid} = React.useContext(UidContext);
 

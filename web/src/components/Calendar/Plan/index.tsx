@@ -30,8 +30,8 @@ const timeOutSubscriptions: NodeJS.Timeout[] = []; // track any timeout function
 let pos1, pos2, pos3: number, pos4 = 0; // track drag positions
 let placeholder: HTMLElement | null = null; // current placeholder for drag
 
-function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: CalendarPlan}) {
-  const { calendar } = React.useContext(CalendarContext);
+function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: {plan: CalendarPlan}) {
+  const { calendar, dispatch } = React.useContext(CalendarContext);
   const planRef = React.useRef<HTMLDivElement>(null);
   const [state, setState] = useState('normal' as PlanState);
   const [styleOpen, setStyleOpen] = useState(false);
@@ -56,19 +56,29 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     const ids = getPlanIds(calendar.dates, dateStr);
     const p = ids.indexOf(planId);
 
-    const delBatch = db.batch();
-    if (ids[p+1]) delBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', ids[p-1] || '');
-    delBatch.delete(db.doc(`users/${uid}/plans/${planId}`));
-    delBatch.commit();
+    const undo = () => {
+      const restoreBatch = db.batch();
+      if (ids[p+1]) restoreBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', planId);
+      restoreBatch.set(db.doc(`users/${uid}/plans/${planId}`), {...restoreData})
+      restoreBatch.commit();
+    }
 
-    console.log('delet');
+    const action = () => {
+      const delBatch = db.batch();
+      if (ids[p+1]) delBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', ids[p-1] || '');
+      delBatch.delete(db.doc(`users/${uid}/plans/${planId}`));
+      delBatch.commit();
+    }
+    action();
+
+    dispatch({ type: 'add-undo', undo: {undo: undo, redo: action} });
     
     // deregisterPlanEdit will then be called in useEffect cleanup
-  }, [uid, calendar, dateStr, planId]);
+  }, [uid, calendar, dateStr, planId, restoreData, dispatch]);
 
   React.useEffect(() => {
     return function cleanup() {
-      console.log('cleanup');
+      // console.log('cleanup');
       deregisterPlanEdit(); // deregister plan on cleanup
       timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove unused timeouts at end of cleanup
     }
@@ -108,7 +118,7 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     } else if (state === 'edit') { // click while in edit state
 
     } else if (state === 'dragging') {
-      console.log('click handle');
+      // console.log('click handle');
       // completeDragEnd();
     }
   }
@@ -119,23 +129,23 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
    * @param e 
    */
   const handleMouseDown: MouseEventHandler = (e) => {
-    const initiateDrag = () => { // helper function to set up drag from mousedown
+    const dragInitiate = () => { // helper function to set up drag from mousedown
       // log starting position
       pos3 = e.clientX;
       pos4 = e.clientY;
       
       // set up drag listeners
-      document.addEventListener('mousemove', startDrag);
-      document.addEventListener('mouseup', cancelStartDrag);
+      document.addEventListener('mousemove', tryStartDrag);
+      document.addEventListener('mouseup', cancelTryStartDrag);
     }
 
     e.stopPropagation(); // prevent event from propagating further
     const target = e.target as HTMLElement; // assume target is html element
     if (state === 'normal') {
       document.dispatchEvent(new MouseEvent('mousedown')); // trigger deregister events on other plans in edit
-      initiateDrag();
+      dragInitiate();
     } else if (isEdit(state) && target.getAttribute('fp-role') === 'edit-panel') {
-      initiateDrag();
+      dragInitiate();
     }
   }
   /**
@@ -152,7 +162,7 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
    * Take the necessary steps to deregister current plan as edit
    */
   const deregisterPlanEdit = React.useCallback(() => { // useCallback to preserve referential equality between renders 
-    console.log('dereg');
+    // console.log('dereg');
     document.removeEventListener('keydown', handleKeyDown); // remove keydown handler
     document.removeEventListener('mousedown', deregisterPlanEdit); // remove deregister event
     timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
@@ -162,20 +172,17 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
   /**
    * Callback to start drag on the plan
    */
-  const startDrag = React.useCallback((e) => {
+  const tryStartDrag = React.useCallback((e) => {
     if (!planRef.current) {
       console.error('Expected planRef during drag');
       return;
     }
-
-    if (Math.abs(e.clientX - pos3) > 2 || Math.abs(e.clientY - pos4) > 2) {
-      console.log('start');
-    } else {
-      console.log('false start');
-      return;
-    }
-    document.removeEventListener('mousemove', startDrag);
-    document.removeEventListener('mouseup', cancelStartDrag);
+    
+    // ensure mouse moved enough for a drag
+    if (!(Math.abs(e.clientX - pos3) > 2 || Math.abs(e.clientY - pos4) > 2)) return;
+    
+    document.removeEventListener('mousemove', tryStartDrag);
+    document.removeEventListener('mouseup', cancelTryStartDrag);
     e.preventDefault();
 
     // set up starting conditions
@@ -210,9 +217,9 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
   /**
    * Callback to cancel the start drag listener
    */
-  const cancelStartDrag = React.useCallback(() => {
-    document.removeEventListener('mousemove', startDrag);
-    document.removeEventListener('mouseup', cancelStartDrag);
+  const cancelTryStartDrag = React.useCallback(() => {
+    document.removeEventListener('mousemove', tryStartDrag);
+    document.removeEventListener('mouseup', cancelTryStartDrag);
 
     // eslint-disable-next-line
   }, []);
@@ -259,17 +266,17 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
       const to_date = targetDatenodeRoot.getAttribute('data-date');
       const from_date = placeholder.getAttribute('placeholder');
 
-      const plansTo = [...targetDatenodeRoot.querySelectorAll('[placeholder], [fp-role="calendar-plan"]:not([state="dragging"])')];
+      const plansTo = [...targetDatenodeRoot.querySelectorAll('[placeholder], [fp-role="calendar-plan"]:not([fp-state="dragging"])')];
       const to_index = plansTo.indexOf(placeholder);
-      const to_prv_id = (plansTo[to_index - 1] || '') && plansTo[to_index - 1].getAttribute('plan');
-      const to_nxt_id = (plansTo[to_index + 1] || '') && plansTo[to_index + 1].getAttribute('plan');
+      const to_prv_id = (plansTo[to_index - 1] || '') && plansTo[to_index - 1].getAttribute('data-id');
+      const to_nxt_id = (plansTo[to_index + 1] || '') && plansTo[to_index + 1].getAttribute('data-id');
 
       // TODO: complete definition
       // @ts-ignore
       const plansFrom = [...document.querySelector(`[fp-role="calendar-date-root"][data-date="${from_date}"]`)?.querySelectorAll('[fp-role="calendar-plan"]')];
       const from_index = plansFrom.indexOf(planRef.current);
-      const from_prv_id = (plansFrom[from_index - 1] || '') && plansFrom[from_index - 1].getAttribute('plan');
-      const from_nxt_id = (plansFrom[from_index + 1] || '') && plansFrom[from_index + 1].getAttribute('plan');
+      const from_prv_id = (plansFrom[from_index - 1] || '') && plansFrom[from_index - 1].getAttribute('data-id');
+      const from_nxt_id = (plansFrom[from_index + 1] || '') && plansFrom[from_index + 1].getAttribute('data-id');
 
       if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) {
         // no need to move position
@@ -301,21 +308,22 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     document.removeEventListener('mouseup', closeDragElement);
     document.removeEventListener('mousemove', elementDrag);
 
-        completeDragEndDrop(); 
+    // completeDragEndDrop(); 
 
-    // timeOutSubscriptions.push(setTimeout(() => {
-    //   // we hope for set state normal to be called through the click event that fires
-    //   // afterwards, but if the plan is dropped then it must be called here
-    //   completeDragEndDrop(); 
-    // }, 10));
+    timeOutSubscriptions.push(setTimeout(() => {
+      // we hope for set state normal to be called through the click event that fires
+      // afterwards, but if the plan is dropped then it must be called here
+      completeDragEndDrop(); 
+    }, 10));
 
     // eslint-disable-next-line
   }, [dateStr, planId]);
 
   // const completeDragEnd = () => {
-  //   timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove redundant setState timeout
-  //   completeDragEndDrop();
+  //   // timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove redundant setState timeout
+  //   // completeDragEndDrop();
   // }
+
   /**
    * Complete the minimum steps to turn a dragging plan back to normal
    */
@@ -363,6 +371,8 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
   const handleKeyDown = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
     if (e.key === 'Backspace') {
       e.stopPropagation();
+      console.log('delete from backspace');
+      
       deleteSelf();
     }
     else if (e.key === 'Enter') {
@@ -370,7 +380,8 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
       deregisterPlanEdit();
     }
     // else console.log(e.key)
-  }, [deleteSelf, deregisterPlanEdit]);
+    // eslint-disable-next-line
+  }, []);
 
   /**
    * Handle key-styling command for text edit
@@ -499,7 +510,7 @@ function Plan({plan: {dateStr, planId, styleId, isDone, content}}: {plan: Calend
     fp-state={state} // the state of this plan - see PlanState at top of this file
   >
     {isEdit(state) && 
-      <div className={style.editPanel}>
+      <div className={style.editPanel} fp-role={"edit-panel"}>
         {state === "edit-expand" ? 
           <> {/* Case: fully expanded */}
             <div className={panelStyle.styleIcons}>

@@ -1,126 +1,177 @@
-import React from 'react';
+import CalendarComponent from 'components/Calendar';
+import DateRangeListener from 'components/Calendar/DateRangeListener';
+import { addRangeListeners, getInitDateRange } from 'components/Calendar/utils/dateUtil';
 import SideNotes from 'components/SideNotes';
-import StyledFirebaseAuth from 'react-firebaseui/StyledFirebaseAuth';
+
 import firebase from "firebase/app";
 import "firebase/auth";
-import "firebaseui";
-import CalendarComponent from 'components/Calendar';
-import { UidContext } from 'globalContext';
+import { db, IS_CACHE_ON, UidContext } from 'globalContext';
+import React from 'react';
+import { Link, Route, Switch } from 'react-router-dom';
+import { FeatherPlanner, FeatherPlannerAction, SetStyles } from 'types';
 
-// Configure FirebaseUI.
-const uiConfig = {
-  signInFlow: 'popup',
-  signInOptions: [
-      firebase.auth.GoogleAuthProvider.PROVIDER_ID,
-      // firebase.auth.EmailAuthProvider.PROVIDER_ID,
-  ],
-  callbacks: {
-      signInSuccessWithAuthResult: () => false,
-  },
-};
+export const FeatherContext = React.createContext({} as { featherPlanner: FeatherPlanner, dispatch: React.Dispatch<FeatherPlannerAction> });
+
+let listenerCleanTime = 0;
+
+const init = (_noArg: never): FeatherPlanner => {
+  const { startDate, endDate } = getInitDateRange();
+
+  // TODO: trim local storage when it inevitably gets too big to load in at once
+  let localDatesAll, localPlanStyles = {}
+  if (IS_CACHE_ON) {
+    console.time("Cache Loading Time")
+    localDatesAll = JSON.parse(localStorage.getItem('datesAll')!);
+    localPlanStyles = JSON.parse(localStorage.getItem('planStyles')!);
+    console.timeEnd("Cache Loading Time"); // not sure why this function is called twice...
+  }
+
+  for (const [styleId, style] of Object.entries(localPlanStyles)) {
+    // @ts-ignore
+    if (style?.color) document.documentElement.style.setProperty(`--plan-color-${styleId}`, style.color);
+    // @ts-ignore
+    if (style?.colorDone) document.documentElement.style.setProperty(`--plan-color-done-${styleId}`, style.colorDone);
+  }
+
+  return {
+    calendarDates: localDatesAll || {}, 
+    calendarPlanStyles: localPlanStyles || {},
+    dateRanges: addRangeListeners([], {startDate, endDate}),
+  };
+}
+
+/**
+ * Wrapper for storing an object in localStorage. Does not store if 
+ * IS_CACHE_ON is false.
+ * 
+ * TODO: define error cases
+ * @precondition object is valid JSON 
+ * @param name name of object to be stored as 
+ * @param object object to store
+ */
+ const tryCacheItem = (name: string, object: any) => {
+  if (IS_CACHE_ON) {
+    try {
+      localStorage.setItem(name, JSON.stringify(object));
+    } catch (error) {
+      console.error(error);
+    }
+  }
+}
+
+const reducer = (state: FeatherPlanner, action: FeatherPlannerAction): FeatherPlanner => {
+  if (action.type === 'set-styles') {
+    tryCacheItem('planStyles', action.planStyles);
+
+    return {
+      ...state,
+      calendarPlanStyles: {...action.planStyles},
+    }
+  } else if (action.type === 'set-labels' || action.type === 'set-plans') {
+    const dateStrs = action.type === 'set-labels' ? Object.keys(action.labels) : Object.keys(action.plans); // date strings for action
+    const newDatesAll = {...state.calendarDates}; // instantiate the new object for datesAll
+
+    dateStrs.forEach(dateStr => {
+      let label = newDatesAll[dateStr]?.label || null; // initiate date label
+      let plans = newDatesAll[dateStr]?.plans || []; // initiate date plans
+      if ('labels' in action) {
+        label = action.labels[dateStr]; // update label from action
+      } else {
+        plans = action.plans[dateStr]; // or update plans from action
+      }
+
+      newDatesAll[dateStr] = { dateStr, label, plans }; // update date
+    });
+    tryCacheItem('datesAll', newDatesAll); // cache the resultant datesAll
+
+    return {
+      ...state,
+      calendarDates: newDatesAll, // updated datesAll
+    }
+  } else if (action.type === 'update-date-ranges') {
+    listenerCleanTime = 1;  // set to 1 to start cleanup timer
+    return {
+      ...state,
+      dateRanges: addRangeListeners(state.dateRanges, action.newRenderRange),
+    }
+  } else if (action.type === 'clean-date-ranges') {
+    return {
+      ...state,
+      dateRanges: state.dateRanges.filter(listener => listener.onScreen), 
+    }
+  } else {
+    const _exhaustiveCheck: never = action;
+    return _exhaustiveCheck;
+  }
+}
 
 function HomePage() {
-  const [loading, setLoading] = React.useState(true);
-  const {uid, setUid} = React.useContext(UidContext);
-  // const [layout, setLayout] = React.useState({});
-  const [homeApp, setHomeapp] = React.useState('calendar');
+  const {uid} = React.useContext(UidContext);
+  const [featherPlanner, dispatch] = React.useReducer(reducer, null as never, init);
 
-  // Listen to the Firebase Auth state and set the local state.
   React.useEffect(() => {
-    const unregisterAuthObserver = firebase.auth().onAuthStateChanged(user => {
-      setUid(!!user && user.uid);
-      setLoading(false);
-    });
-    return () => unregisterAuthObserver(); // Make sure we un-register Firebase observers when the component unmounts.
-  }, [setUid]);
+    // attach listener to db for plan styles 
+    const detachPlanStyleListener = db.collection(`users/${uid}/plan-style`) 
+      .onSnapshot((snapshot) => {
+        const action: SetStyles = {
+          type: 'set-styles',
+          planStyles: {},
+        }
+        snapshot.forEach((doc) => {
+          const d = doc.data();
+          // TODO: complete error checking protocol
+          action.planStyles[doc.id] = {
+            label: d.label,
+            color: d.color,
+            colorDone: d.colorDone,
+          }
+          document.documentElement.style.setProperty(`--plan-color-${doc.id}`, d.color);
+          document.documentElement.style.setProperty(`--plan-color-done-${doc.id}`, d.colorDone);
+        });
+        dispatch(action);
+      });
 
-  // React.useEffect(() => {
-  //   if (uid) {
-  //     db.doc(`users/${uid}/preferences/layout`)
-  //       .onSnapshot(snapshot => {
-  //         setLayout(snapshot.exists ? snapshot.data() : {});
-  //       })
-  //   }
-  // }, [uid]);
+    // attach listener to clean up unused date range listeners after 60 seconds
+    const timer = setInterval(() => {
+      if (listenerCleanTime) listenerCleanTime++; // increment time if positive number
+      if (listenerCleanTime === 60) {
+        listenerCleanTime = 0; // set to zero for clean
+        dispatch({ type: 'clean-date-ranges' });
+      }
+    }, 1000);
 
-  if (loading) {
-    return (<></>)
-  }
-  if (!uid) {
-    return (
-      <div>
-        <h1>Welcome to Feather Planner</h1>
-        <p>Please sign-in:</p>
-        <StyledFirebaseAuth uiConfig={uiConfig} firebaseAuth={firebase.auth()} />
-      </div>
-    );
-  }
+    return () => {
+      // detach db listeners 
+      detachPlanStyleListener();
+      clearInterval(timer);
+    }
+  }, [uid]);
 
   return (
-    // <userLayout.Provider value={{layout, setLayout}}>
+    <FeatherContext.Provider value={{ featherPlanner, dispatch }}>
+      {featherPlanner.dateRanges.map(range => <DateRangeListener key={range.startDate} startDate={range.startDate} endDate={range.endDate}/>)}
       <div id="home-layout"> 
         <div id="home-menu">
           <button onClick={() => firebase.auth().signOut()}>Sign Out</button>
-          <button onClick={() => setHomeapp('calendar')}>Show Calendar</button>
-          <button onClick={() => setHomeapp('notes')}>Show Notes</button>
+          <Link to={'/'}><button>Show Calendar</button></Link>
+          <Link to={'/notes'}><button>Show Notes</button></Link>
         </div>
         <div id="home-app">
-          <div style={{display: `${homeApp === 'calendar' ? 'block' : 'none'}`, height: '100%'}}><CalendarComponent/></div>
-          <div style={{display: `${homeApp === 'notes' ? 'block' : 'none'}`}}><SideNotes/></div>
+          <Switch> 
+            <Route
+              exact
+              path='/notes'
+              component={SideNotes}
+            />
+            <Route
+              exact
+              path={['/', 'calendar']}
+              render={() => <CalendarComponent allDates={featherPlanner.calendarDates}/>}
+            />
+          </Switch>
         </div>
       </div>
-
-      /* <div
-        style={{
-          display: 'flex',
-          height: '100vh',
-          width: '100vw',
-          backgroundColor: 'white',
-          // overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            minWidth: '220px',
-            borderRight: '1px solid var(--edge-grey)',
-            // backgroundColor: '#f9f9f9', 
-          }}
-        >
-          <p>Social Menu</p>
-          
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative',
-            height: '100%',
-            alignItems: 'center',
-          }}
-        >
-          <div
-            id='calendar-height'
-            style={{
-              height: `${layout.isNotesOpen ? (layout.isNotesExpanded ? '0px' : layout.calendarHeight || '60vh') : '100vh'}`,
-              width: '100%',
-            }}
-          >
-          </div>
-          {true && <div
-            style={{
-              overflow: 'auto',
-              borderTop: '1px solid var(--edge-grey)',
-              flexGrow: '1',
-              width: '100%',
-              backgroundColor: 'white',
-              zIndex: '1',
-            }}
-          >
-          </div>}
-          <StyleMenu/>
-        </div>
-      </div> */
-    // </userLayout.Provider>
+    </FeatherContext.Provider>
   );
 }
 

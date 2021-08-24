@@ -1,20 +1,22 @@
 import { RawDraftContentState } from "draft-js";
 import { db, UidContext } from "globalContext";
+import { FeatherContext } from "pages/HomePage";
 import React from "react";
-import { CalendarPlan, DateRange, SetLabels, SetPlans } from "types/calendar";
-import { CalendarContext } from ".";
+import { SetLabels, SetPlans } from "types";
+import { CalendarPlan, DateRange } from "types/calendar";
 import { getUpdateRange } from "./utils/dateUtil";
 
 /**
- * Dummy component that takes care of listening to db on a given range of 
+ * Dummy component that takes care of listening to db on a given range of dates
  * @param props given DateRange to listen to
  * @returns empty <></>
  */
 function DateRangeListener({startDate, endDate}: DateRange) {
-  const { dispatch } = React.useContext(CalendarContext);
+  const { dispatch } = React.useContext(FeatherContext);
   const { uid } = React.useContext(UidContext);
 
   React.useEffect(() => { 
+    // console.log('attaching listeners on: ' + startDate + ' to ' + endDate);
     const detachLabelListener = db.collection(`users/${uid}/date-labels`) // labels for each date
       .where('date', '>=', startDate)
       .where('date', '<=', endDate)
@@ -65,6 +67,7 @@ function DateRangeListener({startDate, endDate}: DateRange) {
           } else {
             const newPlan: CalendarPlan = {
               planId: doc.id,
+              restoreData: d,
               dateStr,
               isDone,
               content,
@@ -100,7 +103,7 @@ function DateRangeListener({startDate, endDate}: DateRange) {
       })
     
     return (() => {
-      console.log('detaching listeners on: ' + startDate + ' to ' + endDate);
+      // console.log('detaching listeners on: ' + startDate + ' to ' + endDate);
       detachLabelListener();
       detachPlansListener();
     })

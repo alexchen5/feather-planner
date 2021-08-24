@@ -2,6 +2,10 @@ import React from "react";
 import firebase from "firebase/app";
 import "firebase/firestore";
 
+export const UidContext = React.createContext({} as { uid: string | false });
+
+export const IS_CACHE_ON: boolean = true; // turn off cache to prevent reading and writing to localStorage
+
 // Initialize Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyBQ-nWGP97PXbIx8sonXoYCjpGy3_wLWfo",
@@ -16,5 +20,3 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 export const db = firebase.firestore();
-
-export const UidContext = React.createContext({} as { uid: string | false, setUid: React.Dispatch<React.SetStateAction<string | false>> });

@@ -1,6 +1,7 @@
 // Type definitions for the calendar component
 
 import { RawDraftContentState } from "draft-js";
+import { AllCalendarDates } from "types";
 
 ///////////////////////////////////////////////////////////////////////////////
 // Calendar state interfaces 
@@ -10,37 +11,24 @@ import { RawDraftContentState } from "draft-js";
  */
 interface Calendar {
     /**
-     * Contains the data of all dates which have been loaded from db. Data is also 
-     * loaded in initially from localStorage. 
-     */
-    datesAll: { [dateStr: string]: ?CalendarDate }; 
-
-    /**
-     * Contains the custom styling for plans. This is loaded from db, and also 
-     * initially loaded from localStorage.
-     */
-    planStyles: { [styleId: string] : ?CalendarPlanStyle }; 
-
-    /**
-     * The ranges of date listeners which we have attached to the db.
-     */
-    dateRanges: DateRange[]; 
-
-    /**
-     * The dateStr[] of dates which we want in Calendar.dates 
-     * 
-     * This property is changed via CalendarAction.SetRenderRange and CalendarAction.MoveRenderRange,
-     * whose side effects include updating Calendar.dates and expanding Calendar.dateRanges based on 
-     * the new value of renderRange.
-     */
-    renderRange: string[]; 
-
-    /**
-     * Our dates passed down to our children components and rendered on the screen. It 
-     * is currently assumed that all data here is correct.
+     * Our dates passed down to our children components and rendered on the screen. 
      */
     dates: CalendarDate[]; 
 
+    /**
+     * False if Calendar.dates should not be updated when Calendar.datesAll are updated
+     */
+    shouldSyncDates: boolean;
+
+    /**
+     * Undo functions which can be called
+     */
+    undoStack: {undo: () => void, redo: () => void}[];
+
+    /**
+     * Redo functions which can be called
+     */
+    redoStack: {undo: () => void, redo: () => void}[];
 }
 
 interface DateRange {
@@ -70,6 +58,7 @@ interface CalendarDateLabel {
  */
 interface CalendarPlan {
     planId: string; // from document id
+    restoreData: any; // object used to restore plan data for undo
     dateStr: string; // plan should be deleted if dateStr is invalid
     isDone: boolean; // defaults to false
     content: RawDraftContentState | string; // plan should be deleted if content doesnt exist
@@ -92,22 +81,26 @@ interface CalendarPlanStyle {
 /**
  * Types of CalendarContext dispatches
  */
-type CalendarAction = SetRenderRange | MoveRenderRange | SetLabels | SetStyles | SetPlans;
+type CalendarAction = 
+    AcceptAllDatesUpdate | SetRenderRange | MoveRenderRange | SetDataSync 
+    | AddUndo | UseUndo | UseRedo;
+
+///////////////////////////////////////////////////////////////////////////////
+// Data manipulation CalendarAction dispatch
+
+interface AcceptAllDatesUpdate {
+    type: 'accept-all-dates-update';
+    dates: AllCalendarDates;
+}
 
 /**
- * Replace the calendar renderRange
+ * Set the range of dates which are being rendered.
  * 
- * Will update Calendar.dates with values from Calendar.datesAll. Note that no error checking is 
- * done here. 
- * 
- * Opt to also replace dateRanges based on the new renderRange.
- * 
- * Note that if looking to move the renderRange in an incremental way, use MoveRenderRange.
+ * Note that if looking to move the render range in an incremental way, use MoveRenderRange.
  */
 interface SetRenderRange {
     type: 'set-render-range';
-    updateDateRanges: boolean; 
-    renderRange: string[]; // dateStr[]
+    renderRange: DateRange; 
 }
 
 /**
@@ -118,34 +111,44 @@ interface SetRenderRange {
 interface MoveRenderRange {
     type: 'move-render-range';
     dir: 'up' | 'down';
+    speed: 1 | 2 | 3; // higher number for faster scroll
 }
 
 /**
- * Update all planStyles
- */
-interface SetStyles {
-    type: 'set-styles';
-    planStyles: { [styleId: string] : CalendarPlanStyle };
-}
-
-/**
- * Update labels in the range of dates in SetLabels.labels. 
+ * Set the new status of Calendar.shouldSyncDates
  * 
- * The method updates Calendar.datesAll, updates the cached datesAll, 
- * and updates Calendar.dates if relevant. 
+ * If false, the syncing of Calendar.dates to db updates are suspended.
+ * This is used for scenarios when syncing may cause disruption, e.g. 
+ * in the middle of dragging a plan.
  */
-interface SetLabels {
-    type: 'set-labels';
-    labels: { [dateStr: string]: CalendarDateLabel | null };
+interface SetDataSync {
+    type: 'set-data-sync';
+    value: boolean;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Calendar data dispatch items 
+
+/**
+ * Add an undo function, alongside its redo action
+ */
+interface AddUndo {
+    type: 'add-undo';
+    undo: { undo: () => void, redo: () => void };
 }
 
 /**
- * Update plans in the range of dates in SetPlans.plans. 
- * 
- * The method updates Calendar.datesAll, updates the cached datesAll, 
- * and updates Calendar.dates if relevant. 
+ * Use the undo function at the top of the stack, and add the 
+ * associated redo to the redo stack
  */
-interface SetPlans {
-    type: 'set-plans';
-    plans: { [dateStr: string] : CalendarPlan[] };
+interface UseUndo {
+    type: 'use-undo';
+}
+
+/**
+ * Use the redo function at the top of the stack, and add the 
+ * associated undo to the undo stack
+ */
+interface UseRedo {
+    type: 'use-redo';
 }

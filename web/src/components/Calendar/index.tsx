@@ -1,147 +1,134 @@
 import React, { createContext, useReducer } from "react";
 
-import { addWeekRanges, getInitCalendarDates, getInitDateRange, getRangeDates, getScrollRange, getWeekRanges } from './utils/dateUtil';
+import { getDateByStr, getInitCalendarDates, getInitDateRange, getRangeDates, getRenderRange, getScrollRange } from './utils/dateUtil';
 import Plan from './Plan'
 import Date from "./Date";
 import CalendarContainer from "./CalendarContainer";
-import { db, UidContext } from "globalContext";
-import { Calendar, CalendarAction, SetStyles } from "types/calendar";
-import DateRangeListener from "./DateRangeListener";
+import { Calendar, CalendarAction } from "types/calendar";
+import { FeatherContext } from "pages/HomePage";
+import { AllCalendarDates } from "types";
 
 export const CalendarContext = createContext({} as { calendar: Calendar, dispatch: React.Dispatch<CalendarAction> });
 
-const init = (_noArg: never): Calendar => {
-  const { startDate, endDate } = getInitDateRange();
+let curAllDates: AllCalendarDates;
+let curDateRange = getInitDateRange();
 
-  // TODO: trim local storage when it inevitably gets too big to load in at once
-  console.time("Cache Loading Time")
-  const localDatesAll = JSON.parse(localStorage.getItem('datesAll')!);
-  const localPlanStyles = JSON.parse(localStorage.getItem('planStyles')!);
-  console.timeEnd("Cache Loading Time"); // not sure why this function is called twice...
-
-  for (const [styleId, style] of Object.entries(localPlanStyles)) {
-    // @ts-ignore
-    if (style?.color) document.documentElement.style.setProperty(`--plan-color-${styleId}`, style.color);
-    // @ts-ignore
-    if (style?.colorDone) document.documentElement.style.setProperty(`--plan-color-done-${styleId}`, style.colorDone);
-  }
+const init = (allDates: AllCalendarDates): Calendar => {
+  const { startDate, endDate } = curDateRange;
 
   return {
-    datesAll: localDatesAll || {}, 
-    planStyles: localPlanStyles || {},
-    dateRanges: getWeekRanges(startDate, endDate),
-    renderRange: getRangeDates(startDate, endDate),
-    dates: getInitCalendarDates(localDatesAll, startDate, endDate), // TODO: error checking for valid local storage is incomplete
-  }
-}
-
-/**
- * Wrapper for storing an object in localStorage
- * 
- * TODO: define error cases
- * @precondition object is valid JSON 
- * @param name name of object to be stored as 
- * @param object object to store
- */
-const cacheItem = (name: string, object: any) => {
-  try {
-    localStorage.setItem(name, JSON.stringify(object));
-  } catch (error) {
-    console.error(error);
+    dates: getInitCalendarDates(allDates, startDate, endDate), // TODO: error checking for valid local storage is incomplete
+    shouldSyncDates: true,
+    undoStack: [],
+    redoStack: [],
   }
 }
 
 const reducer = (state: Calendar, action: CalendarAction): Calendar => {
-  if (action.type === 'set-styles') {
-    cacheItem('planStyles', action.planStyles);
+  if (action.type === 'accept-all-dates-update') {
+    curAllDates = action.dates; // stash every update of new allDates
 
+    if (!state.shouldSyncDates) return state; // if dates should not be synced, do nothing
+
+    // else map dates to new dates from action
     return {
       ...state,
-      planStyles: {...action.planStyles},
+      // should always receive valid data from action.dates[date.dateStr]
+      dates: state.dates.map(date => action.dates[date.dateStr] || date),
     }
-  } else if (action.type === 'set-labels' || action.type === 'set-plans') {
-    const dateStrs = action.type === 'set-labels' ? Object.keys(action.labels) : Object.keys(action.plans); // date strings for action
-    const newDatesAll = {...state.datesAll}; // instantiate the new object for datesAll
-
-    dateStrs.forEach(dateStr => {
-      let label = newDatesAll[dateStr]?.label || null; // initiate date label
-      let plans = newDatesAll[dateStr]?.plans || []; // initiate date plans
-      if ('labels' in action) {
-        label = action.labels[dateStr]; // update label from action
-      } else {
-        plans = action.plans[dateStr]; // or update plans from action
-      }
-
-      newDatesAll[dateStr] = { dateStr, label, plans }; // update date
-    });
-    cacheItem('datesAll', newDatesAll); // cache the resultant datesAll
+  } else if (action.type === 'set-data-sync') {
+    if (action.value) console.log('turning sync on');
+    else console.log('turning sync off');
 
     return {
       ...state,
-      datesAll: newDatesAll, // updated datesAll
-      dates: state.renderRange.map(dateStr => newDatesAll[dateStr] || {dateStr, label: null, plans: []}), // map to newDatesAll
+      shouldSyncDates: action.value,
+      // re-map dates to allDates if turning sync on
+      dates: action.value ? state.dates.map(date => curAllDates[date.dateStr] || date) : state.dates,
     }
   } else if (action.type === 'move-render-range' || action.type === 'set-render-range') {
-    let newDateRanges;
     let newRenderRange;
-
     if (action.type === 'set-render-range') {
-      newRenderRange = action.renderRange; // new render range from action 
-      newDateRanges = action.updateDateRanges ? addWeekRanges([], action.renderRange) : state.dateRanges; // optionally replace render range
+      // new render range from action 
+      newRenderRange = { ...action.renderRange }; 
     } else {
-      newRenderRange = getScrollRange(state.renderRange, action.dir); // get render range from helper function
-      newDateRanges = addWeekRanges(state.dateRanges, newRenderRange); // expand date ranges based on new render range
+      // get render range from helper function
+      newRenderRange = getScrollRange(getRenderRange(state.dates), action.dir, action.speed); 
     }
     
+    // stash date range
+    curDateRange = newRenderRange;
+
     return {
       ...state,
-      dateRanges: newDateRanges, // update date ranges
-      renderRange: newRenderRange, // update render range
-      dates: newRenderRange.map(dateStr => state.datesAll[dateStr] || { dateStr, label: null, plans: [] }), // map new render range
+      dates: getRangeDates(curDateRange.startDate, curDateRange.endDate).map(dateStr => 
+        getDateByStr(state.dates, dateStr) // use already rendered date if available
+        || curAllDates[dateStr] // else use backup date stored in curAllDates
+        || { dateStr, label: null, plans: [] } // use empty date if date has never been loaded
+      ),
     }
-  } else {
-    // ensure this is never reached
+  } else if (action.type === 'add-undo') {
+    return {
+      ...state,
+      undoStack: [...state.undoStack, {...action.undo}],
+      redoStack: [], // clear redo stack when a new action is added
+    }
+  } else if (action.type === 'use-undo' || action.type === 'use-redo') {
+    const undoStack = [...state.undoStack];
+    const redoStack = [...state.redoStack];
+
+    if (action.type === 'use-undo') {
+      const curUndo = undoStack.pop();
+      if (curUndo) {
+        curUndo.undo();
+        redoStack.push(curUndo);
+      }
+    } else {
+      const curRedo = redoStack.pop();
+      if (curRedo) {
+        curRedo.redo();
+        undoStack.push(curRedo);
+      }
+    }
+
+    return {
+      ...state,
+      undoStack,
+      redoStack,
+    }
+  }  else { // this is never reached
     const _exhaustiveCheck: never = action;
     return _exhaustiveCheck;
   }
 }
 
-function CalendarComponent() {
-  const {uid} = React.useContext(UidContext);
-  const [calendar, dispatch] = useReducer(reducer, null as never, init);
+function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
+  const [calendar, dispatch] = useReducer(reducer, allDates, init);
+  const { dispatch: dispatchFeather } = React.useContext(FeatherContext);
   
-  // calendar mount and unmount
   React.useEffect(() => {
-    // attach listener to db for plan styles 
-    const detachPlanStyleListener = db.collection(`users/${uid}/plan-style`) 
-      .onSnapshot((snapshot) => {
-        const action: SetStyles = {
-          type: 'set-styles',
-          planStyles: {},
-        }
-        snapshot.forEach((doc) => {
-          const d = doc.data();
-          // TODO: complete error checking protocol
-          action.planStyles[doc.id] = {
-            label: d.label,
-            color: d.color,
-            colorDone: d.colorDone,
-          }
-          document.documentElement.style.setProperty(`--plan-color-${doc.id}`, d.color);
-          document.documentElement.style.setProperty(`--plan-color-done-${doc.id}`, d.colorDone);
-        });
-        dispatch(action);
-      });
+    // we can expect that the allDates handed down to us is error free, 
+    // and every dateStr we will need to index will grant us a valid 
+    // CalendarDate to render directly
+    dispatch({ type: 'accept-all-dates-update', dates: allDates });
+  }, [allDates])
 
-    return () => {
-      // detach db listeners 
-      detachPlanStyleListener();
-    }
-  }, [uid]);
+  React.useEffect(() => {
+    // we are letting the higher feather component know that we are 
+    // trying to render a new range of dates, and that they may need to 
+    // prepare for us a new allDates object
+    dispatchFeather({ 
+      type: 'update-date-ranges', 
+      newRenderRange: getRenderRange(calendar.dates),
+    })
+  }, [calendar.dates, dispatchFeather])
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>
-      {calendar.dateRanges.map(range => <DateRangeListener key={range.startDate} startDate={range.startDate} endDate={range.endDate}/>)}
+      <div style={{textAlign: 'right'}}>
+        <button onClick={() => dispatch({type:"use-undo"})}>Undo ({calendar.undoStack.length})</button>
+        <button onClick={() => dispatch({type:"use-redo"})}>Redo ({calendar.redoStack.length})</button>
+      </div>
       <CalendarContainer>
         {calendar.dates.map(date => 
           <Date
