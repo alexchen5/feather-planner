@@ -35,7 +35,7 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
     const prv = ids[ids.length - 1] || '';
     db.collection(`users/${uid}/plans`).add({
       date: dateStr,
-      content: { textContent: convertToRaw(editorState.getCurrentContent()) },
+      header: convertToRaw(editorState.getCurrentContent()),
       prv: prv,
     });
 

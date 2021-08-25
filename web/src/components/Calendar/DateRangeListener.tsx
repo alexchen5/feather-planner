@@ -53,8 +53,8 @@ function DateRangeListener({startDate, endDate}: DateRange) {
         snapshot.forEach((doc) => {
           const d = doc.data();
           const dateStr = d.date                              as string | undefined;
-          const isDone  = (d.done || d.content.done || false) as boolean;
-          const content = (d.header || d.content.textContent) as string | RawDraftContentState | undefined;
+          const isDone  = (d.done || d.content?.done || false) as boolean;
+          const content = (d.header || d.content?.textContent) as string | RawDraftContentState | undefined;
           const styleId = (d.planStyleId || "default")        as string;
           const prv     = (d.prv || '')                       as string;
   
