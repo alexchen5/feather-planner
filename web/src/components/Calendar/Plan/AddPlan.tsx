@@ -4,8 +4,8 @@ import IconButton from '@material-ui/core/IconButton';
 import { AddCircle } from "@material-ui/icons";
 import { CalendarContext } from "..";
 import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RichUtils } from "draft-js";
-import { getPlanIds } from "../utils/dateUtil";
-import { db, UidContext } from "globalContext";
+import { getPlanIds } from "utils/dateUtil";
+import { db, UidContext } from "utils/globalContext";
 
 import style from './plan.module.scss';
 

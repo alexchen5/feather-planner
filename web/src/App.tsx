@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import HomePage from './pages/HomePage';
+import HomePage from './pages/FeatherPlanner';
 import LoginPage from "pages/LoginPage";
-import { UidContext } from "globalContext";
+import { UidContext } from "utils/globalContext";
 import { BrowserRouter, Route, Switch } from "react-router-dom";
 import firebase from "firebase/app";
 

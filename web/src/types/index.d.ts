@@ -73,3 +73,38 @@ interface SetPlans {
     type: 'set-plans';
     plans: { [dateStr: string] : CalendarPlan[] };
 }
+
+interface DocumentEventListeners {
+    componentIdStack: string[];
+    documentEventListeners: Array<DocumentEventListener<keyof DocumentEventMap>>;
+}
+
+type DocumentEventListener<K extends keyof DocumentEventMap> = {
+    componentId: string;
+    type: K;
+    callback: (ev: DocumentEventMap[K]) => void;
+}
+
+type DocumentListenerAction<K extends keyof DocumentEventMap> = RegisterFocus | DeregisterFocus | AddDocumentEventListener<K> | RemoveDocumentEventListener<K>;
+
+interface RegisterFocus {
+    type: 'register-focus';
+    componentId: string;
+    listeners?: Array<DocumentEventListener<keyof DocumentEventMap>>
+}
+
+interface DeregisterFocus {
+    type: 'deregister-focus';
+    componentId: string;
+    removeListeners: boolean;
+}
+
+interface AddDocumentEventListener<K extends keyof DocumentEventMap> {
+    type: 'add-document-event-listener';
+    listener: DocumentEventListener<K>;
+}
+
+interface RemoveDocumentEventListener<K extends keyof DocumentEventMap> {
+    type: 'remove-document-event-listener';
+    listener: DocumentEventListener<K>;
+}

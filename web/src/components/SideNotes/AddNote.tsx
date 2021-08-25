@@ -2,7 +2,7 @@ import React from "react";
 
 import IconButton from '@material-ui/core/IconButton';
 import { AddCircle } from "@material-ui/icons";
-import { db, UidContext } from "globalContext";
+import { db, UidContext } from "utils/globalContext";
 
 function AddNote() {
   const {uid} = React.useContext(UidContext);

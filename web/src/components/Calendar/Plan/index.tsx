@@ -3,14 +3,15 @@ import { ContentState, convertFromRaw, convertToRaw, DraftHandleValue, Editor, E
 import React, { KeyboardEvent, useState } from "react";
 import PlanStyles from "./PlanStyles";
 import { CalendarPlan } from "types/calendar";
-import { db, UidContext } from "globalContext";
+import { db, UidContext } from "utils/globalContext";
 import { MouseEventHandler } from "react";
 import { CalendarContext } from "..";
-import { getPlanIds } from "../utils/dateUtil";
-import { getDragAfterElement, getTargetDatenode, smoothMove } from "../utils/dragUtil";
+import { getPlanIds } from "../../../utils/dateUtil";
+import { getDragAfterElement, getTargetDatenode, smoothMove } from "../../../utils/dragUtil";
 
 import style from './plan.module.scss';
 import panelStyle from './editPanel.module.scss';
+import { DocumentListenerContext } from "components/DocumentEventListener";
 
 /**
  * Describes the state of the plan. Note that text values are connected to stylesheets.
@@ -32,6 +33,7 @@ let placeholder: HTMLElement | null = null; // current placeholder for drag
 
 function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: {plan: CalendarPlan}) {
   const { calendar, dispatch } = React.useContext(CalendarContext);
+  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const planRef = React.useRef<HTMLDivElement>(null);
   const [state, setState] = useState('normal' as PlanState);
   const [styleOpen, setStyleOpen] = useState(false);
@@ -135,8 +137,22 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
       pos4 = e.clientY;
       
       // set up drag listeners
-      document.addEventListener('mousemove', tryStartDrag);
-      document.addEventListener('mouseup', cancelTryStartDrag);
+      dispatchListeners({ 
+        type: 'register-focus', 
+        componentId: 'plan-try-drag',
+        listeners: [
+          { 
+            componentId: 'plan-try-drag', 
+            type: 'mousemove', 
+            callback: tryStartDrag, 
+          },
+          {
+            componentId: 'plan-try-drag', 
+            type: 'mouseup', 
+            callback: cancelTryStartDrag,
+          }
+        ],
+      });
     }
 
     e.stopPropagation(); // prevent event from propagating further
@@ -154,17 +170,33 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
   const registerPlanEdit = () => {
     console.log('reg');
     document.dispatchEvent(new MouseEvent('mousedown')); // (called in handleMouseDown, but leave for safety)
-    document.addEventListener('keydown', handleKeyDown); // keydown events to be handled by this plan
-    document.addEventListener('mousedown', deregisterPlanEdit); // add own deregister event
+    dispatchListeners({ 
+      type: 'register-focus', 
+      componentId: 'plan-edit-reg',
+      listeners: [
+        { 
+          // keydown events to be handled by this plan
+          componentId: 'plan-edit-reg', 
+          type: 'keydown', 
+          callback: handleKeyDown, 
+        },
+        {
+          // add own deregister event
+          componentId: 'plan-edit-reg', 
+          type: 'mousedown', 
+          callback: deregisterPlanEdit,
+        }
+      ],
+    });
+
     setState('edit'); // set edit state
   }
   /**
    * Take the necessary steps to deregister current plan as edit
    */
-  const deregisterPlanEdit = React.useCallback(() => { // useCallback to preserve referential equality between renders 
+  const deregisterPlanEdit = React.useCallback(() => {
     // console.log('dereg');
-    document.removeEventListener('keydown', handleKeyDown); // remove keydown handler
-    document.removeEventListener('mousedown', deregisterPlanEdit); // remove deregister event
+    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-edit-reg', removeListeners: true });
     timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
     // eslint-disable-next-line
   }, []);
@@ -181,9 +213,9 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
     // ensure mouse moved enough for a drag
     if (!(Math.abs(e.clientX - pos3) > 2 || Math.abs(e.clientY - pos4) > 2)) return;
     
-    document.removeEventListener('mousemove', tryStartDrag);
-    document.removeEventListener('mouseup', cancelTryStartDrag);
-    e.preventDefault();
+    // now remove try drag listeners
+    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-try-drag', removeListeners: true });
+    e.preventDefault(); // TODO: test if necessary
 
     // set up starting conditions
     pos3 = e.clientX;
@@ -197,6 +229,8 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
     planRef.current.style.top = (planRef.current.offsetTop + e.clientY - y) + "px";
     planRef.current.style.left = (planRef.current.offsetLeft + e.clientX - x) + "px";
 
+    // get rid of edit listeners
+    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-edit-reg', removeListeners: true });
     setState('dragging'); // set state to dragging
 
     // add placeholder
@@ -208,8 +242,22 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
     placeholder.style.height = window.getComputedStyle(planRef.current).height;
 
     // add drag handle listeners 
-    document.addEventListener('mousemove', elementDrag);
-    document.addEventListener('mouseup', closeDragElement);
+    dispatchListeners({ 
+      type: 'register-focus', 
+      componentId: 'plan-dragging',
+      listeners: [
+        { 
+          componentId: 'plan-dragging', 
+          type: 'mousemove', 
+          callback: elementDrag, 
+        },
+        {
+          componentId: 'plan-dragging', 
+          type: 'mouseup', 
+          callback: closeDragElement,
+        }
+      ],
+    });
 
     // eslint-disable-next-line
   }, [dateStr]);
@@ -218,9 +266,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
    * Callback to cancel the start drag listener
    */
   const cancelTryStartDrag = React.useCallback(() => {
-    document.removeEventListener('mousemove', tryStartDrag);
-    document.removeEventListener('mouseup', cancelTryStartDrag);
-
+    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-try-drag', removeListeners: true });
     // eslint-disable-next-line
   }, []);
 
@@ -260,6 +306,8 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
   const closeDragElement = React.useCallback((e) => {
     console.log('close');
     e.preventDefault();
+    // complete plan drag
+    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-dragging', removeListeners: true });
 
     const targetDatenodeRoot = getTargetDatenode(e.clientX, e.clientY);
     if (targetDatenodeRoot && placeholder) {
@@ -280,18 +328,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
 
       if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) {
         // no need to move position
-        // timeOutSubscriptions.push(setTimeout(() => {
-        //   completeDragEndDrop(); 
-        // }, 10));
       } else {
-        // if (to_date === from_date) {
-        //   timeOutSubscriptions.push(setTimeout(() => {
-        //     completeDragEndDrop(); 
-        //   }, 0));
-
-        //   // completeDragEndDrop(); // no re-render will occur so we deal with it here
-        // }
-        
         // update db
         const moveBatch = db.batch();
         if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', planId);
@@ -304,11 +341,6 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
     } else { // no target when dropped
       // completeDragEndDrop(); 
     }
-  
-    document.removeEventListener('mouseup', closeDragElement);
-    document.removeEventListener('mousemove', elementDrag);
-
-    // completeDragEndDrop(); 
 
     timeOutSubscriptions.push(setTimeout(() => {
       // we hope for set state normal to be called through the click event that fires

@@ -1,10 +1,10 @@
 import { RawDraftContentState } from "draft-js";
-import { db, UidContext } from "globalContext";
-import { FeatherContext } from "pages/HomePage";
+import { db, UidContext } from "utils/globalContext";
+import { FeatherContext } from "pages/FeatherPlanner";
 import React from "react";
 import { SetLabels, SetPlans } from "types";
 import { CalendarPlan, DateRange } from "types/calendar";
-import { getUpdateRange } from "./utils/dateUtil";
+import { getUpdateRange } from "../../utils/dateUtil";
 
 /**
  * Dummy component that takes care of listening to db on a given range of dates

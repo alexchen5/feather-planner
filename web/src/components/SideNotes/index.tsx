@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { db, UidContext } from "globalContext";
+import { db, UidContext } from "utils/globalContext";
 import Note from './Note';
 
 function SideNotes() {

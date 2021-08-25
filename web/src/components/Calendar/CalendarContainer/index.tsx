@@ -1,7 +1,7 @@
 import React, { ReactNode, UIEventHandler } from "react";
 
 import {CalendarContext} from '..'
-import { dateToStr, getInitDateRange, getRenderedDates } from '../utils/dateUtil';
+import { dateToStr, getInitDateRange, getRenderedDates } from '../../../utils/dateUtil';
 import DayHeaders from "./DayHeaders";
 
 import style from "./container.module.scss";

@@ -1,10 +1,10 @@
 import React from 'react';
-import { db, UidContext } from "globalContext";
+import { db, UidContext } from "utils/globalContext";
 import { StyleOpenContext } from '..';
 import PlanStyle from './PlanStyle';
 
 import style from './labels.module.scss';
-import { FeatherContext } from 'pages/HomePage';
+import { FeatherContext } from 'pages/FeatherPlanner';
 
 /**
  * Context for if the plan style menu is in edit state. Boolean.

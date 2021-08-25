@@ -2,7 +2,7 @@ import { ContentState, convertFromRaw, convertToRaw, DraftHandleValue, Editor, E
 import React from "react";
 import { KeyboardEventHandler } from "react";
 import { MouseEventHandler } from "react";
-import { db, UidContext } from "globalContext";
+import { db, UidContext } from "utils/globalContext";
 
 let pos1, pos2, pos3: number, pos4 = 0;
 

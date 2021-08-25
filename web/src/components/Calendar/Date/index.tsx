@@ -1,10 +1,10 @@
 import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
-import { db, UidContext } from "globalContext";
+import { db, UidContext } from "utils/globalContext";
 import React, { KeyboardEvent, MouseEventHandler, ReactNode } from "react";
 import { CalendarDateLabel } from "types/calendar";
 
 import AddPlan from "../Plan/AddPlan";
-import { strToDate, dateToStr } from '../utils/dateUtil';
+import { strToDate, dateToStr } from '../../../utils/dateUtil';
 
 import style from "./date.module.scss";
 
