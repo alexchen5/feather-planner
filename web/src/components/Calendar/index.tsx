@@ -8,12 +8,16 @@ import { Calendar, CalendarAction } from "types/calendar";
 import { FeatherContext } from "pages/FeatherPlanner";
 import { AllCalendarDates } from "types";
 import { init, reducer } from "reducers/calendarReducer";
+import PlanDragHandler from "./PlanDragHandler";
+import { DocumentListenerContext } from "components/DocumentEventListener";
+import { key } from "utils/keyUtil";
 
 export const CalendarContext = createContext({} as { calendar: Calendar, dispatch: React.Dispatch<CalendarAction> });
 
 function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
   const [calendar, dispatch] = useReducer(reducer, allDates, init);
   const { dispatch: dispatchFeather } = React.useContext(FeatherContext);
+  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   
   React.useEffect(() => {
     // we can expect that the allDates handed down to us is error free, 
@@ -32,28 +36,57 @@ function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
     })
   }, [calendar.dates, dispatchFeather])
 
+  React.useEffect(() => {
+    // set up drag listeners
+    dispatchListeners({ 
+      type: 'register-focus', 
+      focusId: 'calendar-key-events',
+      listeners: [
+        { 
+          focusId: 'calendar-key-events', 
+          type: 'keydown', 
+          callback: handleKeydown as (e: DocumentEventMap[keyof DocumentEventMap]) => void, 
+        },
+      ],
+    });
+    return () => dispatchListeners({ type: 'deregister-focus', focusId: 'calendar-key-events', removeListeners: true });
+    // only run at mount 
+    // eslint-disable-next-line
+  }, []);
+
+  const handleKeydown = React.useCallback((e: KeyboardEvent) => {
+    if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
+      dispatch({ type: "use-undo" });
+    } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
+      dispatch({ type: "use-redo" });
+    }
+  }, []);
+
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>
-      <div style={{textAlign: 'right'}}>
-        <button onClick={() => dispatch({type:"use-undo"})}>Undo ({calendar.undoStack.length})</button>
-        <button onClick={() => dispatch({type:"use-redo"})}>Redo ({calendar.redoStack.length})</button>
-      </div>
-      <CalendarContainer>
-        {calendar.dates.map(date => 
-          <Date
-            key={date.dateStr}
-            dateStr={date.dateStr}
-            label={date.label}
-          >
-            {date.plans.map(plan => 
-              <Plan
-                key={plan.planId}
-                plan={plan}
-              />
-            )}
-          </Date>
-        )}
-      </CalendarContainer>
+      <PlanDragHandler>
+        <div style={{textAlign: 'right'}}>
+          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-undo"}) }}>Undo ({calendar.undoStack.length})</button>
+          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-redo"}) }}>Redo ({calendar.redoStack.length})</button>
+        </div>
+        <CalendarContainer>
+          {calendar.dates.map(date => 
+            <Date
+              key={date.dateStr}
+              dateStr={date.dateStr}
+              label={date.label}
+            >
+              {date.plans.map((plan, i) => 
+                <Plan
+                  key={plan.planId}
+                  plan={plan}
+                  index={i}
+                />
+              )}
+            </Date>
+          )}
+        </CalendarContainer>
+      </PlanDragHandler>
     </CalendarContext.Provider>
   );
 }

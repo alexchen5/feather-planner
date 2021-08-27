@@ -3,7 +3,7 @@
     margin: 0px;
     border-radius: 4px;
     border: 1px solid transparent;
-    transition: all 200ms ease;
+    transition: padding 200ms ease, margin 200ms ease, color 80ms ease;
     font-size: var(--plan-font-size);
     position: relative;
 }
@@ -18,7 +18,7 @@
     align-items: center;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 200ms ease, right 200ms ease, color 500ms ease;
+    transition: opacity 200ms ease, right 200ms ease, color 80ms ease;
 }
 
 .button {
@@ -38,10 +38,30 @@
     visibility: hidden;
 }
 
+.placeholder {
+    position: absolute;
+    z-index: 20;
+    cursor: grabbing;
+    opacity: 0.5;
+
+    .content {
+        background-color: var(--bg-greyblue);
+        box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
+        z-index: 99;
+
+        .toggler {
+            opacity: 1;
+            pointer-events: none;
+            right: 4px
+        }
+    }
+}
+
 .root {
     box-sizing: border-box;
     position: relative;
     cursor: default;
+    // transition: top 200ms ease, left 200ms ease, margin-bottom 1000ms ease;
 
     &:hover {
         .content {
@@ -56,19 +76,14 @@
     }
 
     &[fp-state=dragging] {
-        cursor: grabbing;
+        background-color: var(--node-focus-bg-color);
+        border-radius: 4px;
+        pointer-events: none;
+        z-index: 1;
+        opacity: 0.7;
 
         .content {
-            background-color: var(--bg-greyblue);
-            box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
-            z-index: 99;
-            opacity: 0.7;
-
-            .toggler {
-                opacity: 1;
-                pointer-events: none;
-                right: 4px
-            }
+            visibility: hidden;
         }
     }
 

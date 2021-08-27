@@ -7,11 +7,13 @@ import { db, UidContext } from "utils/globalContext";
 import { MouseEventHandler } from "react";
 import { CalendarContext } from "..";
 import { getPlanIds } from "../../../utils/dateUtil";
-import { getDragAfterElement, getTargetDatenode, smoothMove } from "../../../utils/dragUtil";
+import { useSpring, animated } from 'react-spring';
 
 import style from './plan.module.scss';
 import panelStyle from './editPanel.module.scss';
 import { DocumentListenerContext } from "components/DocumentEventListener";
+import { DraggingPlan, DraggingPlansContext } from "../PlanDragHandler";
+import { key } from "utils/keyUtil";
 
 /**
  * Describes the state of the plan. Note that text values are connected to stylesheets.
@@ -22,21 +24,25 @@ function isEdit(state: PlanState): boolean {
   return state === "edit" || state === "edit-expand";
 }
 
+let draggingPlan: DraggingPlan | null = null;
+
 /**
  * Context for if the plan style menu is open. Boolean.
  */
 export const StyleOpenContext = React.createContext({} as { styleOpen: boolean; setStyleOpen: React.Dispatch<React.SetStateAction<boolean>>; });
 
 const timeOutSubscriptions: NodeJS.Timeout[] = []; // track any timeout functions being used
-let pos1, pos2, pos3: number, pos4 = 0; // track drag positions
+let pos3: number, pos4 = 0; // track drag positions
 let placeholder: HTMLElement | null = null; // current placeholder for drag
 
-function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: {plan: CalendarPlan}) {
-  const { calendar, dispatch } = React.useContext(CalendarContext);
+function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, prv}, index}: {plan: CalendarPlan, index: number}) {
+  const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const planRef = React.useRef<HTMLDivElement>(null);
-  const [state, setState] = useState('normal' as PlanState);
+  const planBox = React.useRef<{ x: number; y: number; } | null>(null);
+  const [state, setState] = useState(draggingPlan?.planId === planId ? 'dragging' : 'normal' as PlanState);
   const [styleOpen, setStyleOpen] = useState(false);
+  const { draggingPlans, addDraggingPlan } = React.useContext(DraggingPlansContext);
 
   const {uid} = React.useContext(UidContext);
 
@@ -50,12 +56,119 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
   const [originalState, setOriginalState] = useState(editorState);
   const [didChange, setDidChange] = React.useState(false);
 
+  const [spring, springApi] = useSpring(() => ({ left: 0, top: 0, marginBottom: 0, config: { tension: 270, clamp: true } }));
+
+  // updating editorState when content changes
+  React.useEffect(() => {
+    setEditorState(EditorState.createWithContent(
+      typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
+    ));
+  }, [content]);
+
+  // animate index changes 
+  React.useLayoutEffect(() => {
+    if (!planRef.current) {
+      console.error('expected planRef at index change effect');
+      return;
+    }
+
+    // index changed, and we have stored a previous position
+    if (planBox.current) {
+      const box = planRef.current.getBoundingClientRect(); // current rect 
+
+      const diffX = planBox.current.x - box.x;
+      const diffY = planBox.current.y - box.y;
+
+      // start animation
+      springApi.start({from: { left: diffX, top: diffY }, to: { left: 0, top: 0 }});
+      // store new rect
+      planBox.current = { x: box.x, y: box.y };
+
+      // store dragging plan if need 
+      if (draggingPlan && draggingPlan?.planId === planId) {
+        draggingPlan.clientX = box.x;
+        draggingPlan.clientY = box.y;
+      }
+    } else if (draggingPlan && draggingPlan?.planId === planId) {
+      const box = planRef.current.getBoundingClientRect();
+      const diffX = draggingPlan.clientX - box.x;
+      const diffY = draggingPlan.clientY - box.y;
+
+      springApi.start({from: { left: diffX, top: diffY }, to: { left: 0, top: 0 }});
+
+      return () => {
+        if (!draggingPlan) {
+          console.error('expected draggingPlan at layout effect cleanup');
+          return;
+        }
+        if (!planRef.current) {
+          console.error('expected planRef at layout effect cleanup');
+          return;
+        }
+        const box = planRef.current.getBoundingClientRect();
+        draggingPlan.clientX = box.x;
+        draggingPlan.clientY = box.y;
+      }
+    }
+    return () => {}
+  }, [index]);
+  React.useEffect(() => {
+    if (planBox.current) return; // only use for init
+    if (!planRef.current) {
+      console.error('expected planRef at index change effect');
+      return;
+    }
+    const box = planRef.current.getBoundingClientRect(); // init rect 
+    planBox.current = { x: box.x, y: box.y }; // store init rect
+  }, [index]);
+
+  // // animate the movement of a dragging plan
+  // React.useLayoutEffect(() => {
+  //   if (draggingPlan && draggingPlan?.planId === planId) {
+  //     if (!planRef.current) {
+  //       console.error('expected planRef at layout effect');
+  //       return;
+  //     }
+
+  //     const box = planRef.current.getBoundingClientRect();
+  //     const diffX = draggingPlan.clientX - box.x;
+  //     const diffY = draggingPlan.clientY - box.y;
+
+  //     console.log(diffY);
+  //     springApi.start({from: { left: diffX, top: diffY, marginBottom: -box.height }, to: {left: 0, top: 0, marginBottom: 0}});
+
+  //     return () => {
+  //       if (!draggingPlan) {
+  //         console.error('expected draggingPlan at layout effect cleanup');
+  //         return;
+  //       }
+  //       if (!planRef.current) {
+  //         console.error('expected planRef at layout effect cleanup');
+  //         return;
+  //       }
+  //       console.log(prv);
+        
+  //       const box = planRef.current.getBoundingClientRect();
+  //       draggingPlan.clientX = box.x;
+  //       draggingPlan.clientY = box.y;
+  //       console.log('set y: ' + draggingPlan.clientY);
+  //       console.log(spring);
+        
+
+  //     }
+  //   }
+  //   return () => {}
+  // }, [dateStr]);
+
   /**
    * Helper function to take the necessary steps to delete self
    */
   const deleteSelf = React.useCallback(() => {
+    // ensure edit listeners are cleaned up
+    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true });
+
     // delete plan from db
-    const ids = getPlanIds(calendar.dates, dateStr);
+    const ids = getPlanIds(calendar.dates, dateStr); // TODO: change to use allDates api
     const p = ids.indexOf(planId);
 
     const undo = () => {
@@ -64,7 +177,6 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
       restoreBatch.set(db.doc(`users/${uid}/plans/${planId}`), {...restoreData})
       restoreBatch.commit();
     }
-
     const action = () => {
       const delBatch = db.batch();
       if (ids[p+1]) delBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', ids[p-1] || '');
@@ -72,20 +184,9 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
       delBatch.commit();
     }
     action();
+    dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
 
-    dispatch({ type: 'add-undo', undo: {undo: undo, redo: action} });
-    
-    // deregisterPlanEdit will then be called in useEffect cleanup
-  }, [uid, calendar, dateStr, planId, restoreData, dispatch]);
-
-  React.useEffect(() => {
-    return function cleanup() {
-      // console.log('cleanup');
-      deregisterPlanEdit(); // deregister plan on cleanup
-      timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove unused timeouts at end of cleanup
-    }
-    // eslint-disable-next-line
-  }, []);
+  }, [uid, calendar, dateStr, planId, restoreData, dispatchCalendar, dispatchListeners]);
 
   /**
    * Take the necessary steps to submit plan changes to the db
@@ -94,14 +195,20 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
    * @param hasChange true if the submission contains meaningful content changes
    */
   const submitPlanChanges = (val: RawDraftContentState | false, shouldClose: boolean, hasChange: boolean) => {
-    console.log('submit');
     if (!val) { // run delete first
       deleteSelf();
       return;
     }
     if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
     if (hasChange) { // dispatch changes to the plan content
-      db.doc(`users/${uid}/plans/${planId}`).update('header', val);
+      const action = () => {
+        db.doc(`users/${uid}/plans/${planId}`).update('header', val);
+      };
+      const undo = () => {
+        db.doc(`users/${uid}/plans/${planId}`).update('header', typeof content === 'string' ? content : {...content});
+      }
+      dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
+      action();
     } else {
       // no changes to dispatch
     }
@@ -109,45 +216,37 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
 
   /**
    * Handle the click event of a plan. 
-   * This will handle registering the edit state of the plan, and de-focusing any other plans.
    * @param e 
    */
   const handleClick: MouseEventHandler = (e) => {
-    e.stopPropagation(); // prevent event from propagating further
-    if (state === 'normal') { // register edit state
-      registerPlanEdit(); 
-      selectAllText();
-    } else if (state === 'edit') { // click while in edit state
-
-    } else if (state === 'dragging') {
-      // console.log('click handle');
-      // completeDragEnd();
+    if (state === 'normal') { 
+      // register edit state after the completion of a click
+      e.stopPropagation(); // prevent event from propagating further
+      registerPlanEdit(); // register edit
     }
   }
+
   /**
    * Handle the mousedown event of a plan
-   * This will handle de-registering the edit states of other plans - if current plan is not in edit state
-   * Also initiates drag events
    * @param e 
    */
   const handleMouseDown: MouseEventHandler = (e) => {
     const dragInitiate = () => { // helper function to set up drag from mousedown
-      // log starting position
       pos3 = e.clientX;
       pos4 = e.clientY;
-      
+
       // set up drag listeners
       dispatchListeners({ 
         type: 'register-focus', 
-        componentId: 'plan-try-drag',
+        focusId: 'plan-try-drag',
         listeners: [
           { 
-            componentId: 'plan-try-drag', 
+            focusId: 'plan-try-drag', 
             type: 'mousemove', 
             callback: tryStartDrag, 
           },
           {
-            componentId: 'plan-try-drag', 
+            focusId: 'plan-try-drag', 
             type: 'mouseup', 
             callback: cancelTryStartDrag,
           }
@@ -155,34 +254,34 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
       });
     }
 
-    e.stopPropagation(); // prevent event from propagating further
     const target = e.target as HTMLElement; // assume target is html element
     if (state === 'normal') {
-      document.dispatchEvent(new MouseEvent('mousedown')); // trigger deregister events on other plans in edit
-      dragInitiate();
+      dragInitiate(); // potentially start a drag 
     } else if (isEdit(state) && target.getAttribute('fp-role') === 'edit-panel') {
-      dragInitiate();
+      e.stopPropagation(); // stop mousedown from going to document
+      dragInitiate(); // potentially start a drag 
+    } else if (isEdit(state)) {
+      e.stopPropagation(); // stop mousedown from going to document
     }
   }
+  
   /**
    * Take the necessary steps to register current plan as edit
    */
   const registerPlanEdit = () => {
-    console.log('reg');
-    document.dispatchEvent(new MouseEvent('mousedown')); // (called in handleMouseDown, but leave for safety)
     dispatchListeners({ 
       type: 'register-focus', 
-      componentId: 'plan-edit-reg',
+      focusId: 'plan-edit',
       listeners: [
         { 
           // keydown events to be handled by this plan
-          componentId: 'plan-edit-reg', 
+          focusId: 'plan-edit', 
           type: 'keydown', 
           callback: handleKeyDown, 
         },
         {
           // add own deregister event
-          componentId: 'plan-edit-reg', 
+          focusId: 'plan-edit', 
           type: 'mousedown', 
           callback: deregisterPlanEdit,
         }
@@ -190,21 +289,24 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
     });
 
     setState('edit'); // set edit state
+    selectAllText();
   }
+
   /**
    * Take the necessary steps to deregister current plan as edit
    */
   const deregisterPlanEdit = React.useCallback(() => {
-    // console.log('dereg');
-    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-edit-reg', removeListeners: true });
+    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true });
+    // TODO: remove unsafe timeout
     timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
-    // eslint-disable-next-line
-  }, []);
+  }, [dispatchListeners]);
 
   /**
    * Callback to start drag on the plan
    */
   const tryStartDrag = React.useCallback((e) => {
+    e.preventDefault(); // prevent weird highlighting of text due to drag
+
     if (!planRef.current) {
       console.error('Expected planRef during drag');
       return;
@@ -212,179 +314,115 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
     
     // ensure mouse moved enough for a drag
     if (!(Math.abs(e.clientX - pos3) > 2 || Math.abs(e.clientY - pos4) > 2)) return;
-    
-    // now remove try drag listeners
-    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-try-drag', removeListeners: true });
-    e.preventDefault(); // TODO: test if necessary
+        
+    // Can start the drag now
+    setState('dragging'); // set state to dragging
+
+    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true }); // remove edit listeners
+    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-try-drag', removeListeners: true }); // remove try drag listeners
+    dispatchCalendar({ type: 'pause-data-sync' });
+    const box = planRef.current.getBoundingClientRect();
+    draggingPlan = {
+      planId,
+      dateStr,
+      prv,
+      clientX: box.x,
+      clientY: box.y,
+    };
 
     // set up starting conditions
     pos3 = e.clientX;
     pos4 = e.clientY;
-    planRef.current.style.width = getComputedStyle(planRef.current).width;
-    planRef.current.style.position = 'absolute';
-
-    const r = planRef.current.getBoundingClientRect();
-    const x = r.x + (r.width ) / 2;
-    const y = r.y + (r.height ) / 2;
-    planRef.current.style.top = (planRef.current.offsetTop + e.clientY - y) + "px";
-    planRef.current.style.left = (planRef.current.offsetLeft + e.clientX - x) + "px";
-
-    // get rid of edit listeners
-    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-edit-reg', removeListeners: true });
-    setState('dragging'); // set state to dragging
 
     // add placeholder
-    if (placeholder) placeholder.remove();
-    placeholder = document.createElement('div');
-    placeholder.setAttribute('placeholder', dateStr);
-    const container = planRef.current.closest('[fp-role="calendar-date"]');
-    container?.insertBefore(placeholder, planRef.current);
-    placeholder.style.height = window.getComputedStyle(planRef.current).height;
+    if (placeholder) { // first remove pre-existing placeholder if it exists
+      console.error('Removed placeholder from somewhere it wasnt meant to be.');
+      placeholder.remove();
+    }
+    // placeholder = document.createElement('div'); 
+    placeholder = planRef.current.cloneNode(true) as HTMLElement;
+    placeholder.className = style.placeholder;
+    placeholder.setAttribute('data-date', dateStr);
+    placeholder.style.height = getComputedStyle(planRef.current).height;
+    placeholder.style.width = getComputedStyle(planRef.current).width;
 
-    // add drag handle listeners 
-    dispatchListeners({ 
-      type: 'register-focus', 
-      componentId: 'plan-dragging',
-      listeners: [
-        { 
-          componentId: 'plan-dragging', 
-          type: 'mousemove', 
-          callback: elementDrag, 
-        },
-        {
-          componentId: 'plan-dragging', 
-          type: 'mouseup', 
-          callback: closeDragElement,
-        }
-      ],
-    });
+    const x = (parseInt(placeholder.style.width)) / 2;
+    const y = (parseInt(placeholder.style.height)) / 2;
+    
+    placeholder.style.top =  e.clientY - y + "px";
+    placeholder.style.left = e.clientX - x + "px";
+    document.body.appendChild(placeholder);
 
-    // eslint-disable-next-line
-  }, [dateStr]);
+    addDraggingPlan(draggingPlan, placeholder);
+  }, [planId, dateStr, prv, addDraggingPlan, dispatchCalendar, dispatchListeners]);
 
   /**
    * Callback to cancel the start drag listener
    */
   const cancelTryStartDrag = React.useCallback(() => {
-    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-try-drag', removeListeners: true });
-    // eslint-disable-next-line
-  }, []);
+    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-try-drag', removeListeners: true });
+  }, [dispatchListeners]);
 
-  /**
-   * Callback to handle the dragging of the plan
-   */
-  const elementDrag = React.useCallback(e => {
-    e.preventDefault();
+  React.useEffect(() => {
+    if (draggingPlan?.planId === planId && !draggingPlans.some(p => p.planId === planId)) {
+      if (placeholder) {
+        placeholder.remove();
+        placeholder = null;
+      }
 
-    if (!planRef.current) {
-      console.error('Expected planRef during drag');
-      return;
-    }
+      const to_date = dateStr;
+      const from_date = draggingPlan.dateStr;
 
-    pos1 = pos3 - e.clientX;
-    pos2 = pos4 - e.clientY;
-    pos4 = e.clientY;
-    pos3 = e.clientX;
+      const plansTo = getPlanIds(calendar.dates, to_date).filter(id => id !== planId);
+      const to_prv_index = prv ? plansTo.indexOf(prv) : -1;
+      const to_prv_id = prv;
+      const to_nxt_id = plansTo[to_prv_index + 1] || '';
 
-    planRef.current.style.top = (planRef.current.offsetTop - pos2) + "px";
-    planRef.current.style.left = (planRef.current.offsetLeft - pos1) + "px";
+      const plansFrom = getPlanIds(calendar.dates, from_date).filter(id => id !== planId);
+      const from_prv_index = draggingPlan.prv ? plansFrom.indexOf(draggingPlan.prv) : -1;
+      const from_prv_id = draggingPlan.prv;
+      const from_nxt_id = plansFrom[from_prv_index + 1] || '';
 
-    const datenodeRoot = getTargetDatenode(e.clientX, e.clientY);
-    const datenode = datenodeRoot?.firstElementChild;
-    if (datenode) {
-      const afterElement = getDragAfterElement(datenode, e.clientY) || datenode.querySelector('[fp-role="plan-add"]');
-      smoothMove(datenode, placeholder!, afterElement!);
-    } else {
-      const container = document.querySelector(`[fp-role="calendar-date-root"][data-date="${placeholder?.getAttribute('placeholder')}"]`)?.firstElementChild;
-      smoothMove(container!, placeholder!, planRef.current);
-    }
-  }, []);
-
-  /**
-   * Callback to handle the mouseup after dragging
-   */
-  const closeDragElement = React.useCallback((e) => {
-    console.log('close');
-    e.preventDefault();
-    // complete plan drag
-    dispatchListeners({ type: 'deregister-focus', componentId: 'plan-dragging', removeListeners: true });
-
-    const targetDatenodeRoot = getTargetDatenode(e.clientX, e.clientY);
-    if (targetDatenodeRoot && placeholder) {
-      const to_date = targetDatenodeRoot.getAttribute('data-date');
-      const from_date = placeholder.getAttribute('placeholder');
-
-      const plansTo = [...targetDatenodeRoot.querySelectorAll('[placeholder], [fp-role="calendar-plan"]:not([fp-state="dragging"])')];
-      const to_index = plansTo.indexOf(placeholder);
-      const to_prv_id = (plansTo[to_index - 1] || '') && plansTo[to_index - 1].getAttribute('data-id');
-      const to_nxt_id = (plansTo[to_index + 1] || '') && plansTo[to_index + 1].getAttribute('data-id');
-
-      // TODO: complete definition
-      // @ts-ignore
-      const plansFrom = [...document.querySelector(`[fp-role="calendar-date-root"][data-date="${from_date}"]`)?.querySelectorAll('[fp-role="calendar-plan"]')];
-      const from_index = plansFrom.indexOf(planRef.current);
-      const from_prv_id = (plansFrom[from_index - 1] || '') && plansFrom[from_index - 1].getAttribute('data-id');
-      const from_nxt_id = (plansFrom[from_index + 1] || '') && plansFrom[from_index + 1].getAttribute('data-id');
+      draggingPlan = null;
+      setState('normal'); 
 
       if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) {
         // no need to move position
+        // resume data sync, with immediate update
+        dispatchCalendar({ type: 'resume-data-sync', syncNow: true });
       } else {
         // update db
-        const moveBatch = db.batch();
-        if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', planId);
-        moveBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', to_date, 'prv', to_prv_id);
-        if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
-        moveBatch.commit();
+        const action = () => {
+          const moveBatch = db.batch();
+          if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', planId);
+          moveBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', to_date, 'prv', to_prv_id);
+          if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
+          moveBatch.commit();
+        }
+        const undo = () => {
+          const restoreBatch = db.batch();
+          if (to_nxt_id) restoreBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', to_prv_id);
+          restoreBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', from_date, 'prv', from_prv_id);
+          if (from_nxt_id) restoreBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', planId);
+          restoreBatch.commit();
+        }
+        dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
 
-        // completeDragEndDrop(); 
+        // resume data sync, but expect updates to come with the new drag positions
+        dispatchCalendar({ type: 'resume-data-sync', syncNow: false });
+        action();
       }
-    } else { // no target when dropped
-      // completeDragEndDrop(); 
     }
-
-    timeOutSubscriptions.push(setTimeout(() => {
-      // we hope for set state normal to be called through the click event that fires
-      // afterwards, but if the plan is dropped then it must be called here
-      completeDragEndDrop(); 
-    }, 10));
-
-    // eslint-disable-next-line
-  }, [dateStr, planId]);
-
-  // const completeDragEnd = () => {
-  //   // timeOutSubscriptions.forEach(t => clearTimeout(t)); // remove redundant setState timeout
-  //   // completeDragEndDrop();
-  // }
-
-  /**
-   * Complete the minimum steps to turn a dragging plan back to normal
-   */
-  const completeDragEndDrop = () => {
-    console.log('end');
-    setState('normal'); 
-
-    if (!planRef.current) {
-      console.error('Expected planRef at drag end');
-      return;
-    }
-
-    planRef.current.style.width = '';
-    planRef.current.style.position = '';
-    planRef.current.style.top = '';
-    planRef.current.style.left = '';
-
-    if (placeholder) placeholder.remove();
-    // eslint-disable-next-line
-    let m = planRef.current.offsetTop;
-    placeholder = null;
-  }
+    // effect only needs to run when draggingPlans changes
+    // eslint-disable-next-line 
+  }, [draggingPlans]);
 
   /**
    * Handle mousedown of clicking expand edit options
-   * @param {MouseEvent} e 
+   * @param e 
    */
   const handleExpandEditMouseDown: MouseEventHandler  = (e) => {
-    e.preventDefault();
+    e.stopPropagation();
     setState('edit-expand'); // set edit expand state
   }
 
@@ -401,7 +439,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
    * @param {KeyboardEvent} e 
    */
   const handleKeyDown = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
-    if (e.key === 'Backspace') {
+    if (key.isDelete(e)) {
       e.stopPropagation();
       console.log('delete from backspace');
       
@@ -531,15 +569,17 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
     setEditorState(newState);
   }
 
-  return (<div
+  return (<animated.div
     ref={planRef}
     data-id={planId}
     className={style.root}
     onClick={handleClick}
     onMouseDown={handleMouseDown}
+    onMouseMove={e => {e.preventDefault()}} // try stop weird highlighting
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
     fp-role={"calendar-plan"}
     fp-state={state} // the state of this plan - see PlanState at top of this file
+    style={{...spring}}
   >
     {isEdit(state) && 
       <div className={style.editPanel} fp-role={"edit-panel"}>
@@ -602,7 +642,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content}}: 
         </span>
       </div>
     </div>
-  </div>)
+  </animated.div>)
 }
 
 export default Plan;

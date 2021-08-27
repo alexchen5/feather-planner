@@ -82,7 +82,9 @@ interface CalendarPlanStyle {
  * Types of CalendarContext dispatches
  */
 type CalendarAction = 
-    AcceptAllDatesUpdate | SetRenderRange | MoveRenderRange | SetDataSync 
+    AcceptAllDatesUpdate | SetRenderRange | MoveRenderRange 
+    | PauseDataSync | ResumeDataSync
+    | MovePlan
     | AddUndo | UseUndo | UseRedo;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -115,15 +117,26 @@ interface MoveRenderRange {
 }
 
 /**
- * Set the new status of Calendar.shouldSyncDates
- * 
- * If false, the syncing of Calendar.dates to db updates are suspended.
- * This is used for scenarios when syncing may cause disruption, e.g. 
- * in the middle of dragging a plan.
+ * Pause the syncing of data with allPlans to avoid disruption
  */
-interface SetDataSync {
-    type: 'set-data-sync';
-    value: boolean;
+interface PauseDataSync {
+    type: 'pause-data-sync';
+}
+
+/**
+ * Resume the syncing of data. Opt in to update all data now, or 
+ * wait for a full batch update.
+ */
+interface ResumeDataSync {
+    type: 'resume-data-sync';
+    syncNow: boolean;
+}
+
+interface MovePlan {
+    type: 'move-plan';
+    planId: string; 
+    dateStr: string; // new dateStr
+    prv: string; // new prv
 }
 
 ///////////////////////////////////////////////////////////////////////////////

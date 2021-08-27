@@ -74,13 +74,11 @@ function DateRangeListener({startDate, endDate}: DateRange) {
               styleId,
               prv,
             };
-  
-            if (!d.prv) {
-              action.plans[d.date].push(newPlan);
-            } else {
-              const prv = action.plans[d.date].findIndex(plan => plan.planId === d.prv);
-              if (prv !== -1) action.plans[d.date].splice(prv + 1, 0, newPlan);
-              else reserves.push({ date: d.date, plan: newPlan });
+            if (!prv) {
+              newPlan.prv = action.plans[dateStr].length ? action.plans[dateStr][action.plans[dateStr].length - 1].planId : '';
+              action.plans[dateStr].push(newPlan);
+            }  else {
+              reserves.push({ date: d.date, plan: newPlan });
             }
           }
         });
@@ -96,7 +94,8 @@ function DateRangeListener({startDate, endDate}: DateRange) {
           reserves = nextReserves;
         }
         reserves.forEach(r => {
-          r.plan.prv = '';
+          console.error('Caught plan with no valid prv: ', r);
+          r.plan.prv = action.plans[r.date].length ? action.plans[r.date][action.plans[r.date].length - 1].planId : '';
           action.plans[r.date].push(r.plan);
         })
         dispatch(action);

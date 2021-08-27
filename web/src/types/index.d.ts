@@ -1,4 +1,4 @@
-import { Calendar, CalendarDate, CalendarPlanStyle, DateRange } from "./calendar";
+import { Calendar, CalendarDate, CalendarPlan, CalendarPlanStyle, DateRange } from "./calendar";
 
 interface FeatherPlanner {
     /**
@@ -75,28 +75,37 @@ interface SetPlans {
 }
 
 interface DocumentEventListeners {
-    componentIdStack: string[];
+    focusIdStack: string[];
     documentEventListeners: Array<DocumentEventListener<keyof DocumentEventMap>>;
 }
 
 type DocumentEventListener<K extends keyof DocumentEventMap> = {
-    componentId: string;
+    focusId: string;
     type: K;
     callback: (ev: DocumentEventMap[K]) => void;
 }
 
-type DocumentListenerAction<K extends keyof DocumentEventMap> = RegisterFocus | DeregisterFocus | AddDocumentEventListener<K> | RemoveDocumentEventListener<K>;
+type DocumentListenerAction<K extends keyof DocumentEventMap> = RegisterFocus | DeregisterFocus | TriggerListeners<K> | AddDocumentEventListener<K> | RemoveDocumentEventListener<K>;
 
 interface RegisterFocus {
     type: 'register-focus';
-    componentId: string;
+    focusId: string;
     listeners?: Array<DocumentEventListener<keyof DocumentEventMap>>
 }
 
 interface DeregisterFocus {
     type: 'deregister-focus';
-    componentId: string;
+    focusId: string;
     removeListeners: boolean;
+}
+
+/**
+ * Fire event if the given focusId is the focused component, else is ignored
+ */
+interface TriggerListeners<K extends keyof DocumentEventMap> {
+    type: 'trigger-event-listeners';
+    focusId: string;
+    event: DocumentEventMap[K];
 }
 
 interface AddDocumentEventListener<K extends keyof DocumentEventMap> {

@@ -1,7 +1,7 @@
 // A set of helper functions for date manipulation and initialisation
 
 import { RangeListener } from "types";
-import { CalendarDate, DateRange } from "types/calendar";
+import { CalendarDate, CalendarPlan, DateRange } from "types/calendar";
 
 export const DAY_START: 'MON' | 'SUN' = 'MON';
 const NUM_WEEKS_START = 5;
@@ -80,6 +80,18 @@ export function getRangeDates(dateStart: string, dateEnd: string) {
 
 ///////////////////////////////////////////////////////////////////////////////
 // General helper functions 
+
+export function getPlanById(dates: Array<CalendarDate>, planId: string): CalendarPlan | null {
+  let ret: CalendarPlan | null = null;
+  dates.find(date => !!date.plans.find(plan => {
+    if (plan.planId === planId) {
+      ret = plan;
+      return true;
+    }
+    return false;
+  }));
+  return ret;
+}
 
 /**
  * Get the plan ids of a given date, in order of appearance 
