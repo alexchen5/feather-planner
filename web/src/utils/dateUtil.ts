@@ -105,6 +105,28 @@ export function getPlanIds(dates: Array<CalendarDate>, dateStr: string) {
 }
 
 /**
+ * Get all plans of the given dates 
+ * @param dates dates array to be searched
+ * @returns array of the plans
+ */
+export function getAllPlans(dates: Array<CalendarDate>): CalendarPlan[] {
+  let ret: CalendarPlan[] = [];
+  dates.forEach(date => ret = [...ret, ...date.plans]);
+  return ret;
+}
+
+/**
+ * Get all plan ids of the given dates 
+ * @param dates dates array to be searched
+ * @returns array of the plans
+ */
+export function getAllPlanIds(dates: Array<CalendarDate>): string[] {
+  let ret: string[] = [];
+  dates.forEach(date => date.plans.forEach(plan => ret.push(plan.planId)));
+  return ret;
+}
+
+/**
  * Get the render range from a range of calendar dates
  * @param dates the dates
  * @returns the range

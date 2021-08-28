@@ -112,6 +112,7 @@ function CalendarContainer({children} : {children: ReactNode}) {
         className={style.dates}
         ref={datesContainer}
         onScroll={handleScroll}
+        fp-role={"dates-container"}
       >
         {children}
       </ul>

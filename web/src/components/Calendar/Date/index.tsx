@@ -6,6 +6,9 @@ import { CalendarDateLabel } from "types/calendar";
 import AddPlan from "../Plan/AddPlan";
 import { strToDate, dateToStr } from '../../../utils/dateUtil';
 
+import { useSpring, animated } from 'react-spring';
+import { useMeasure } from "react-use";
+
 import style from "./date.module.scss";
 
 function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDateLabel | null, children: ReactNode }) {
@@ -23,6 +26,17 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
   });
   const [editing, setEditing] = React.useState(false);
   
+  // track the height of the date's content 
+  const [contentRef, { height }] = useMeasure<HTMLDivElement>(); 
+  // animate the height of a wrapper div of the content
+  const [spring] = useSpring(() => {
+    if (!height) return; // height is either not loaded, or there's no content. Don't use spring.
+    return { // otherwise, we can animate the wrapper's height to the new height
+      config: { tension: 270, clamp: true, },
+      to: { height: height },
+    }
+  }, [height]);
+
   React.useEffect(() => {
     if (dateStr < dateToStr()) return;
     const timer = setInterval(() => {
@@ -111,11 +125,15 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
             {thisDate.getDate() === 1 ? '1 ' + thisDate.toLocaleDateString('default', {month: 'short'}) : thisDate.getDate()}
           </div>
         </div>
-        {children}
-        <AddPlan
-          dateStr={dateStr}
-          ref={addPlan}
-        />
+        <animated.div style={{...spring}}> {/* Wrapper with animated height based on content */}
+          <div ref={contentRef}> {/* Content, whose height is tracker */}
+            {children}
+            <AddPlan
+              dateStr={dateStr}
+              ref={addPlan}
+            />
+          </div>
+        </animated.div>
       </div>
     </li> 
   )

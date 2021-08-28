@@ -9,6 +9,12 @@ function easeOutCubic(x: number) {
 }
 
 export function getTargetDatenode(clientX: number, clientY: number) {
+  const cBox = document.querySelector('[fp-role="dates-container"]')?.getBoundingClientRect();
+  if (!cBox
+    || clientX < cBox.left || clientX > cBox.right 
+    || clientY < cBox.top  || clientY > cBox.bottom
+  ) return null;
+
   return [...document.querySelectorAll('[fp-role="calendar-date-root"]')].find(node => {
     const r = node.getBoundingClientRect();
     return (
@@ -16,7 +22,7 @@ export function getTargetDatenode(clientX: number, clientY: number) {
       && 
       r.y <= clientY && clientY <= r.bottom 
     )
-  })
+  }) || null
 }
 
 export function getTargetDragPosition(draggingId: string, clientX: number, clientY: number): [string, string] {
@@ -24,14 +30,13 @@ export function getTargetDragPosition(draggingId: string, clientX: number, clien
   if (!dateRoot) return ['', ''];
 
   // get plans in the date, not including the currently dragging plan
-  const datePlans = [...dateRoot.querySelectorAll(`[fp-role="calendar-plan"]:not([data-id="${draggingId}"])`)]
+  const datePlans = [...dateRoot.querySelectorAll(`[fp-role="calendar-plan"]:not([data-id="${draggingId}"])`)] as HTMLElement[];
   
   // find the plan above our cursor
   // we are finding the plan with center to cursor distance the smallest 
   const afterPlan = datePlans.reduce((closest, cur) => {
-    const box = cur.getBoundingClientRect();
-    // box.top + box.height / 2 + offset = clientY
-    const offset = clientY - (box.top + box.height / 2);
+    const box = cur.closest('[fp-role="calendar-plan-root"]')?.getBoundingClientRect();
+    const offset = box ? clientY - (box.top + box.height / 2) : -1;
     if (offset >= 0 && offset < closest.offset) {
       return { offset: offset, plan: cur };
     } else {

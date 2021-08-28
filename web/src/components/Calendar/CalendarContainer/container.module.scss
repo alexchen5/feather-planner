@@ -27,6 +27,7 @@
     flex-wrap: wrap;
     margin: 0px;
     padding: 0px 4px;
+    user-select: none;
 
     scrollbar-width: none;
     &::-webkit-scrollbar {

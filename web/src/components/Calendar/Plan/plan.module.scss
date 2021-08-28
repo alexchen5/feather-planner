@@ -57,11 +57,10 @@
     }
 }
 
-.root {
+.inner {
     box-sizing: border-box;
     position: relative;
     cursor: default;
-    // transition: top 200ms ease, left 200ms ease, margin-bottom 1000ms ease;
 
     &:hover {
         .content {

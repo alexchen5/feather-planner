@@ -11,6 +11,7 @@ import { init, reducer } from "reducers/calendarReducer";
 import PlanDragHandler from "./PlanDragHandler";
 import { DocumentListenerContext } from "components/DocumentEventListener";
 import { key } from "utils/keyUtil";
+import PlanDragWrapper from "./Plan/PlanDragWrapper";
 
 export const CalendarContext = createContext({} as { calendar: Calendar, dispatch: React.Dispatch<CalendarAction> });
 
@@ -77,11 +78,12 @@ function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
               label={date.label}
             >
               {date.plans.map((plan, i) => 
-                <Plan
-                  key={plan.planId}
-                  plan={plan}
-                  index={i}
-                />
+                <PlanDragWrapper key={plan.planId} planId={plan.planId} remountTrigger={date.dateStr + i}>
+                  <Plan
+                    key={plan.planId}
+                    plan={plan}
+                  />
+                </PlanDragWrapper>
               )}
             </Date>
           )}

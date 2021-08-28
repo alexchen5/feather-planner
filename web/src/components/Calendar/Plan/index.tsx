@@ -7,7 +7,6 @@ import { db, UidContext } from "utils/globalContext";
 import { MouseEventHandler } from "react";
 import { CalendarContext } from "..";
 import { getPlanIds } from "../../../utils/dateUtil";
-import { useSpring, animated } from 'react-spring';
 
 import style from './plan.module.scss';
 import panelStyle from './editPanel.module.scss';
@@ -35,11 +34,13 @@ const timeOutSubscriptions: NodeJS.Timeout[] = []; // track any timeout function
 let pos3: number, pos4 = 0; // track drag positions
 let placeholder: HTMLElement | null = null; // current placeholder for drag
 
-function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, prv}, index}: {plan: CalendarPlan, index: number}) {
+function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, prv}}: {plan: CalendarPlan}) {
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  // const [ planRef, planBox ] = useMeasure<HTMLDivElement>();
   const planRef = React.useRef<HTMLDivElement>(null);
-  const planBox = React.useRef<{ x: number; y: number; } | null>(null);
+  // const planStatic = React.useRef<HTMLDivElement>(null);
+  // const planBox = React.useRef<{ originX: number; originY: number; springX: number; springY: number; } | null>(null);
   const [state, setState] = useState(draggingPlan?.planId === planId ? 'dragging' : 'normal' as PlanState);
   const [styleOpen, setStyleOpen] = useState(false);
   const { draggingPlans, addDraggingPlan } = React.useContext(DraggingPlansContext);
@@ -47,7 +48,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, pr
   const {uid} = React.useContext(UidContext);
 
   // text editor management
-  const textEdit = React.createRef<Editor>();
+  const textEdit = React.useRef<Editor>(null);
   const [editorState, setEditorState] = React.useState(
     () => EditorState.createWithContent(
       typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
@@ -56,109 +57,32 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, pr
   const [originalState, setOriginalState] = useState(editorState);
   const [didChange, setDidChange] = React.useState(false);
 
-  const [spring, springApi] = useSpring(() => ({ left: 0, top: 0, marginBottom: 0, config: { tension: 270, clamp: true } }));
-
   // updating editorState when content changes
   React.useEffect(() => {
-    setEditorState(EditorState.createWithContent(
-      typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
-    ));
+    const currentContent = editorState.getCurrentContent();
+    const firstBlock = currentContent.getBlockMap().first();
+    const lastBlock = currentContent.getBlockMap().last();
+    const firstBlockKey = firstBlock.getKey();
+    const lastBlockKey = lastBlock.getKey();
+    const lengthOfLastBlock = lastBlock.getLength();
+    
+    const selection = new SelectionState({
+      anchorKey: firstBlockKey,
+      anchorOffset: 0,
+      focusKey: lastBlockKey,
+      focusOffset: lengthOfLastBlock,
+    });
+
+    setEditorState(
+      EditorState.acceptSelection(
+        EditorState.createWithContent(
+          typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
+        ), 
+        selection
+      )
+    );
+    // eslint-disable-next-line
   }, [content]);
-
-  // animate index changes 
-  React.useLayoutEffect(() => {
-    if (!planRef.current) {
-      console.error('expected planRef at index change effect');
-      return;
-    }
-
-    // index changed, and we have stored a previous position
-    if (planBox.current) {
-      const box = planRef.current.getBoundingClientRect(); // current rect 
-
-      const diffX = planBox.current.x - box.x;
-      const diffY = planBox.current.y - box.y;
-
-      // start animation
-      springApi.start({from: { left: diffX, top: diffY }, to: { left: 0, top: 0 }});
-      // store new rect
-      planBox.current = { x: box.x, y: box.y };
-
-      // store dragging plan if need 
-      if (draggingPlan && draggingPlan?.planId === planId) {
-        draggingPlan.clientX = box.x;
-        draggingPlan.clientY = box.y;
-      }
-    } else if (draggingPlan && draggingPlan?.planId === planId) {
-      const box = planRef.current.getBoundingClientRect();
-      const diffX = draggingPlan.clientX - box.x;
-      const diffY = draggingPlan.clientY - box.y;
-
-      springApi.start({from: { left: diffX, top: diffY }, to: { left: 0, top: 0 }});
-
-      return () => {
-        if (!draggingPlan) {
-          console.error('expected draggingPlan at layout effect cleanup');
-          return;
-        }
-        if (!planRef.current) {
-          console.error('expected planRef at layout effect cleanup');
-          return;
-        }
-        const box = planRef.current.getBoundingClientRect();
-        draggingPlan.clientX = box.x;
-        draggingPlan.clientY = box.y;
-      }
-    }
-    return () => {}
-  }, [index]);
-  React.useEffect(() => {
-    if (planBox.current) return; // only use for init
-    if (!planRef.current) {
-      console.error('expected planRef at index change effect');
-      return;
-    }
-    const box = planRef.current.getBoundingClientRect(); // init rect 
-    planBox.current = { x: box.x, y: box.y }; // store init rect
-  }, [index]);
-
-  // // animate the movement of a dragging plan
-  // React.useLayoutEffect(() => {
-  //   if (draggingPlan && draggingPlan?.planId === planId) {
-  //     if (!planRef.current) {
-  //       console.error('expected planRef at layout effect');
-  //       return;
-  //     }
-
-  //     const box = planRef.current.getBoundingClientRect();
-  //     const diffX = draggingPlan.clientX - box.x;
-  //     const diffY = draggingPlan.clientY - box.y;
-
-  //     console.log(diffY);
-  //     springApi.start({from: { left: diffX, top: diffY, marginBottom: -box.height }, to: {left: 0, top: 0, marginBottom: 0}});
-
-  //     return () => {
-  //       if (!draggingPlan) {
-  //         console.error('expected draggingPlan at layout effect cleanup');
-  //         return;
-  //       }
-  //       if (!planRef.current) {
-  //         console.error('expected planRef at layout effect cleanup');
-  //         return;
-  //       }
-  //       console.log(prv);
-        
-  //       const box = planRef.current.getBoundingClientRect();
-  //       draggingPlan.clientX = box.x;
-  //       draggingPlan.clientY = box.y;
-  //       console.log('set y: ' + draggingPlan.clientY);
-  //       console.log(spring);
-        
-
-  //     }
-  //   }
-  //   return () => {}
-  // }, [dateStr]);
 
   /**
    * Helper function to take the necessary steps to delete self
@@ -408,9 +332,11 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, pr
         }
         dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
 
-        // resume data sync, but expect updates to come with the new drag positions
-        dispatchCalendar({ type: 'resume-data-sync', syncNow: false });
         action();
+        // resume data sync, after updates have been made
+        setTimeout(() => {
+          dispatchCalendar({ type: 'resume-data-sync', syncNow: true })
+        }, 50); 
       }
     }
     // effect only needs to run when draggingPlans changes
@@ -569,80 +495,80 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, pr
     setEditorState(newState);
   }
 
-  return (<animated.div
-    ref={planRef}
-    data-id={planId}
-    className={style.root}
-    onClick={handleClick}
-    onMouseDown={handleMouseDown}
-    onMouseMove={e => {e.preventDefault()}} // try stop weird highlighting
-    onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
-    fp-role={"calendar-plan"}
-    fp-state={state} // the state of this plan - see PlanState at top of this file
-    style={{...spring}}
-  >
-    {isEdit(state) && 
-      <div className={style.editPanel} fp-role={"edit-panel"}>
-        {state === "edit-expand" ? 
-          <> {/* Case: fully expanded */}
-            <div className={panelStyle.styleIcons}>
-              <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
-                onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
-              >
-                <FormatBold/>
+  return (
+    <div 
+      ref={planRef}
+      className={style.inner}
+      onClick={handleClick}
+      onMouseDown={handleMouseDown}
+      onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
+      fp-role={"calendar-plan"}
+      data-id={planId}
+      fp-state={state} // the state of this plan - see PlanState at top of this file
+    >
+      {isEdit(state) && 
+        <div className={style.editPanel} fp-role={"edit-panel"}>
+          {state === "edit-expand" ? 
+            <> {/* Case: fully expanded */}
+              <div className={panelStyle.styleIcons}>
+                <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('BOLD') ? 'active' : 'inactive'}
+                  onMouseDown={e => handleStyleToggleMouseDown(e, 'BOLD')}
+                >
+                  <FormatBold/>
+                </div>
+                <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
+                  onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
+                >
+                  <FormatItalic/>
+                </div>
+                <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
+                  onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
+                >
+                  <FormatUnderlined/>
+                </div>
               </div>
-              <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('ITALIC') ? 'active' : 'inactive'}
-                onMouseDown={e => handleStyleToggleMouseDown(e, 'ITALIC')}
-              >
-                <FormatItalic/>
+              <div className={panelStyle.deleteIcon} onMouseDown={e => {e.preventDefault(); deleteSelf();}}>
+                <Delete/>
               </div>
-              <div className={panelStyle.icon} fp-state={editorState.getCurrentInlineStyle().has('UNDERLINE') ? 'active' : 'inactive'}
-                onMouseDown={e => handleStyleToggleMouseDown(e, 'UNDERLINE')}
-              >
-                <FormatUnderlined/>
+              <div className={panelStyle.labelsAnchor}>
+                <StyleOpenContext.Provider value={{styleOpen, setStyleOpen}}>
+                  <PlanStyles planId={planId} currentStyleId={styleId}/>
+                </StyleOpenContext.Provider>
               </div>
-            </div>
-            <div className={panelStyle.deleteIcon} onMouseDown={e => {e.preventDefault(); deleteSelf();}}>
-              <Delete/>
-            </div>
-            <div className={panelStyle.labelsAnchor}>
-              <StyleOpenContext.Provider value={{styleOpen, setStyleOpen}}>
-                <PlanStyles planId={planId} currentStyleId={styleId}/>
-              </StyleOpenContext.Provider>
-            </div>
-          </>
-          : <> {/* Case: half expanded */}
-            <div className={panelStyle.expandIcon} onMouseDown={handleExpandEditMouseDown}>
-              <MoreVert/>
-            </div>
-          </>
-        }
-      </div>
-    }
-    <div className={style.content} style={{color: `var(--plan-color${isDone ? '-done' : ''}-${styleId || 'default'})`}}>
-      <Editor 
-        ref={textEdit}
-        readOnly={!isEdit(state)}
-        editorState={editorState} 
-        handleKeyCommand={handleKeyCommand}
-        onChange={handleChange}
-        keyBindingFn={checkSubmit}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-      />
-      <div className={style.toggler} style={{color: `var(--plan-color${isDone ? '-done' : '-done'}-${styleId || 'default'})`}}>
-        <span 
-          className={style.button}
-          onMouseDown={e => {e.stopPropagation(); e.preventDefault()}}
-          onClick={toggleDone}
-        >
-          <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-            <circle cx="50%" cy="50%" r="50%"/>
-          </svg>
-        </span>
+            </>
+            : <> {/* Case: half expanded */}
+              <div className={panelStyle.expandIcon} onMouseDown={handleExpandEditMouseDown}>
+                <MoreVert/>
+              </div>
+            </>
+          }
+        </div>
+      }
+      <div className={style.content} style={{color: `var(--plan-color${isDone ? '-done' : ''}-${styleId || 'default'})`}}>
+        <Editor 
+          ref={textEdit}
+          readOnly={!isEdit(state)}
+          editorState={editorState} 
+          handleKeyCommand={handleKeyCommand}
+          onChange={handleChange}
+          keyBindingFn={checkSubmit}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+        />
+        <div className={style.toggler} style={{color: `var(--plan-color${isDone ? '-done' : '-done'}-${styleId || 'default'})`}}>
+          <span 
+            className={style.button}
+            onMouseDown={e => {e.stopPropagation(); e.preventDefault()}}
+            onClick={toggleDone}
+          >
+            <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+              <circle cx="50%" cy="50%" r="50%"/>
+            </svg>
+          </span>
+        </div>
       </div>
     </div>
-  </animated.div>)
+  )
 }
 
 export default Plan;
