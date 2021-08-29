@@ -1,6 +1,7 @@
 import { DateRange } from "types";
 import { AllCalendarDates } from "types/pages/HomePage";
 import { Calendar } from ".";
+import { DragPlan } from "./PlanDragHandler";
 
 export type CalendarReducer = (state: Calendar, action: CalendarAction) => Calendar
 
@@ -8,13 +9,19 @@ export type CalendarReducer = (state: Calendar, action: CalendarAction) => Calen
  * Types of CalendarContext dispatches
  */
 export type CalendarAction = 
-    AcceptAllDatesUpdate | SetRenderRange | MoveRenderRange 
+    StateCallback
+    | AcceptAllDatesUpdate | SetRenderRange | MoveRenderRange 
     | PauseDataSync | ResumeDataSync
-    | MovePlan
+    | MovePlans
     | AddUndo | UseUndo | UseRedo;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Data manipulation CalendarAction dispatch
+
+export interface StateCallback {
+    type: 'state-callback';
+    callback: (state: Calendar) => void;
+}
 
 export interface AcceptAllDatesUpdate {
     type: 'accept-all-dates-update';
@@ -58,11 +65,9 @@ export interface ResumeDataSync {
     syncNow: boolean;
 }
 
-export interface MovePlan {
-    type: 'move-plan';
-    planId: string; 
-    dateStr: string; // new dateStr
-    prv: string; // new prv
+export interface MovePlans {
+    type: 'move-plans';
+    dragPlans: DragPlan[];
 }
 
 ///////////////////////////////////////////////////////////////////////////////

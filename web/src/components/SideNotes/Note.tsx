@@ -4,6 +4,8 @@ import { KeyboardEventHandler } from "react";
 import { MouseEventHandler } from "react";
 import { db, UidContext } from "utils/globalContext";
 
+import style from './sideNotes.module.scss';
+
 let pos1, pos2, pos3: number, pos4 = 0;
 
 function Note({ id, content, position, size } : any) {
@@ -111,7 +113,7 @@ function Note({ id, content, position, size } : any) {
 
   return (<div 
     ref={note}
-    className={'sidenote'} 
+    className={style.sidenote} 
     data-state={`${editing}`}
     onClick={e => {
       e.stopPropagation();

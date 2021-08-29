@@ -2,7 +2,7 @@ import { Delete, FormatBold, FormatItalic, FormatUnderlined, MoreVert } from "@m
 import { ContentState, convertFromRaw, convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState, RichUtils, SelectionState } from "draft-js";
 import React, { KeyboardEvent, useState } from "react";
 import PlanStyles from "./PlanStyles";
-import { CalendarPlan } from "types/components/Calendar";
+import { CalendarPlanProp } from "types/components/Calendar";
 import { db, UidContext } from "utils/globalContext";
 import { MouseEventHandler } from "react";
 import { getPlanIds } from "utils/dateUtil";
@@ -10,7 +10,6 @@ import { getPlanIds } from "utils/dateUtil";
 import style from './plan.module.scss';
 import panelStyle from './editPanel.module.scss';
 import { key } from "utils/keyUtil";
-import { DraggingPlan } from "types/components/Calendar/PlanDragHandler";
 import { DraggingPlansContext } from "../PlanDragHandler/context";
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { CalendarContext } from "../context";
@@ -24,8 +23,6 @@ function isEdit(state: PlanState): boolean {
   return state === "edit" || state === "edit-expand";
 }
 
-let draggingPlan: DraggingPlan | null = null;
-
 /**
  * Context for if the plan style menu is open. Boolean.
  */
@@ -33,15 +30,15 @@ export const StyleOpenContext = React.createContext({} as { styleOpen: boolean; 
 
 const timeOutSubscriptions: NodeJS.Timeout[] = []; // track any timeout functions being used
 let pos3: number, pos4 = 0; // track drag positions
-let placeholder: HTMLElement | null = null; // current placeholder for drag
 
-function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, prv}}: {plan: CalendarPlan}) {
+function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nxt, prv}}: { plan: CalendarPlanProp }) {
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const { dragPlans, isDragging, startDrag } = React.useContext(DraggingPlansContext);
+
   const planRef = React.useRef<HTMLDivElement>(null);
-  const [state, setState] = useState(draggingPlan?.planId === planId ? 'dragging' : 'normal' as PlanState);
+  const [state, setState] = useState(dragPlans.some(e => e.planId === planId) ? 'dragging' : 'normal' as PlanState);
   const [styleOpen, setStyleOpen] = useState(false);
-  const { draggingPlans, addDraggingPlan } = React.useContext(DraggingPlansContext);
 
   const {uid} = React.useContext(UidContext);
 
@@ -243,40 +240,14 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, pr
     dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true }); // remove edit listeners
     dispatchListeners({ type: 'deregister-focus', focusId: 'plan-try-drag', removeListeners: true }); // remove try drag listeners
     dispatchCalendar({ type: 'pause-data-sync' });
-    const box = planRef.current.getBoundingClientRect();
-    draggingPlan = {
-      planId,
-      dateStr,
-      prv,
-      clientX: box.x,
-      clientY: box.y,
-    };
 
-    // set up starting conditions
-    pos3 = e.clientX;
-    pos4 = e.clientY;
+    const el = planRef.current.cloneNode(true) as HTMLDivElement;
+    el.className = style.placeholder;
+    el.style.width = planRef.current.getBoundingClientRect().width + 'px';
+    el.style.height = planRef.current.getBoundingClientRect().height + 'px';
 
-    // add placeholder
-    if (placeholder) { // first remove pre-existing placeholder if it exists
-      console.error('Removed placeholder from somewhere it wasnt meant to be.');
-      placeholder.remove();
-    }
-    // placeholder = document.createElement('div'); 
-    placeholder = planRef.current.cloneNode(true) as HTMLElement;
-    placeholder.className = style.placeholder;
-    placeholder.setAttribute('data-date', dateStr);
-    placeholder.style.height = getComputedStyle(planRef.current).height;
-    placeholder.style.width = getComputedStyle(planRef.current).width;
-
-    const x = (parseInt(placeholder.style.width)) / 2;
-    const y = (parseInt(placeholder.style.height)) / 2;
-    
-    placeholder.style.top =  e.clientY - y + "px";
-    placeholder.style.left = e.clientX - x + "px";
-    document.body.appendChild(placeholder);
-
-    addDraggingPlan(draggingPlan, placeholder);
-  }, [planId, dateStr, prv, addDraggingPlan, dispatchCalendar, dispatchListeners]);
+    startDrag(planId, el, dateStr, nxt, prv);
+  }, [planId, dateStr, nxt, prv, startDrag, dispatchCalendar, dispatchListeners]);
 
   /**
    * Callback to cancel the start drag listener
@@ -285,61 +256,16 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, pr
     dispatchListeners({ type: 'deregister-focus', focusId: 'plan-try-drag', removeListeners: true });
   }, [dispatchListeners]);
 
+  // Update dragging state when isDragging trigger changes
   React.useEffect(() => {
-    if (draggingPlan?.planId === planId && !draggingPlans.some(p => p.planId === planId)) {
-      if (placeholder) {
-        placeholder.remove();
-        placeholder = null;
-      }
-
-      const to_date = dateStr;
-      const from_date = draggingPlan.dateStr;
-
-      const plansTo = getPlanIds(calendar.dates, to_date).filter(id => id !== planId);
-      const to_prv_index = prv ? plansTo.indexOf(prv) : -1;
-      const to_prv_id = prv;
-      const to_nxt_id = plansTo[to_prv_index + 1] || '';
-
-      const plansFrom = getPlanIds(calendar.dates, from_date).filter(id => id !== planId);
-      const from_prv_index = draggingPlan.prv ? plansFrom.indexOf(draggingPlan.prv) : -1;
-      const from_prv_id = draggingPlan.prv;
-      const from_nxt_id = plansFrom[from_prv_index + 1] || '';
-
-      draggingPlan = null;
-      setState('normal'); 
-
-      if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) {
-        // no need to move position
-        // resume data sync, with immediate update
-        dispatchCalendar({ type: 'resume-data-sync', syncNow: true });
-      } else {
-        // update db
-        const action = () => {
-          const moveBatch = db.batch();
-          if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', planId);
-          moveBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', to_date, 'prv', to_prv_id);
-          if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
-          moveBatch.commit();
-        }
-        const undo = () => {
-          const restoreBatch = db.batch();
-          if (to_nxt_id) restoreBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', to_prv_id);
-          restoreBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', from_date, 'prv', from_prv_id);
-          if (from_nxt_id) restoreBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', planId);
-          restoreBatch.commit();
-        }
-        dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
-
-        action();
-        // resume data sync, after updates have been made
-        setTimeout(() => {
-          dispatchCalendar({ type: 'resume-data-sync', syncNow: true })
-        }, 50); 
-      }
+    if (!isDragging) {
+      setState(state => state === 'dragging' ? 'normal' : state)
+    } else {
+      dragPlans.some(e => e.planId === planId) && setState('dragging')
     }
-    // effect only needs to run when draggingPlans changes
+
     // eslint-disable-next-line 
-  }, [draggingPlans]);
+  }, [isDragging]);
 
   /**
    * Handle mousedown of clicking expand edit options

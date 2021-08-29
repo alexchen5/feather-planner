@@ -1,10 +1,10 @@
-/**
- * Holds the initial data of a plan before it goes drag
- */
-export interface DraggingPlan {
+export interface DragPlan {
     planId: string,
-    dateStr: string,
-    prv: string,
-    clientX: number,
-    clientY: number,
+    el: HTMLDivElement,
+    fromDate: string, 
+    fromNxt: string,
+    fromPrv: string,
+    toDate: string,
+    toNxt: string,
+    toPrv: string,
 }

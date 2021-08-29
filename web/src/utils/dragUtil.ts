@@ -1,4 +1,5 @@
 import { CalendarDate } from "types/components/Calendar";
+import { DragPlan } from "types/components/Calendar/PlanDragHandler";
 import { getPlanById } from "./dateUtil";
 
 export function getTargetDatenode(clientX: number, clientY: number) {
@@ -18,29 +19,79 @@ export function getTargetDatenode(clientX: number, clientY: number) {
   }) || null
 }
 
-export function getTargetDragPosition(draggingId: string, clientX: number, clientY: number): [string, string] {
+let lastDragPlans: DragPlan[] | null; 
+
+export function getLastDragPlans() {
+  const ret = lastDragPlans;
+  lastDragPlans = null;
+  return ret;
+}
+
+export function getNextDragPlans(dragPlans: DragPlan[], clientX: number, clientY: number): DragPlan[] {
+  if (!dragPlans.length) return dragPlans; // do nothing if nothing to drag
   const dateRoot = getTargetDatenode(clientX, clientY);
-  if (!dateRoot) return ['', ''];
+  if (!dateRoot) {
+    lastDragPlans = dragPlans;
+    return lastDragPlans; 
+  }
 
   // get plans in the date, not including the currently dragging plan
-  const datePlans = [...dateRoot.querySelectorAll(`[fp-role="calendar-plan"]:not([data-id="${draggingId}"])`)] as HTMLElement[];
+  // currently only wokrs for ONE plan
+  const datePlans = [...dateRoot.querySelectorAll(`[fp-role="calendar-plan"]:not([data-id="${dragPlans[0].planId}"])`)] as HTMLElement[];
   
   // find the plan above our cursor
   // we are finding the plan with center to cursor distance the smallest 
-  const afterPlan = datePlans.reduce((closest, cur) => {
+  const prvIndex = datePlans.reduce((closest, cur, i) => {
     const box = cur.closest('[fp-role="calendar-plan-root"]')?.getBoundingClientRect();
     const offset = box ? clientY - (box.top + box.height / 2) : -1;
     if (offset >= 0 && offset < closest.offset) {
-      return { offset: offset, plan: cur };
+      return { offset: offset, index: i };
     } else {
       return closest;
     }
-  }, { offset: Number.POSITIVE_INFINITY, plan: null as Element | null}).plan;
+  }, { offset: Number.POSITIVE_INFINITY, index: -1}).index;
 
-  return [dateRoot.getAttribute('data-date') || '', afterPlan ? (afterPlan.getAttribute('data-id') || '') : ''];
+  lastDragPlans = dragPlans.map((d, i) => {
+    let toPrv;
+    const prvEl = datePlans[prvIndex]
+    if (prvEl) {
+      toPrv = dragPlans[i - 1] ? dragPlans[i - 1].planId : prvEl.getAttribute('data-id');
+    } else {
+      toPrv = dragPlans[i - 1] ? dragPlans[i - 1].planId : '';
+    }
+
+    let toNxt;
+    const nxtEl = datePlans[prvIndex + 1];
+    if (nxtEl) {
+      toNxt = dragPlans[i + 1] ? dragPlans[i + 1].planId : nxtEl.getAttribute('data-id');
+    } else {
+      toNxt = dragPlans[i + 1] ? dragPlans[i + 1].planId : '';
+    }
+
+    return {
+      ...d,
+      toDate: dateRoot.getAttribute('data-date') || d.fromDate, 
+      toNxt: toNxt || '',
+      toPrv: toPrv || '',
+    }
+  })
+
+  return lastDragPlans;
 }
 
-export function updatePlanMove(dates: CalendarDate[], planId: string, nxtDateStr: string, nxtPrvPlan: string): CalendarDate[] {
+
+/**
+ * Get new dates from moving plans proposed in dragPlans
+ * @param dates previous dates
+ * @param dragPlans positions to move
+ * @returns new dates
+ */
+export function updatePlanMove(dates: CalendarDate[], dragPlans: DragPlan[]): CalendarDate[] {
+  if (!dragPlans.length) return dates; // do nothing if nothing to drag
+  return updatePlanMoveHelper(dates, dragPlans[0].planId, dragPlans[0].toDate, dragPlans[0].toPrv);
+}
+
+function updatePlanMoveHelper(dates: CalendarDate[], planId: string, nxtDateStr: string, nxtPrvPlan: string): CalendarDate[] {
   const p = getPlanById([...dates], planId); // extract plan from dates - expect dates to be valid 
   if (!p || (p.dateStr === nxtDateStr && p.prv === nxtPrvPlan)) return dates; // either no plan, or move info is same
   const targetPlan = {...p, dateStr: nxtDateStr, prv: nxtPrvPlan}; // update plan info 

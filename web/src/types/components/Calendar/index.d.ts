@@ -61,6 +61,10 @@ export interface CalendarPlan {
     prv: string; // the planId which appears before this plan in a datenode, defaults to empty string
 }
 
+export interface CalendarPlanProp extends CalendarPlan {
+    nxt: string; // the planId which appears after this plan in a datenode, defaults to empty string
+}
+
 /**
  * Calendar Plan Style structure
  */

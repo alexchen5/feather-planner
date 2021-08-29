@@ -80,7 +80,11 @@ function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
             >
               {date.plans.map((plan, i) => 
                 <PlanWrapper key={plan.planId} planId={plan.planId} moveTrigger={'' + i}>
-                  <Plan plan={plan} />
+                  <Plan plan={{
+                    ...plan,
+                    nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
+                    prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
+                  }} />
                 </PlanWrapper>
               )}
             </Date>

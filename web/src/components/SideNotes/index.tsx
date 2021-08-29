@@ -3,6 +3,8 @@ import React from 'react';
 import { db, UidContext } from "utils/globalContext";
 import Note from './Note';
 
+import style from './sideNotes.module.scss';
+
 function SideNotes() {
   const [notes, setNotes] = React.useState([] as any[]);
   const {uid} = React.useContext(UidContext);
@@ -80,19 +82,19 @@ function SideNotes() {
   //   resizeBatch.commit();
   // }
 
-  // const handleAddClick = () => {
-  //   db.collection(`users/${uid}/notes`).add({
-  //     content: '',
-  //     position: {
-  //       left: '8px',
-  //       top: '8px',
-  //     },
-  //     size: {
-  //       width: '160px',
-  //       height: '180px',
-  //     },
-  //   })
-  // }
+  const handleAddClick = () => {
+    db.collection(`users/${uid}/notes`).add({
+      content: '',
+      position: {
+        left: '8px',
+        top: '8px',
+      },
+      size: {
+        width: '160px',
+        height: '180px',
+      },
+    })
+  }
 
   // const handleCloseClick = () => {
   //   db.doc(`users/${uid}/preferences/layout`).set(
@@ -118,15 +120,9 @@ function SideNotes() {
         <div 
           // onMouseDown={handleResizeDrag} 
           className={'border-capture top'} style={{pointerEvents: 'auto', cursor: 'row-resize'}}/>
-        {/* <IconButton size='small' onClick={handleAddClick}><AddIcon/></IconButton>
-        {layout.isNotesExpanded ? 
-          <IconButton size='small' onClick={handleCollapseClick}><ExpandMoreIcon/></IconButton>
-          : 
-          <IconButton size='small' onClick={handleExpandClick}><ExpandLessIcon/></IconButton>
-        }
-        <IconButton size='small' onClick={handleCloseClick}><CloseIcon/></IconButton> */}
+        <button onClick={handleAddClick}>add note</button>
       </div>
-      <div id={'sidenote-container'}>
+      <div className={style.root}>
         {notes.map(note => <Note 
           key={note.note_id} 
           id={note.note_id} 

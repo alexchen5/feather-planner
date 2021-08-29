@@ -19,7 +19,10 @@ export const init = (allDates: AllCalendarDates): Calendar => {
 }
 
 export const reducer = (state: Calendar, action: CalendarAction): Calendar => {
-    if (action.type === 'accept-all-dates-update') {
+    if (action.type === 'state-callback') {
+        action.callback(state);
+        return state;
+    } else if (action.type === 'accept-all-dates-update') {
         curAllDates = action.dates; // stash every update of new allDates
 
         if (!state.shouldSyncDates) return state; // if dates should not be synced, do nothing
@@ -64,8 +67,8 @@ export const reducer = (state: Calendar, action: CalendarAction): Calendar => {
                 || { dateStr, label: null, plans: [] } // use empty date if date has never been loaded
             ),
         }
-    } else if (action.type === 'move-plan') {
-        const dates = updatePlanMove(state.dates, action.planId, action.dateStr, action.prv);
+    } else if (action.type === 'move-plans') {
+        const dates = updatePlanMove(state.dates, action.dragPlans);
         if (dates === state.dates) return state; // no changes, abort redux
         
         return {
