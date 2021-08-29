@@ -117,9 +117,6 @@ function SideNotes() {
   return (
     <>
       <div style={{position: 'relative', textAlign: 'right'}}>
-        <div 
-          // onMouseDown={handleResizeDrag} 
-          className={'border-capture top'} style={{pointerEvents: 'auto', cursor: 'row-resize'}}/>
         <button onClick={handleAddClick}>add note</button>
       </div>
       <div className={style.root}>

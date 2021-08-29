@@ -132,7 +132,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   const startDrag = React.useCallback((planId: string, el: HTMLDivElement, dateStr: string, nxt: string, prv: string) => {
     registerPlan(planId, el, dateStr, nxt, prv);
     setIsDragging(true); // triggers effect
-  }, [dragPlans, dispatchListeners, registerPlan]);
+  }, [registerPlan]);
 
   const closeDrag = React.useCallback((e: MouseEvent) => {
     e.preventDefault();
@@ -199,7 +199,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
       dispatchCalendar({ type: 'move-plans', dragPlans: getNextDragPlans(dragPlans, e.clientX, e.clientY) });
     }
     return ret;
-  }, [dragPlans]);
+  }, [dispatchCalendar]);
 
 
   return (

@@ -123,11 +123,11 @@ function Note({ id, content, position, size } : any) {
     style={{left: position && position.left, top: position && position.top, width: size && size.width, height: size && size.height}}
     onKeyDown={handleKeyDown}
   >
-    <div onMouseDown={handleMouseDownDrag} className={'border-capture top'}/>
-    <div onMouseDown={handleMouseDownDrag} className={'border-capture right'}/>
-    <div onMouseDown={handleMouseDownDrag} className={'border-capture bottom'}/>
-    <div onMouseDown={handleMouseDownDrag} className={'border-capture left'}/>
-    <div onMouseDown={handleMouseDownResize} className={'border-capture bottom-right'} style={{cursor: 'nwse-resize'}}/>
+    <div onMouseDown={handleMouseDownDrag} className={style.borderCapture + ' ' + style.top}/>
+    <div onMouseDown={handleMouseDownDrag} className={style.borderCapture + ' ' + style.right}/>
+    <div onMouseDown={handleMouseDownDrag} className={style.borderCapture + ' ' + style.bottom}/>
+    <div onMouseDown={handleMouseDownDrag} className={style.borderCapture + ' ' + style.left}/>
+    <div onMouseDown={handleMouseDownResize} className={style.borderCapture + ' ' + style.bottomRight} style={{cursor: 'nwse-resize'}}/>
     <Editor 
       ref={editor}
       editorState={editorState} 
