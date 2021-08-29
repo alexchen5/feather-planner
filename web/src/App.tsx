@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import HomePage from './pages/FeatherPlanner';
+import HomePage from './pages/HomePage';
 import LoginPage from "pages/LoginPage";
 import { UidContext } from "utils/globalContext";
 import { BrowserRouter, Route, Switch } from "react-router-dom";

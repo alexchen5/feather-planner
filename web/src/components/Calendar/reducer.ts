@@ -1,7 +1,8 @@
-import { AllCalendarDates } from "types";
-import { Calendar, CalendarAction } from "types/calendar";
+import { AllCalendarDates } from "types/pages/HomePage";
+import { Calendar } from "types/components/Calendar";
 import { getDateByStr, getInitCalendarDates, getInitDateRange, getRangeDates, getRenderRange, getScrollRange } from "utils/dateUtil";
 import { updatePlanMove } from "utils/dragUtil";
+import { CalendarAction } from "types/components/Calendar/reducer";
 
 let curAllDates: AllCalendarDates;
 let curDateRange = getInitDateRange();

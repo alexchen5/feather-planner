@@ -1,19 +1,20 @@
-import React, { createContext, useReducer } from "react";
+import React, { useReducer } from "react";
 
-import { getRenderRange } from '../../utils/dateUtil';
-import Plan from './Plan'
-import Date from "./Date";
-import CalendarContainer from "./CalendarContainer";
-import { Calendar, CalendarAction } from "types/calendar";
-import { FeatherContext } from "pages/FeatherPlanner";
-import { AllCalendarDates } from "types";
-import { init, reducer } from "reducers/calendarReducer";
-import PlanDragHandler from "./PlanDragHandler";
-import { DocumentListenerContext } from "components/DocumentEventListener";
+import { getRenderRange } from 'utils/dateUtil';
 import { key } from "utils/keyUtil";
-import PlanDragWrapper from "./Plan/PlanDragWrapper";
+import { init, reducer } from "./reducer";
+import { CalendarContext } from "./context";
 
-export const CalendarContext = createContext({} as { calendar: Calendar, dispatch: React.Dispatch<CalendarAction> });
+import { FeatherContext } from "pages/HomePage/context";
+import { DocumentListenerContext } from "components/DocumentEventListener/context";
+
+import CalendarContainer from "./CalendarContainer";
+import PlanDragHandler from "./PlanDragHandler";
+import Date from "./Date";
+import PlanWrapper from "./PlanDragHandler/PlanWrapper";
+import Plan from './Plan'
+
+import { AllCalendarDates } from "types/pages/HomePage";
 
 function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
   const [calendar, dispatch] = useReducer(reducer, allDates, init);
@@ -78,12 +79,9 @@ function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
               label={date.label}
             >
               {date.plans.map((plan, i) => 
-                <PlanDragWrapper key={plan.planId} planId={plan.planId} remountTrigger={date.dateStr + i}>
-                  <Plan
-                    key={plan.planId}
-                    plan={plan}
-                  />
-                </PlanDragWrapper>
+                <PlanWrapper key={plan.planId} planId={plan.planId} moveTrigger={'' + i}>
+                  <Plan plan={plan} />
+                </PlanWrapper>
               )}
             </Date>
           )}

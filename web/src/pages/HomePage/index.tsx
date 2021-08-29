@@ -1,21 +1,22 @@
-import CalendarComponent from 'components/Calendar';
-import DateRangeListener from 'components/Calendar/DateRangeListener';
-import SideNotes from 'components/SideNotes';
-
-import firebase from "firebase/app";
-import "firebase/auth";
-import { db, UidContext } from 'utils/globalContext';
 import React from 'react';
 import { Link, Route, Switch } from 'react-router-dom';
-import { FeatherPlanner, FeatherPlannerAction, SetStyles } from 'types';
-import { init, reducer as featherReducer } from 'reducers/featherPlannerReducer';
-import DocumentEventListener from 'components/DocumentEventListener';
+import firebase from "firebase/app";
+import "firebase/auth";
 
-export const FeatherContext = React.createContext({} as { featherPlanner: FeatherPlanner, dispatch: React.Dispatch<FeatherPlannerAction> });
+import { db, UidContext } from 'utils/globalContext';
+import { FeatherContext } from './context';
+import { init, reducer } from './reducer';
+import DateRangeListener from './DateRangeListener';
+
+import DocumentEventListener from 'components/DocumentEventListener';
+import CalendarComponent from 'components/Calendar';
+import SideNotes from 'components/SideNotes';
+
+import { SetStyles } from 'types/pages/HomePage/reducer';
 
 function HomePage() {
   const {uid} = React.useContext(UidContext);
-  const [featherPlanner, dispatch] = React.useReducer(featherReducer, null as never, init);
+  const [featherPlanner, dispatch] = React.useReducer(reducer, null as never, init);
 
   React.useEffect(() => {
     // attach listener to db for plan styles 

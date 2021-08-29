@@ -1,10 +1,6 @@
-import { DocumentEventListeners, DocumentListenerAction } from "types";
+import { DocumentListenerReducer } from "types/components/DocumentEventListener/reducer";
 
-export const reducer = <K extends keyof DocumentEventMap>(
-    state: DocumentEventListeners, 
-    action: DocumentListenerAction<K>
-): DocumentEventListeners => 
-{
+export const reducer: DocumentListenerReducer<keyof DocumentEventMap> = (state, action) => {
     if (action.type === 'register-focus') {
         return {
             ...state,
@@ -26,11 +22,9 @@ export const reducer = <K extends keyof DocumentEventMap>(
         if (action.focusId === focusedComponent) document.dispatchEvent(action.event);
         return state;
     } else if (action.type === 'add-document-event-listener') {
-        // cast callback generic constraint to any keyof DocumentEventMap
-        const callback = action.listener.callback as (ev: DocumentEventMap[keyof DocumentEventMap]) => void;
         return {
             ...state,
-            documentEventListeners: [...state.documentEventListeners, { ...action.listener, callback }],
+            documentEventListeners: [...state.documentEventListeners, { ...action.listener }],
         }
     } else if (action.type === 'remove-document-event-listener') {
         return {

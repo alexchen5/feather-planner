@@ -1,66 +1,48 @@
-import { DocumentListenerContext } from "components/DocumentEventListener";
+import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import React from "react";
+import { DraggingPlan } from "types/components/Calendar/PlanDragHandler";
+import { PlanSpringProps, SpringChanges } from "types/components/Calendar/PlanDragHandler/PlanSpring";
 import { getAllPlanIds } from "utils/dateUtil";
 import { getTargetDragPosition } from "utils/dragUtil";
-import { CalendarContext } from ".";
-import PlanSpring, { OnUpdate, SpringProps } from "./PlanSpring";
-
-interface Context {
-  draggingPlans: DraggingPlan[], 
-  addDraggingPlan: (plan: DraggingPlan, placeholder: HTMLElement) => void,
-  registerWrapper: (planId: string, el: HTMLDivElement, onUpdate: OnUpdate) => void,
-}
-export const DraggingPlansContext = React.createContext({} as Context);
-
-/**
- * Holds the initial data of a plan before it goes drag
- */
-export interface DraggingPlan {
-  planId: string,
-  dateStr: string,
-  prv: string,
-  clientX: number,
-  clientY: number,
-}
+import { CalendarContext } from "../context";
+import { DraggingPlansContext } from "./context";
+import PlanSpring from "./PlanSpring";
 
 function PlanDragHandler({children} : {children: React.ReactNode}) {
   const [ draggingPlans, setDraggingPlans ] = React.useState([] as DraggingPlan[]);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
+    
+  const [springs, setSprings] = React.useState(() => ({} as { [planId: string]: PlanSpringProps }));
 
-  const [springs, setSprings] = React.useState(() => {
-    const ret: Array<{ planId: string, props: SpringProps }> = [];
-    return ret;
-  });
-
+  // if no dragging, clean up springs for plans which are no longer on the page
   React.useEffect(() => {
-    const curPlans = getAllPlanIds(calendar.dates);
-    setSprings(springs => springs.filter(s => curPlans.includes(s.planId)));
-  }, [calendar.dates]);
+    if (draggingPlans.length === 0) {
+      // get plan ids which are actually on page
+      const curPlans = getAllPlanIds(calendar.dates); 
+
+      // new springs object with keys not on page removed
+      setSprings(springs => curPlans.reduce((acc, curId) => 
+        (springs[curId] ? { ...acc, [curId]: springs[curId] } : acc
+      ), {} ));
+    }
+  }, [draggingPlans, calendar.dates]);
 
   /**
    * Register a PlanDragWrapper for update callbacks on springs
-   * Does nothing if planId is not in springs array
    */
-  const registerWrapper = React.useCallback((planId: string, el: HTMLDivElement, onUpdate: OnUpdate) => {
+  const registerWrapper = React.useCallback((planId: string, el: HTMLDivElement, onUpdate: (spring: SpringChanges) => void) => {
     const box = el.getBoundingClientRect();
 
-    setSprings(springs => {
-      const ret = springs.filter(s => s.planId !== planId)
-      const s = springs.find(s => s.planId === planId);
-      
-      return [
-        ...ret,
-        {
-          planId,
-          props: {
-            prvBox: s ? s.props.aimBox : box,
-            aimBox: box,
-            onUpdate,
-          }
-        },
-      ]
-    })
+    // add new key into springs obj to store the plan's spring
+    setSprings(springs => ({
+      ...springs,
+      [planId]: {
+        prvBox: springs[planId] ? springs[planId].aimBox : box,
+        aimBox: box,
+        onUpdate,
+      },
+    }));
   }, []);
 
   const getDragCallback = React.useCallback((plan: DraggingPlan, placeholder: HTMLElement) => {
@@ -125,7 +107,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
 
   return (
     <DraggingPlansContext.Provider value={{draggingPlans, addDraggingPlan, registerWrapper}}>
-      {springs.map(spring => <PlanSpring key={spring.planId} props={spring.props}/>)}
+      {Object.entries(springs).map(([planId, props]) => <PlanSpring key={planId} props={props}/>)}
       {children}
     </DraggingPlansContext.Provider>
   )

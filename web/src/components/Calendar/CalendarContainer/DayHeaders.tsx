@@ -1,5 +1,5 @@
 import { GridList } from "@material-ui/core";
-import { getDayStart } from "../../../utils/dateUtil";
+import { getDayStart } from "utils/dateUtil";
 
 import style from "./container.module.scss";
 

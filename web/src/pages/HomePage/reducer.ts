@@ -1,4 +1,5 @@
-import { FeatherPlanner, FeatherPlannerAction } from "types";
+import { FeatherPlanner } from "types/pages/HomePage";
+import { FeatherPlannerReducer } from "types/pages/HomePage/reducer";
 import { addRangeListeners, getInitDateRange } from "utils/dateUtil";
 import { IS_CACHE_ON } from "utils/globalContext";
 
@@ -47,7 +48,7 @@ const tryCacheItem = (name: string, object: any) => {
     }
   }
   
-export const reducer = (state: FeatherPlanner, action: FeatherPlannerAction): FeatherPlanner => {
+export const reducer: FeatherPlannerReducer = (state, action) => {
     if (action.type === 'set-styles') {
         tryCacheItem('planStyles', action.planStyles);
     

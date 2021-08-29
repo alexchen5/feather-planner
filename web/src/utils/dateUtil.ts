@@ -1,7 +1,8 @@
 // A set of helper functions for date manipulation and initialisation
 
-import { RangeListener } from "types";
-import { CalendarDate, CalendarPlan, DateRange } from "types/calendar";
+import { DateRange } from "types";
+import { CalendarDate, CalendarPlan } from "types/components/Calendar";
+import { ListenerDateRange } from "types/pages/HomePage/DateRangeListener";
 
 export const DAY_START: 'MON' | 'SUN' = 'MON';
 const NUM_WEEKS_START = 5;
@@ -131,7 +132,7 @@ export function getAllPlanIds(dates: Array<CalendarDate>): string[] {
  * @param dates the dates
  * @returns the range
  */
-export function getRenderRange(dates: Array<CalendarDate>): DateRange  {
+export function getRenderRange(dates: Array<CalendarDate>): DateRange {
   return {
     startDate: dates[0].dateStr,
     endDate: dates[dates.length - 1].dateStr,
@@ -322,7 +323,7 @@ export function getScrollRange(dates: DateRange, dir: 'up' | 'down', speed: 1 | 
  * @param renderRange the range of dates to be rendered
  * @returns a new array of DateRanges
  */
-export function addRangeListeners(currentRanges: RangeListener[], renderRange: DateRange): RangeListener[] {
+export function addRangeListeners(currentRanges: ListenerDateRange[], renderRange: DateRange): ListenerDateRange[] {
   const newRanges = getWeekRanges(renderRange.startDate, renderRange.endDate);
   const ret = newRanges.map(r => {return { ...r, onScreen: true }});
 

@@ -2,17 +2,18 @@ import { Delete, FormatBold, FormatItalic, FormatUnderlined, MoreVert } from "@m
 import { ContentState, convertFromRaw, convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState, RichUtils, SelectionState } from "draft-js";
 import React, { KeyboardEvent, useState } from "react";
 import PlanStyles from "./PlanStyles";
-import { CalendarPlan } from "types/calendar";
+import { CalendarPlan } from "types/components/Calendar";
 import { db, UidContext } from "utils/globalContext";
 import { MouseEventHandler } from "react";
-import { CalendarContext } from "..";
-import { getPlanIds } from "../../../utils/dateUtil";
+import { getPlanIds } from "utils/dateUtil";
 
 import style from './plan.module.scss';
 import panelStyle from './editPanel.module.scss';
-import { DocumentListenerContext } from "components/DocumentEventListener";
-import { DraggingPlan, DraggingPlansContext } from "../PlanDragHandler";
 import { key } from "utils/keyUtil";
+import { DraggingPlan } from "types/components/Calendar/PlanDragHandler";
+import { DraggingPlansContext } from "../PlanDragHandler/context";
+import { DocumentListenerContext } from "components/DocumentEventListener/context";
+import { CalendarContext } from "../context";
 
 /**
  * Describes the state of the plan. Note that text values are connected to stylesheets.
@@ -37,10 +38,7 @@ let placeholder: HTMLElement | null = null; // current placeholder for drag
 function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, prv}}: {plan: CalendarPlan}) {
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  // const [ planRef, planBox ] = useMeasure<HTMLDivElement>();
   const planRef = React.useRef<HTMLDivElement>(null);
-  // const planStatic = React.useRef<HTMLDivElement>(null);
-  // const planBox = React.useRef<{ originX: number; originY: number; springX: number; springY: number; } | null>(null);
   const [state, setState] = useState(draggingPlan?.planId === planId ? 'dragging' : 'normal' as PlanState);
   const [styleOpen, setStyleOpen] = useState(false);
   const { draggingPlans, addDraggingPlan } = React.useContext(DraggingPlansContext);

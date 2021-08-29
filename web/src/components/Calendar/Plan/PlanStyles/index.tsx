@@ -4,7 +4,7 @@ import { StyleOpenContext } from '..';
 import PlanStyle from './PlanStyle';
 
 import style from './labels.module.scss';
-import { FeatherContext } from 'pages/FeatherPlanner';
+import { FeatherContext } from 'pages/HomePage/context';
 
 /**
  * Context for if the plan style menu is in edit state. Boolean.
