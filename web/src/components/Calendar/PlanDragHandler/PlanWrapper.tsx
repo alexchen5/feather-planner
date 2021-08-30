@@ -14,7 +14,7 @@ function PlanWrapper({ planId, moveTrigger, children }: { planId: string, moveTr
   const { registerWrapper } = React.useContext(DraggingPlansContext);
 
   // run effect when trigger is changed
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     const el = staticRoot.current;
     if (el) {
       registerWrapper(planId, el, (spring) => {
@@ -23,6 +23,24 @@ function PlanWrapper({ planId, moveTrigger, children }: { planId: string, moveTr
       });
     }
   }, [planId, moveTrigger, registerWrapper]);
+
+  // React.useEffect(() => {
+  //   const container = document.querySelector('[fp-role="dates-container"]');
+  //   if (!container) {
+  //     console.error('expected dates container');
+  //     return;
+  //   }
+  //   const callback = () => {
+  //     const el = staticRoot.current;
+  //     if (!el) {
+  //       console.error('expected static root ref');
+  //       return;
+  //     }
+  //     updateWrapperPosition(planId, el.getBoundingClientRect().top);
+  //   }
+  //   container.addEventListener('scroll', callback);
+  //   return () => container.removeEventListener('scroll', callback);
+  // }, [planId, updateWrapperPosition]);
 
   return (
     <div ref={staticRoot} fp-role={"calendar-plan-root"}>

@@ -239,7 +239,6 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
 
     dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true }); // remove edit listeners
     dispatchListeners({ type: 'deregister-focus', focusId: 'plan-try-drag', removeListeners: true }); // remove try drag listeners
-    dispatchCalendar({ type: 'pause-data-sync' });
 
     const el = planRef.current.cloneNode(true) as HTMLDivElement;
     el.className = style.placeholder;
@@ -247,7 +246,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     el.style.height = planRef.current.getBoundingClientRect().height + 'px';
 
     startDrag(planId, el, dateStr, nxt, prv);
-  }, [planId, dateStr, nxt, prv, startDrag, dispatchCalendar, dispatchListeners]);
+  }, [planId, dateStr, nxt, prv, startDrag, dispatchListeners]);
 
   /**
    * Callback to cancel the start drag listener

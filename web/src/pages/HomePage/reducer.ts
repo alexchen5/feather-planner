@@ -10,8 +10,8 @@ export const init = (_noArg: never): FeatherPlanner => {
     let localDatesAll, localPlanStyles = {}
     if (IS_CACHE_ON) {
         console.time("Cache Loading Time")
-        localDatesAll = JSON.parse(localStorage.getItem('datesAll')!);
-        localPlanStyles = JSON.parse(localStorage.getItem('planStyles')!);
+        localDatesAll = JSON.parse(localStorage.getItem('datesAll')!) || {};
+        localPlanStyles = JSON.parse(localStorage.getItem('planStyles')!) || {};
         console.timeEnd("Cache Loading Time"); // not sure why this function is called twice...
     }
   

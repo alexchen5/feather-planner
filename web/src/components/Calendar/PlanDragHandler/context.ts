@@ -7,4 +7,5 @@ export const DraggingPlansContext = React.createContext({} as {
     isDragging: boolean,
     startDrag: (planId: string, el: HTMLDivElement, dateStr: string, nxt: string, prv: string) => void,
     registerWrapper: (planId: string, el: HTMLDivElement, onUpdate: (spring: SpringChanges) => void) => void,
+    updateWrapperPosition: (planId: string, top: number) => void,
 });

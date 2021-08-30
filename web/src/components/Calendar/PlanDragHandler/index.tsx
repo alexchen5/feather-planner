@@ -51,6 +51,21 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
     }));
   }, []);
 
+  const updateWrapperPosition = React.useCallback((planId: string, top: number) => {
+    // add new key into springs obj to store the plan's spring
+    setSprings(springs => {
+      const s = springs[planId];
+      if (!s) return springs; // do nothing if nothing to update
+
+      return {
+        ...springs,
+        [planId]: {
+          ...s,
+        },
+      }
+    });
+  }, []);
+
   const updateDb = (
     planId: string, 
     to_date: string, from_date: string, 
@@ -131,8 +146,9 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
 
   const startDrag = React.useCallback((planId: string, el: HTMLDivElement, dateStr: string, nxt: string, prv: string) => {
     registerPlan(planId, el, dateStr, nxt, prv);
+    dispatchCalendar({ type: 'pause-data-sync' });
     setIsDragging(true); // triggers effect
-  }, [registerPlan]);
+  }, [registerPlan, dispatchCalendar]);
 
   const closeDrag = React.useCallback((e: MouseEvent) => {
     e.preventDefault();
@@ -141,7 +157,8 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   }, [])
 
   // run effect to start and finish up on a drag
-  React.useEffect(() => {
+  // layout effect for speed
+  React.useLayoutEffect(() => {
     if (!isDragging) {
       dispatchListeners({ type: 'deregister-focus', focusId: `dragging-plans`, removeListeners: false });
 
@@ -152,7 +169,8 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
       const p = dragPicture.current
       if (p) while (p.lastChild) p.removeChild(p.lastChild);
     } else if (isDragging) {
-      const dragHandle = getDragHandle([...dragPlans]);
+      const callbackRef = { current: null as NodeJS.Timeout | null };
+      const dragHandle = getDragHandle([...dragPlans], callbackRef);
 
       // add a new focus state to listeners 
       dispatchListeners({ type: 'register-focus', focusId: `dragging-plans` });
@@ -163,15 +181,24 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
       return () => {
         document.removeEventListener('mousemove', dragHandle);
         document.removeEventListener('mouseup', closeDrag);
+        callbackRef.current && clearInterval(callbackRef.current);
       }
     }
     return () => {};
     // eslint-disable-next-line
   }, [isDragging])
 
-  const getDragHandle = React.useCallback((dragPlans: DragPlan[]) => {
+  const getDragHandle = React.useCallback((dragPlans: DragPlan[], callbackRef: { current: NodeJS.Timeout | null }) => {
+    const container = document.querySelector('[fp-role="dates-container"]');
+    const box = container ? container.getBoundingClientRect() : null;
     const ret = (e: MouseEvent) => {
       e.preventDefault();
+      // cancel any mouseEvent timeouts
+      if (callbackRef.current) {
+        clearInterval(callbackRef.current);
+        callbackRef.current = null;
+      }
+
       if (!dragPicture.current) {
         console.error('Expected placeholder during drag');
         return;
@@ -184,14 +211,22 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
       dragPicture.current.style.top =  e.clientY - y + "px";
       dragPicture.current.style.left = e.clientX - x + "px";
 
-      const container = document.querySelector('[fp-role="dates-container"]');
-      if (container) {
-        const box = container.getBoundingClientRect();
+      // scroll container if necessary
+      if (container && box) {
         const top = e.clientY - box.top;
         const bot = box.bottom - e.clientY;
         if (box.left < e.clientX && e.clientX < box.right) {
-          if (top > 0 && top < 80) container.scrollTop -= 3;
-          if (bot > 0 && bot < 80) container.scrollTop += 3;
+          if (top > 0 && top < 80) {
+            container.scrollTop -= 5;
+            callbackRef.current = setTimeout(() => {
+              document.dispatchEvent(new MouseEvent('mousemove', { clientX: e.clientX, clientY: e.clientY }));
+            }, 25);
+          } else if (bot > 0 && bot < 80) {
+            container.scrollTop += 5;
+            callbackRef.current = setTimeout(() => {
+              document.dispatchEvent(new MouseEvent('mousemove', { clientX: e.clientX, clientY: e.clientY }));
+            }, 25);
+          } 
         }
       }
 
@@ -203,7 +238,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
 
 
   return (
-    <DraggingPlansContext.Provider value={{dragPlans, isDragging, startDrag, registerWrapper}}>
+    <DraggingPlansContext.Provider value={{dragPlans, isDragging, startDrag, registerWrapper, updateWrapperPosition}}>
       {Object.entries(springs).map(([planId, props]) => <PlanSpring key={planId} props={props}/>)}
       <div ref={dragPicture} style={{position: 'fixed', zIndex: 999, display: isDragging ? 'block' : 'none'}} />
       {children}
