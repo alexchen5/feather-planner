@@ -24,8 +24,8 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     handleSubmission();
   }
 
-  const getFocus: MouseEventHandler = (e) => {
-    e.stopPropagation();
+  // TODO: fix the range on this
+  const handleMouseDown: MouseEventHandler = () => {
     declareFocus();
     reset(editorState);
     editor.current?.focus();
@@ -104,7 +104,7 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     <div 
       className={style.dateLabelContainer}
       data-state={isFocused ? 'edit' : 'normal'}
-      onMouseDown={getFocus}
+      onMouseDown={handleMouseDown}
     >
       <Editor
         ref={editor}

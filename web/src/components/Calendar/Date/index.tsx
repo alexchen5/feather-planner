@@ -35,10 +35,14 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
    */
   const handleMouseDown: MouseEventHandler<HTMLLIElement> = (event) => {
     const target = event.target as HTMLElement; // assume target is a HTML element
-    if (target.getAttribute('fp-role') === 'calendar-date') {
-      addPlan.current && 
-      !document.querySelector('[fp-role="calendar-container"]')?.contains(document.activeElement) && 
-      !document.querySelector('[fp-role="calendar-plan"][fp-state^="edit"]') &&
+    if (
+      target.getAttribute('fp-role') === 'calendar-date'
+      && addPlan.current 
+      && !document.querySelector('[fp-role="calendar-container"]')?.contains(document.activeElement)
+      && !document.querySelector('[fp-role="calendar-plan"][fp-state^="edit"]')
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
       addPlan.current.click()
     }
   }
@@ -64,12 +68,12 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
               </div>
             </div>
             {children}
-            <AddPlan
-              dateStr={dateStr}
-              ref={addPlan}
-            />
           </div>
         </animated.div>
+        <AddPlan
+          dateStr={dateStr}
+          ref={addPlan}
+        />
       </div>
     </li> 
   )
