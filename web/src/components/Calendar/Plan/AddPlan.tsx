@@ -8,49 +8,66 @@ import { db, UidContext } from "utils/globalContext";
 
 import style from './plan.module.scss';
 import { CalendarContext } from "../context";
+import { useEditorFocus } from "utils/useEditorUtil";
+import { DocumentListenerContext } from "components/DocumentEventListener/context";
 
 const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateStr}, ref) => {
   const { calendar } = React.useContext(CalendarContext);
-  const [isAdding, setIsAdding] = React.useState(false);
   const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(() => EditorState.createEmpty());
+  const { dispatch: dispatchCalendar } = React.useContext(CalendarContext);
+  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners);
 
   const {uid} = React.useContext(UidContext);
 
   const handleAddClick: MouseEventHandler = (e) => {
     e.stopPropagation();
-    setIsAdding(true);
+    declareFocus();
   }
   const handleEditorBlur = () => {
     handleSubmission();
   }
 
-  const handleSubmission = () => {
+  const handleSubmission = async () => {
+    declareBlur();
     if (!editorState.getCurrentContent().hasText()) {
-      setIsAdding(false);
       return;
     }
 
     const ids = getPlanIds(calendar.dates, dateStr);
     const prv = ids[ids.length - 1] || '';
-    db.collection(`users/${uid}/plans`).add({
+
+    const newDoc = await db.collection(`users/${uid}/plans`).add({
       date: dateStr,
       header: convertToRaw(editorState.getCurrentContent()),
       prv: prv,
     });
 
-    setIsAdding(false);
+    const redo = async () => {
+      db.doc(newDoc.path).set({
+        date: dateStr,
+        header: convertToRaw(editorState.getCurrentContent()),
+        prv: prv,
+      })
+    }
+
+    const undo = async () => {
+      newDoc.delete();
+    }
+    
+    dispatchCalendar({ type: 'add-undo', undo: { undo, redo } });
   }
 
   React.useEffect(() => {
-    if (isAdding) {
+    if (isFocused) {
       editor.current?.focus();
     }
     if (editorState.getCurrentContent().hasText()) {
       setEditorState(() => EditorState.createEmpty());
     }
     // eslint-disable-next-line
-  }, [isAdding]);
+  }, [isFocused]);
 
   const handleKeyCommand = (command: string): DraftHandleValue => {
     const newState = RichUtils.handleKeyCommand(editorState, command);
@@ -71,7 +88,7 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
 
   return (<>
     {
-      isAdding ? 
+      isFocused ? 
       <div style={{
         border: '1px dashed var(--edge-blue)',
         padding: '4px 12px 2px 2px',
