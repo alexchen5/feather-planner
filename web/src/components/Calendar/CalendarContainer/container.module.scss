@@ -27,7 +27,7 @@
     flex-wrap: wrap;
     margin: 0px;
     padding: 0px 4px;
-    user-select: none;
+    user-select: none; // turn off text highlighting to prevent drag bugs
 
     scrollbar-width: none;
     &::-webkit-scrollbar {

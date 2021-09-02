@@ -1,10 +1,8 @@
-export interface DragPlan {
+import { CalendarPlan } from "..";
+
+export interface DragPlan extends CalendarPlan {
     planId: string,
     el: HTMLDivElement,
-    fromDate: string, 
-    fromNxt: string,
-    fromPrv: string,
-    toDate: string,
-    toNxt: string,
-    toPrv: string,
+    dateStr: string,
+    plans: string[],
 }

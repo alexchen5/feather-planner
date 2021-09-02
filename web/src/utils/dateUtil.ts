@@ -59,10 +59,14 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
  * @returns number of days
  */
 export function getRangeLength(dateStart: string, dateEnd: string) {
-  let dStart = strToDate(dateStart);
-  let dEnd   = strToDate(dateEnd);
-  
-  return ((dEnd.getTime() - dStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  let num = 1;
+  let d = strToDate(dateStart)
+  while (dateToStr(d) !== dateEnd) {
+    d.setDate(d.getDate() + 1);
+    num++;
+  }
+
+  return num;
 }
 
 /**

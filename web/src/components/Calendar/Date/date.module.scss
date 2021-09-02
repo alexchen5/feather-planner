@@ -20,16 +20,16 @@
     }
 }
 
-.header {
+.headerContainer {
     font-weight: 300;
     font-size: var(--datenode-header-font-size);
     display: flex;
     justify-content: space-between;
     color: #333;
-    max-width: 100%;
+    margin-bottom: 2px;
 }
 
-.label {
+.dateLabelContainer {
     border: 1px solid transparent;
     border-radius: 2px;
     flex-grow: 1;
@@ -37,21 +37,60 @@
     margin-top: 2.3px;
     margin-right: 2px;
     font-weight: 400;
+    overflow: hidden;
+
+    // prevent unintended highlighting of label text
+    span {
+        user-select: none !important;
+    }
+
+    &:hover {
+        cursor: text;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
 
     &[data-state="edit"] {
         border: 1px solid var(--edge-grey);
+
+        span {
+            user-select: text !important;
+        }
+    }
+}
+body[plan-drag-display] {
+    // turn off pointer events for date label during drag
+    // note we must keep them on for the date itself, in order to detect
+    // the mouse movement over the date
+    .dateLabelContainer {
+        pointer-events: none;
     }
 }
     
-.date {
-    border-radius: 100%;
-    min-width: 28px;
-    flex-grow: 0 0 28px;
-    height: 28px;
+.headerDate {
     text-align: center;
     line-height: 28px;
+    padding: 0px 6px 0px 4px;
+    flex-grow: 0;
+    flex-shrink: 0;
 
     &[fp-state="highlight"] {
-        background-color: var(--bg-greyblue);
+        .dateNumber {
+            background-color: var(--bg-greyblue);
+            height: 28px;
+            width: 28px;
+        }
+        .monthText {
+            margin-left: 4px;
+        }
     }
+}
+
+.dateNumber {
+    display: inline-block;
+    border-radius: 100%;
+}
+
+.monthText {
+    display: inline-block;
+    margin-left: 8px;
 }

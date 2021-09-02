@@ -1,6 +1,6 @@
-import { DateRange } from "types";
+import { DateRange, DatePlansUpdate } from "types";
 import { AllCalendarDates } from "types/pages/HomePage";
-import { Calendar } from ".";
+import { Calendar, CalendarPlan } from ".";
 import { DragPlan } from "./PlanDragHandler";
 
 export type CalendarReducer = (state: Calendar, action: CalendarAction) => Calendar
@@ -67,7 +67,8 @@ export interface ResumeDataSync {
 
 export interface MovePlans {
     type: 'move-plans';
-    dragPlans: DragPlan[];
+    datesUpdate: DatePlansUpdate;
+    draggingPlans: { [planId: string]: CalendarPlan }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -78,7 +79,7 @@ export interface MovePlans {
 */
 export interface AddUndo {
     type: 'add-undo';
-    undo: { undo: () => void, redo: () => void };
+    undo: { undo: () => Promise<void>, redo: () => Promise<void> };
 }
 
 /**

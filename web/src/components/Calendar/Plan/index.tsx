@@ -90,13 +90,13 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     const ids = getPlanIds(calendar.dates, dateStr); // TODO: change to use allDates api
     const p = ids.indexOf(planId);
 
-    const undo = () => {
+    const undo = async () => {
       const restoreBatch = db.batch();
       if (ids[p+1]) restoreBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', planId);
       restoreBatch.set(db.doc(`users/${uid}/plans/${planId}`), {...restoreData})
       restoreBatch.commit();
     }
-    const action = () => {
+    const action = async () => {
       const delBatch = db.batch();
       if (ids[p+1]) delBatch.update(db.doc(`users/${uid}/plans/${ids[p+1]}`), 'prv', ids[p-1] || '');
       delBatch.delete(db.doc(`users/${uid}/plans/${planId}`));
@@ -105,7 +105,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     action();
     dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
 
-  }, [uid, calendar, dateStr, planId, restoreData, dispatchCalendar, dispatchListeners]);
+  }, [uid, calendar.dates, dateStr, planId, restoreData, dispatchCalendar, dispatchListeners]);
 
   /**
    * Take the necessary steps to submit plan changes to the db
@@ -120,10 +120,10 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     }
     if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
     if (hasChange) { // dispatch changes to the plan content
-      const action = () => {
+      const action = async () => {
         db.doc(`users/${uid}/plans/${planId}`).update('header', val);
       };
-      const undo = () => {
+      const undo = async () => {
         db.doc(`users/${uid}/plans/${planId}`).update('header', typeof content === 'string' ? content : {...content});
       }
       dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
@@ -245,8 +245,8 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     el.style.width = planRef.current.getBoundingClientRect().width + 'px';
     el.style.height = planRef.current.getBoundingClientRect().height + 'px';
 
-    startDrag(planId, el, dateStr, nxt, prv);
-  }, [planId, dateStr, nxt, prv, startDrag, dispatchListeners]);
+    startDrag({ planId, restoreData, isDone, content, styleId }, dateStr, el, e.clientX, e.clientY );
+  }, [planId, dateStr, restoreData, isDone, content, styleId, startDrag, dispatchListeners]);
 
   /**
    * Callback to cancel the start drag listener
@@ -279,7 +279,14 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     e.preventDefault();
     e.stopPropagation();
 
-    db.doc(`users/${uid}/plans/${planId}`).update('done', !isDone);
+    const action = async () => {
+      db.doc(`users/${uid}/plans/${planId}`).update('done', !isDone);
+    }
+    const undo = async () => {
+      db.doc(`users/${uid}/plans/${planId}`).update('done', isDone);
+    }
+    action();
+    dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
   }
 
   /**
@@ -299,8 +306,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       deregisterPlanEdit();
     }
     // else console.log(e.key)
-    // eslint-disable-next-line
-  }, []);
+  }, [deleteSelf, deregisterPlanEdit]);
 
   /**
    * Handle key-styling command for text edit

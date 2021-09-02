@@ -9,41 +9,26 @@ import { DraggingPlansContext } from "./context";
  * moveTrigger is used to update the spring
  */
 function PlanWrapper({ planId, moveTrigger, children }: { planId: string, moveTrigger: string, children: React.ReactNode }) {
-  const staticRoot = React.useRef<HTMLDivElement>(null);
-  const [spring, setSpring] = React.useState(null as SpringChanges | null);
-  const { registerWrapper } = React.useContext(DraggingPlansContext);
+  const staticRoot = React.useRef<HTMLDivElement | null>(null);
+  const [spring, setSpring] = React.useState<SpringChanges | null>(null);
+  const { declarePlanSpawn } = React.useContext(DraggingPlansContext);
 
-  // run effect when trigger is changed
-  React.useLayoutEffect(() => {
-    const el = staticRoot.current;
+  // custom ref function to declare the spawned plan immediately to drag handler
+  const receiveStaticEl = React.useCallback((el: HTMLDivElement | null) => {
+    staticRoot.current = el;
     if (el) {
-      registerWrapper(planId, el, (spring) => {
+      declarePlanSpawn(planId, el, (spring) => {
         if (!staticRoot.current) return; // callback does nothing if component has unmounted
         setSpring(spring) // receive spring updates
       });
     }
-  }, [planId, moveTrigger, registerWrapper]);
-
-  // React.useEffect(() => {
-  //   const container = document.querySelector('[fp-role="dates-container"]');
-  //   if (!container) {
-  //     console.error('expected dates container');
-  //     return;
-  //   }
-  //   const callback = () => {
-  //     const el = staticRoot.current;
-  //     if (!el) {
-  //       console.error('expected static root ref');
-  //       return;
-  //     }
-  //     updateWrapperPosition(planId, el.getBoundingClientRect().top);
-  //   }
-  //   container.addEventListener('scroll', callback);
-  //   return () => container.removeEventListener('scroll', callback);
-  // }, [planId, updateWrapperPosition]);
+    // ref callback changes when trigger changes
+    // note we expect declarePlanSpawn to be memoized
+    // eslint-disable-next-line
+  }, [planId, moveTrigger, declarePlanSpawn]); 
 
   return (
-    <div ref={staticRoot} fp-role={"calendar-plan-root"}>
+    <div ref={receiveStaticEl} fp-role={"calendar-plan-root"} data-id={planId}>
       <animated.div
         style={{ 
           position: 'relative',

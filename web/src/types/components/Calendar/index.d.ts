@@ -54,15 +54,15 @@ export interface CalendarDateLabel {
 export interface CalendarPlan {
     planId: string; // from document id
     restoreData: any; // object used to restore plan data for undo
-    dateStr: string; // plan should be deleted if dateStr is invalid
     isDone: boolean; // defaults to false
     content: RawDraftContentState | string; // plan should be deleted if content doesnt exist
     styleId: string; // defaults to empty string
-    prv: string; // the planId which appears before this plan in a datenode, defaults to empty string
 }
 
 export interface CalendarPlanProp extends CalendarPlan {
+    dateStr: string; // plan should be deleted if dateStr is invalid
     nxt: string; // the planId which appears after this plan in a datenode, defaults to empty string
+    prv: string; // the planId which appears before this plan in a datenode, defaults to empty string
 }
 
 /**

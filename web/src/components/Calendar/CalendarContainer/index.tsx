@@ -5,6 +5,8 @@ import DayHeaders from "./DayHeaders";
 
 import style from "./container.module.scss";
 import { CalendarContext } from "../context";
+import { ScrollHandlerContext } from "./context";
+import { ScrollEventListener } from "types/components/Calendar/CalendarContainer";
 
 let prvScrollHeight: number;
 
@@ -20,11 +22,32 @@ function getInitScrollHeight(datenodeEl: Element) {
 function CalendarContainer({children} : {children: ReactNode}) {
   const { dispatch } = React.useContext(CalendarContext);
   const datesContainer = React.useRef<HTMLUListElement>(null);
+  const [ scrollEventListeners, setScrollEventListeners ] = React.useState<ScrollEventListener[]>([]);
 
   React.useLayoutEffect(() => {
     if (datesContainer.current) {
       datesContainer.current.scrollTop = prvScrollHeight || getInitScrollHeight(datesContainer.current);
     }
+  }, []);
+
+  /**
+   * Add a scroll event listener to the calendar component. Give an id and a callback,
+   * previous callbacks with the id will be replaced with the new one.
+   * @param id the desired callback id
+   * @param callback function to be called on scroll event
+   */
+  const addScrollEventListener = React.useCallback((id: string, callback: (e?: React.UIEvent<Element, UIEvent>) => void) => {
+    setScrollEventListeners(listeners => [...listeners.filter(l => l.id !== id), { id, callback }]);
+  }, []);
+
+  /**
+   * Remove the scroll event listener with the given id. Note that if you're removing a 
+   * listener to update its callback function, just use addScrollEventListener since it
+   * automatically replaces the listener of the same id.
+   * @param id id of the listener to be removed
+   */
+  const removeScrollEventListener = React.useCallback((id: string) => {
+    setScrollEventListeners(listeners => [...listeners.filter(l => l.id !== id)]);
   }, []);
 
   const handleScroll: UIEventHandler = (event) => {
@@ -43,6 +66,7 @@ function CalendarContainer({children} : {children: ReactNode}) {
     } else if (event.currentTarget.scrollHeight - event.currentTarget.scrollTop < 70 + event.currentTarget.clientHeight) {
       dispatch({ type: 'move-render-range', dir: 'down', speed: 1 });
     } 
+    scrollEventListeners.forEach(l => l.callback(event));
   }
 
   const handleToday = () => {
@@ -108,14 +132,16 @@ function CalendarContainer({children} : {children: ReactNode}) {
         className={style.today}
       >today</button>
       <DayHeaders />
-      <ul
-        className={style.dates}
-        ref={datesContainer}
-        onScroll={handleScroll}
-        fp-role={"dates-container"}
-      >
-        {children}
-      </ul>
+      <ScrollHandlerContext.Provider value={{ addScrollEventListener, removeScrollEventListener }}>
+        <ul
+          className={style.dates}
+          ref={datesContainer}
+          onScroll={handleScroll}
+          fp-role={"dates-container"}
+        >
+          {children}
+        </ul>
+      </ScrollHandlerContext.Provider>
     </div>
   )
 }

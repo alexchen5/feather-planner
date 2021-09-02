@@ -1,136 +1,175 @@
-import { CalendarDate } from "types/components/Calendar";
+import { DatePlansUpdate } from "types";
 import { DragPlan } from "types/components/Calendar/PlanDragHandler";
-import { getPlanById } from "./dateUtil";
 
-export function getTargetDatenode(clientX: number, clientY: number) {
-  const cBox = document.querySelector('[fp-role="dates-container"]')?.getBoundingClientRect();
-  if (!cBox
-    || clientX < cBox.left || clientX > cBox.right 
-    || clientY < cBox.top  || clientY > cBox.bottom
-  ) return null;
-
-  return [...document.querySelectorAll('[fp-role="calendar-date-root"]')].find(node => {
-    const r = node.getBoundingClientRect();
-    return (
-      r.x <= clientX && clientX <= r.right 
-      && 
-      r.y <= clientY && clientY <= r.bottom 
-    )
-  }) || null
+// store the info of the prv drag location
+// include a lock so that we will never get race conditions on the info
+let locked: boolean = false, prvDate: string | null = null, ids: string[], index: number, num: number;
+function timeout() {
+  return new Promise(resolve => setTimeout(resolve, Math.random() * 50));
+}
+async function enterPrvDate() {
+  while (locked) {
+    console.log('spinlock zone entered'); // this has never been reached in testing
+    await timeout(); // spinlock on a random timeout for the lock 
+  }
+  locked = true; // enter mutex
 }
 
-let lastDragPlans: DragPlan[] | null; 
+/**
+ * Read the value stored about the drag date location. Will clear the value
+ * after it is read.
+ * 
+ * @returns the last date which we dragged towards, with the ids at the date, 
+ * or null if there has not been a valid drag location
+ */
+async function takeDragChanges(): Promise<{ date: string, ids: string[] } | null> {
+  await enterPrvDate(); // wait for our turn to access prvDate 
+  const ret = prvDate ? { date: prvDate, ids } : null;
+  prvDate = null;
+  locked = false; // leave mutex 
+  return ret;
+};
 
-export function getLastDragPlans() {
-  const ret = lastDragPlans;
-  lastDragPlans = null;
+export async function getDragChanges(dragPlans: DragPlan[], dateRoot: Element | null, clientY: number): Promise<DatePlansUpdate | null> {
+  if (!dragPlans.length) return null; // no updates if nothing to drag
+  await enterPrvDate(); // wait for our turn to access prvDate 
+  let ret: DatePlansUpdate | null = null;
+
+  if (!dateRoot) { // no valid drop target 
+    // if there is data for prvDate
+    if (prvDate) {
+      // update the previous date to not include dragging plans anymore
+      ids.splice(index, num);
+      ret = {
+        [prvDate]: [...ids],
+      }
+
+      // take dragplans init as the destination 
+      dragPlans.forEach(p => {
+        ret = {
+          ...ret,
+          [p.dateStr]: [...p.plans],
+        }
+      });
+
+      // set prvDate to null
+      prvDate = null;
+    }
+  } else {
+    // calculate destination from mouse position 
+
+    // array of plans at destination date which are not currently dragging
+    // expensive O(p) to query all plans in date, then O(p*q) for filtering, where p is number plans found and q is number dragging plans 
+    const datePlans = [...dateRoot.querySelectorAll(`[fp-role="calendar-plan-root"]`)].filter(p => !dragPlans.some(d => d.planId === p.getAttribute('data-id')));
+    
+    // find the index of insertion our mouse is hovering in datePlans
+    const insertionIndex = datePlans.reduce((closest, cur, i) => {
+      const box = cur.getBoundingClientRect();
+      const offset = box ? clientY - (box.top + box.height / 2) : -1;
+      if (offset >= 0 && offset < closest.offset) {
+        return { offset: offset, index: i };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.POSITIVE_INFINITY, index: -1}).index + 1; // modify for splice
+    
+    const date = dateRoot.getAttribute('data-date')!
+
+    // change the move data if either the date changed, or insertion index changed
+    if (date !== prvDate || insertionIndex !== index) {
+      const target = datePlans.map(p => p.getAttribute('data-id')!);
+      const dragIds = dragPlans.map(p => p.planId);
+      target.splice(insertionIndex, 0, ...dragIds);
+  
+      if (prvDate) {
+        // update the previous date to not include dragging plans anymore
+        ids.splice(index, num);
+        ret = {
+          [prvDate]: [...ids],
+        }
+      } else {
+        // use original info in place of prvDate (but with dragging plans filtered out)
+        dragPlans.forEach(p => {
+          ret = {
+            ...ret,
+            [p.dateStr]: [...p.plans].filter(id => !dragPlans.some(d => d.planId === id)),
+          }
+        });
+      }
+
+      ret = {
+        ...ret,
+        [date]: [...target],
+      }
+  
+      // save current data
+      prvDate = date;
+      ids = [...target];
+      index = insertionIndex;
+      num = dragIds.length;
+    }
+  }
+
+  locked = false; // finished with mutex
   return ret;
 }
 
-export function getNextDragPlans(dragPlans: DragPlan[], clientX: number, clientY: number): DragPlan[] {
-  if (!dragPlans.length) return dragPlans; // do nothing if nothing to drag
-  const dateRoot = getTargetDatenode(clientX, clientY);
-  if (!dateRoot) {
-    lastDragPlans = dragPlans;
-    return lastDragPlans; 
-  }
-
-  // get plans in the date, not including the currently dragging plan
-  // currently only wokrs for ONE plan
-  const datePlans = [...dateRoot.querySelectorAll(`[fp-role="calendar-plan"]:not([data-id="${dragPlans[0].planId}"])`)] as HTMLElement[];
-  
-  // find the plan above our cursor
-  // we are finding the plan with center to cursor distance the smallest 
-  const prvIndex = datePlans.reduce((closest, cur, i) => {
-    const box = cur.closest('[fp-role="calendar-plan-root"]')?.getBoundingClientRect();
-    const offset = box ? clientY - (box.top + box.height / 2) : -1;
-    if (offset >= 0 && offset < closest.offset) {
-      return { offset: offset, index: i };
-    } else {
-      return closest;
-    }
-  }, { offset: Number.POSITIVE_INFINITY, index: -1}).index;
-
-  lastDragPlans = dragPlans.map((d, i) => {
-    let toPrv;
-    const prvEl = datePlans[prvIndex]
-    if (prvEl) {
-      toPrv = dragPlans[i - 1] ? dragPlans[i - 1].planId : prvEl.getAttribute('data-id');
-    } else {
-      toPrv = dragPlans[i - 1] ? dragPlans[i - 1].planId : '';
-    }
-
-    let toNxt;
-    const nxtEl = datePlans[prvIndex + 1];
-    if (nxtEl) {
-      toNxt = dragPlans[i + 1] ? dragPlans[i + 1].planId : nxtEl.getAttribute('data-id');
-    } else {
-      toNxt = dragPlans[i + 1] ? dragPlans[i + 1].planId : '';
-    }
-
-    return {
-      ...d,
-      toDate: dateRoot.getAttribute('data-date') || d.fromDate, 
-      toNxt: toNxt || '',
-      toPrv: toPrv || '',
-    }
-  })
-
-  return lastDragPlans;
-}
-
-
 /**
- * Get new dates from moving plans proposed in dragPlans
- * @param dates previous dates
- * @param dragPlans positions to move
- * @returns new dates
+ * Get the tuples that we can feed into the db to move our plans. 
+ * 
+ * Note that this function includes side effects - namely from takeDragChanges,
+ * which will clear the history of the previous drag. 
+ * @param dragPlans the current dragging plans 
+ * @returns tuples to feed, or null if no changes are needed
  */
-export function updatePlanMove(dates: CalendarDate[], dragPlans: DragPlan[]): CalendarDate[] {
-  if (!dragPlans.length) return dates; // do nothing if nothing to drag
-  return updatePlanMoveHelper(dates, dragPlans[0].planId, dragPlans[0].toDate, dragPlans[0].toPrv);
-}
+export async function getChangeTuples(dragPlans: DragPlan[]): Promise<{ beforeT: { date: string, planId: string, prv: string }[], afterT: { date: string, planId: string, prv: string }[] } | null> {
+    const dragChanges = await takeDragChanges();
+    if (!dragChanges) return null;
 
-function updatePlanMoveHelper(dates: CalendarDate[], planId: string, nxtDateStr: string, nxtPrvPlan: string): CalendarDate[] {
-  const p = getPlanById([...dates], planId); // extract plan from dates - expect dates to be valid 
-  if (!p || (p.dateStr === nxtDateStr && p.prv === nxtPrvPlan)) return dates; // either no plan, or move info is same
-  const targetPlan = {...p, dateStr: nxtDateStr, prv: nxtPrvPlan}; // update plan info 
-
-  return dates.map(date => {
-    let plans = date.plans; // copy plans 
+    // make two images of our date changes - all releant dates before and after
+    // we can make before from dragPlans 
+    const before: { [dateStr: string]: string[] } = dragPlans.reduce((acc, cur) => ({ ...acc, [cur.dateStr]: cur.plans }), {});
     
-    if (date.dateStr === p.dateStr) { // if date is prv date
-      // ensure plan is gone from prv date
-      plans = plans.filter(plan => plan.planId !== p.planId);
+    // and make after from the combination of before and dragChanges 
+    const after: { [dateStr: string]: string[] } = { 
+      ...Object.entries(before).reduce((acc, [date, ids]) => ({ ...acc, [date]: ids.filter(i => !dragPlans.some(p => i === p.planId)) }), {}),
+      [dragChanges.date]: dragChanges.ids,
     }
-    if (date.dateStr === nxtDateStr) { // if date is nxt date
-      let i = 0;
-      let newPlans = nxtPrvPlan ? [] : [targetPlan]; // start new plans w plan if no prv plan
-      while (plans[i]) {
-        // push all prv plans 
-        if (plans[i].planId !== p.planId) {
-          newPlans.push(plans[i]);
-        } else { console.log(date.dateStr + ': caught duplicate'); }
-        if (plans[i].planId === nxtPrvPlan) newPlans.push(targetPlan);
-        i++;
+
+    // now we can extract out the relevant (dateStr, planId, prv) tuples from before and after
+    const extract = (obj: { [dateStr: string]: string[] }): { date: string, planId: string, prv: string }[] => {
+      return Object.entries(obj).reduce<{ date: string, planId: string, prv: string }[]>(
+        (acc, [date, ids]) => (
+          [
+            ...acc, 
+            ...ids.map((id, i) => ({ date: date, planId: id, prv: ids[i - 1] || '' })),
+          ]
+        ), []
+      );
+    }
+    const impureBeforeT = extract(before);
+    const impureAfterT = extract(after);
+
+    // now we remove tuples which appear twice in afterT and beforeT, so that we're not writing anything
+    // redundant 
+    // O(n^2) filtering, go through every element in before, check if in after, if not, add to new array. do same for after
+    const beforeT: { date: string, planId: string, prv: string }[] = [];
+    const afterT: { date: string, planId: string, prv: string }[] = [];
+    impureBeforeT.forEach(t => {
+      if (!impureAfterT.some(u => u.planId === t.planId && u.prv === t.prv && u.date === t.date)) {
+        // element not repeated
+        beforeT.push(t);
       }
-      plans = newPlans;
-    }
-    return plans === date.plans ? date : { ...date, plans };
-  });
-}
+    })
+    impureAfterT.forEach(t => {
+      if (!impureBeforeT.some(u => u.planId === t.planId && u.prv === t.prv && u.date === t.date)) {
+        // element not repeated
+        afterT.push(t);
+      }
+    })
 
+    if (afterT.length && !beforeT.length) console.error('Expected beforeT to have items');
 
-export function getDragAfterElement(container: Element, y: number) {
-  const draggableElements = [...container.querySelectorAll('[fp-role="calendar-plan"]:not([fp-state="dragging"])')];
-
-  return draggableElements.reduce((closest, child) => {
-    const box = child.getBoundingClientRect();
-    const offset = y - box.top - box.height / 2;
-    if (offset < 0 && offset > closest.offset) {
-      return { offset: offset, element: child };
-    } else {
-      return closest;
-    }
-  }, { offset: Number.NEGATIVE_INFINITY, element: null as Element | null }).element;
+    // we can return null if theres no db changes that need to be made
+    return afterT.length ? { beforeT, afterT } : null;
 }

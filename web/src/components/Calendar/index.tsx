@@ -66,31 +66,33 @@ function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>
-      <PlanDragHandler>
+      
         <div style={{textAlign: 'right'}}>
           <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-undo"}) }}>Undo ({calendar.undoStack.length})</button>
           <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-redo"}) }}>Redo ({calendar.redoStack.length})</button>
         </div>
         <CalendarContainer>
-          {calendar.dates.map(date => 
-            <Date
-              key={date.dateStr}
-              dateStr={date.dateStr}
-              label={date.label}
-            >
-              {date.plans.map((plan, i) => 
-                <PlanWrapper key={plan.planId} planId={plan.planId} moveTrigger={'' + i}>
-                  <Plan plan={{
-                    ...plan,
-                    nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
-                    prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
-                  }} />
-                </PlanWrapper>
-              )}
-            </Date>
-          )}
+          <PlanDragHandler>
+            {calendar.dates.map(date => 
+              <Date
+                key={date.dateStr}
+                dateStr={date.dateStr}
+                label={date.label}
+              >
+                {date.plans.map((plan, i) => 
+                  <PlanWrapper key={plan.planId + i} planId={plan.planId} moveTrigger={'' + i}>
+                    <Plan plan={{
+                      ...plan,
+                      dateStr: date.dateStr,
+                      nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
+                      prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
+                    }} />
+                  </PlanWrapper>
+                )}
+              </Date>
+            )}
+          </PlanDragHandler>
         </CalendarContainer>
-      </PlanDragHandler>
     </CalendarContext.Provider>
   );
 }

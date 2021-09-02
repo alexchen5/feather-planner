@@ -1,31 +1,21 @@
-import { ContentState, convertFromRaw, convertToRaw, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
-import { db, UidContext } from "utils/globalContext";
-import React, { KeyboardEvent, MouseEventHandler, ReactNode } from "react";
+import React, { MouseEventHandler, ReactNode } from "react";
 import { CalendarDateLabel } from "types/components/Calendar";
 
 import AddPlan from "../Plan/AddPlan";
-import { strToDate, dateToStr } from 'utils/dateUtil';
+import { strToDate } from 'utils/dateUtil';
 
 import { useSpring, animated } from 'react-spring';
 import { useMeasure } from "react-use";
 
 import style from "./date.module.scss";
+import { useIsToday } from "utils/useDateUtil";
+import DateLabel from "./DateLabel";
 
 function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDateLabel | null, children: ReactNode }) {
-  const [isToday, setIsToday] = React.useState(dateStr === dateToStr());
+  const isToday = useIsToday(dateStr);
   const thisDate = strToDate(dateStr);
   const addPlan = React.createRef<HTMLButtonElement>();
 
-  const {uid} = React.useContext(UidContext);
-  const editor = React.createRef<Editor>();
-  const [editorState, setEditorState] = React.useState(() => {
-    const content = label ? label.content : '';
-    return EditorState.createWithContent(
-      typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
-    );  
-  });
-  const [editing, setEditing] = React.useState(false);
-  
   // track the height of the date's content 
   const [contentRef, { height }] = useMeasure<HTMLDivElement>(); 
   // animate the height of a wrapper div of the content
@@ -36,14 +26,6 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
       to: { height: height },
     }
   }, [height]);
-
-  React.useEffect(() => {
-    if (dateStr < dateToStr()) return;
-    const timer = setInterval(() => {
-      if (isToday !== (dateStr === dateToStr())) setIsToday(dateStr === dateToStr());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [dateStr, isToday]);
 
   /**
    * Mouse down will add a new plan to the datenode
@@ -61,36 +43,6 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
     }
   }
 
-  const handleBlur = () => {
-    handleSubmission();
-  }
-  const getFocus = () => {
-    setEditing(true);
-    editor.current?.focus();
-  }
-  const checkSubmit = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      handleSubmission();
-      return 'submit';
-    }
-    return getDefaultKeyBinding(e);
-  }
-  const handleSubmission = () => {
-    if (editorState.getCurrentContent().hasText()) {
-      label ?
-        db.doc(`users/${uid}/date-labels/${label.labelId}`).set(
-          { content: convertToRaw(editorState.getCurrentContent()) }, { merge: true }
-        )
-        : db.collection(`users/${uid}/date-labels`).add({
-            date: dateStr,
-            content: convertToRaw(editorState.getCurrentContent()),
-          });
-    } else {
-      label && db.doc(`users/${uid}/date-labels/${label.labelId}`).delete();
-    }
-    setEditing(false);
-  }
-
   return (
     <li
       className={style.root}
@@ -99,34 +51,18 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
       onMouseDown={handleMouseDown}
     >
       <div fp-role={'calendar-date'} className={style.item}>
-        <div className={style.header}>
-          <div 
-            className={style.label}
-            data-state={editing ? 'edit' : 'normal'}
-            onMouseDown={e => {
-              if (document.querySelector('[fp-role="calendar-container"]')?.contains(document.activeElement)) return;
-              e.stopPropagation();
-              getFocus();
-            }}
-          >
-            <Editor
-              ref={editor}
-              editorState={editorState} 
-              readOnly={!editing}
-              onChange={setEditorState}
-              onBlur={handleBlur}
-              keyBindingFn={checkSubmit}
-            />
-          </div>
-          <div 
-            className={style.date}
-            fp-state={isToday ? 'highlight' : 'standard'}
-          >
-            {thisDate.getDate() === 1 ? '1 ' + thisDate.toLocaleDateString('default', {month: 'short'}) : thisDate.getDate()}
-          </div>
-        </div>
         <animated.div style={{...spring}}> {/* Wrapper with animated height based on content */}
           <div ref={contentRef}> {/* Content, whose height is tracker */}
+            <div className={style.headerContainer}>
+              <DateLabel dateStr={dateStr} label={label}/>
+              <div className={style.headerDate} fp-state={isToday ? 'highlight' : 'standard'}>
+                <div className={style.dateNumber}>{thisDate.getDate()}</div>
+                {
+                  thisDate.getDate() === 1 &&  
+                  <div className={style.monthText}>{thisDate.toLocaleDateString('default', {month: 'short'})}</div>
+                }
+              </div>
+            </div>
             {children}
             <AddPlan
               dateStr={dateStr}

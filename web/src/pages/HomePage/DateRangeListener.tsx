@@ -49,7 +49,7 @@ function DateRangeListener({startDate, endDate}: { startDate: string, endDate: s
           type: 'set-plans', 
           plans: getUpdateRange(startDate, endDate, 'array'), 
         }
-        let reserves: { date: string, plan: CalendarPlan }[] = [];
+        let reserves: { date: string, plan: CalendarPlan, prv: string }[] = [];
         snapshot.forEach((doc) => {
           const d = doc.data();
           const dateStr = d.date                              as string | undefined;
@@ -68,25 +68,22 @@ function DateRangeListener({startDate, endDate}: { startDate: string, endDate: s
             const newPlan: CalendarPlan = {
               planId: doc.id,
               restoreData: d,
-              dateStr,
               isDone,
               content,
               styleId,
-              prv,
             };
             if (!prv) {
-              newPlan.prv = action.plans[dateStr].length ? action.plans[dateStr][action.plans[dateStr].length - 1].planId : '';
               action.plans[dateStr].push(newPlan);
             }  else {
-              reserves.push({ date: d.date, plan: newPlan });
+              reserves.push({ date: d.date, plan: newPlan, prv });
             }
           }
         });
         let prvlen;
         while (reserves.length && reserves.length !== prvlen) {
-          let nextReserves: { date: string, plan: CalendarPlan }[] = [];
+          let nextReserves: { date: string, plan: CalendarPlan, prv: string }[] = [];
           reserves.forEach(r => {
-            const prv = action.plans[r.date].findIndex(plan => plan.planId === r.plan.prv);
+            const prv = action.plans[r.date].findIndex(plan => plan.planId === r.prv);
             if (prv !== -1) action.plans[r.date].splice(prv + 1, 0, r.plan);
             else nextReserves.push(r);
           })
@@ -95,7 +92,6 @@ function DateRangeListener({startDate, endDate}: { startDate: string, endDate: s
         }
         reserves.forEach(r => {
           console.error('Caught plan with no valid prv: ', r);
-          r.plan.prv = action.plans[r.date].length ? action.plans[r.date][action.plans[r.date].length - 1].planId : '';
           action.plans[r.date].push(r.plan);
         })
         dispatch(action);

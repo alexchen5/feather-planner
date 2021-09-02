@@ -1,10 +1,13 @@
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import React from "react";
+import { DatePlansUpdate } from "types";
+import { CalendarPlan } from "types/components/Calendar";
 import { DragPlan } from "types/components/Calendar/PlanDragHandler";
 import { PlanSpringProps, SpringChanges } from "types/components/Calendar/PlanDragHandler/PlanSpring";
-import { getAllPlanIds } from "utils/dateUtil";
-import { getLastDragPlans, getNextDragPlans } from "utils/dragUtil";
+import { getAllPlanIds, getPlanIds } from "utils/dateUtil";
+import { getChangeTuples, getDragChanges } from "utils/dragUtil";
 import { db, UidContext } from "utils/globalContext";
+import { ScrollHandlerContext } from "../CalendarContainer/context";
 import { CalendarContext } from "../context";
 import { DraggingPlansContext } from "./context";
 import PlanSpring from "./PlanSpring";
@@ -15,108 +18,81 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   const [ isDragging, setIsDragging ] = React.useState(false);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
+  const { addScrollEventListener, removeScrollEventListener } = React.useContext(ScrollHandlerContext);
     
-  const [springs, setSprings] = React.useState(() => ({} as { [planId: string]: PlanSpringProps }));
+  const [springs, setSprings] = React.useState(() => ({} as { [planId: string]: { el: HTMLElement, props: PlanSpringProps} }));
 
   const { uid } = React.useContext(UidContext);
 
-  // if no dragging, clean up springs for plans which are no longer on the page
+  // We must update our spring positions every time the calendar is scrolled or resized
   React.useEffect(() => {
-    if (dragPlans.length === 0) {
-      // get plan ids which are actually on page
-      const curPlans = getAllPlanIds(calendar.dates); 
-
-      // new springs object with keys not on page removed
-      setSprings(springs => curPlans.reduce((acc, curId) => 
-        (springs[curId] ? { ...acc, [curId]: springs[curId] } : acc
-      ), {} ));
+    const updateSprings = () => {
+      setSprings(springs => 
+        getAllPlanIds(calendar.dates) // use ids which are on the page to update, otherwise spring will be scrapped
+          .reduce((acc, cur) => (
+            springs[cur] // no need to update if spring doesnt exist
+            ? {
+              ...acc,
+              [cur]: {
+                ...springs[cur], 
+                props: {
+                  ...springs[cur].props,
+                  updateBox: {
+                    // give new coordinates
+                    left: springs[cur].el.getBoundingClientRect().left, 
+                    top: springs[cur].el.getBoundingClientRect().top,
+                  },
+                }
+              }  
+            } 
+            : acc
+          ), {}) // init as empty obj so we discard unused springs
+        || {}
+      )
     }
-    // eslint-disable-next-line
-  }, [calendar.dates]);
+    addScrollEventListener('drag-handler', updateSprings);
+    window.addEventListener('resize', updateSprings);
+
+    return () => window.removeEventListener('resize', updateSprings);
+    // note no cleanup for drag-handler is needed here, as addScrollEventListener automatically cleans up previous listeners
+    // expect addScrollEventListener, removeScrollEventListener to be memoized
+  }, [calendar.dates, addScrollEventListener])
+  // do clean up on component unmount
+  React.useEffect(() => {
+    return () => removeScrollEventListener('drag-handler');
+  }, [removeScrollEventListener])
 
   /**
-   * Register a PlanDragWrapper for update callbacks on springs
+   * Receive the static spawn position of a plan. Callback function gives the spring position to animate
    */
-  const registerWrapper = React.useCallback((planId: string, el: HTMLDivElement, onUpdate: (spring: SpringChanges) => void) => {
-    const box = el.getBoundingClientRect();
+  const declarePlanSpawn = React.useCallback((planId: string, staticEl: HTMLDivElement, onUpdate: (spring: SpringChanges) => void) => {
+    const box = staticEl.getBoundingClientRect();
 
     // add new key into springs obj to store the plan's spring
     setSprings(springs => ({
       ...springs,
       [planId]: {
-        prvBox: springs[planId] ? springs[planId].aimBox : box,
-        aimBox: box,
-        onUpdate,
-      },
+        el: staticEl,
+        props: {
+          spawnBox: { top: box.top, left: box.left },
+          updateBox: null,
+          onUpdate,
+        },
+      }
     }));
   }, []);
 
-  const updateWrapperPosition = React.useCallback((planId: string, top: number) => {
-    // add new key into springs obj to store the plan's spring
-    setSprings(springs => {
-      const s = springs[planId];
-      if (!s) return springs; // do nothing if nothing to update
-
-      return {
-        ...springs,
-        [planId]: {
-          ...s,
-        },
-      }
-    });
-  }, []);
-
-  const updateDb = (
-    planId: string, 
-    to_date: string, from_date: string, 
-    to_prv_id: string, from_prv_id: string, 
-    to_nxt_id: string, from_nxt_id: string
-  ) => {
-    if (to_date === from_date && to_prv_id === from_prv_id && to_nxt_id === from_nxt_id) {
-      // no need to move position
-      // resume data sync, with immediate update
-      dispatchCalendar({ type: 'resume-data-sync', syncNow: true });
-    } else {
-      // update db
-      const action = () => {
-        const moveBatch = db.batch();
-        if (to_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', planId);
-        moveBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', to_date, 'prv', to_prv_id);
-        if (from_nxt_id) moveBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', from_prv_id);
-        moveBatch.commit();
-      }
-      const undo = () => {
-        const restoreBatch = db.batch();
-        if (to_nxt_id) restoreBatch.update(db.doc(`users/${uid}/plans/${to_nxt_id}`), 'prv', to_prv_id);
-        restoreBatch.update(db.doc(`users/${uid}/plans/${planId}`), 'date', from_date, 'prv', from_prv_id);
-        if (from_nxt_id) restoreBatch.update(db.doc(`users/${uid}/plans/${from_nxt_id}`), 'prv', planId);
-        restoreBatch.commit();
-      }
-      dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
-
-      action();
-      // resume data sync, after updates have been made
-      setTimeout(() => {
-        dispatchCalendar({ type: 'resume-data-sync', syncNow: true })
-      }, 50); 
-    }
-  }
-
-  const registerPlan = React.useCallback((planId: string, el: HTMLDivElement, dateStr: string, nxt: string, prv: string) => {
+  const registerPlan = React.useCallback((plan: CalendarPlan, dateStr: string, el: HTMLDivElement) => {
     // const newNode = el.cloneNode(true) as HTMLDivElement;
     // newNode.setAttribute()
     setDragPlans(dragPlans => {
       const ret = [
         ...dragPlans,
         {
-          planId,
+          ...plan,
           el, 
-          fromDate: dateStr,
-          fromNxt: nxt,
-          fromPrv: prv,
-          toDate: dateStr,
-          toNxt: nxt,
-          toPrv: prv,
+          dateStr,
+          plans: getPlanIds(calendar.dates, dateStr),
         },
       ]
 
@@ -142,74 +118,127 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
 
       return ret;
     });
-  }, []);
+  }, [calendar.dates]);
 
-  const startDrag = React.useCallback((planId: string, el: HTMLDivElement, dateStr: string, nxt: string, prv: string) => {
-    registerPlan(planId, el, dateStr, nxt, prv);
+  const startDrag = React.useCallback((plan: CalendarPlan, dateStr: string, el: HTMLDivElement, clientX: number, clientY: number) => {
+    registerPlan(plan, dateStr, el);
+    
+    if (!dragPicture.current) {
+      console.error('Expected placeholder at start drag');
+      return;
+    }
+    const x = (parseInt(el.style.width)) / 2;
+    const y = (parseInt(el.style.height)) / 2;
+    dragPicture.current.style.top =  clientY - y + "px";
+    dragPicture.current.style.left = clientX - x + "px";
+
     dispatchCalendar({ type: 'pause-data-sync' });
     setIsDragging(true); // triggers effect
   }, [registerPlan, dispatchCalendar]);
 
-  const closeDrag = React.useCallback((e: MouseEvent) => {
-    e.preventDefault();
+  const finaliseDrag = async () => {
+    // dragChanges are the order of plans at the date we are moving towards, or null
+    // if no changes should be made to db
+    const changeTuples = await getChangeTuples(dragPlans);
+    if (changeTuples) {
+      const undo = async () => {
+        const undoBatch = db.batch();
+        changeTuples.beforeT.forEach(t => undoBatch.update(db.doc(`users/${uid}/plans/${t.planId}`), 'date', t.date, 'prv', t.prv))
+        undoBatch.commit();
+      }
+
+      const action = async () => {
+        const moveBatch = db.batch();
+        changeTuples.afterT.forEach(t => moveBatch.update(db.doc(`users/${uid}/plans/${t.planId}`), 'date', t.date, 'prv', t.prv))
+        moveBatch.commit();
+      }
+
+      // dispatch action
+      action(); 
+      
+      // add undo and redo
+      dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
+
+      // resume data sync, after updates have been made
+      setTimeout(() => {
+        dispatchCalendar({ type: 'resume-data-sync', syncNow: true })
+      }, 50); 
+    } else {
+      // resume data sync immediately as no updates are needed
+      dispatchCalendar({ type: 'resume-data-sync', syncNow: true })
+    }
+
     // reset drag plans
-    setIsDragging(false); // triggers effect
-  }, [])
+    setDragPlans([]);
+  }
 
   // run effect to start and finish up on a drag
-  // layout effect for speed
-  React.useLayoutEffect(() => {
-    if (!isDragging) {
-      dispatchListeners({ type: 'deregister-focus', focusId: `dragging-plans`, removeListeners: false });
+  React.useEffect(() => {
+    if (isDragging) {
+      const dragPic = dragPicture.current
 
-      getLastDragPlans()?.forEach(p => updateDb(p.planId, p.toDate, p.fromDate, p.toPrv, p.fromPrv, p.toNxt, p.fromNxt))
-      setDragPlans([]);
-
-      // remove all placeholders
-      const p = dragPicture.current
-      if (p) while (p.lastChild) p.removeChild(p.lastChild);
-    } else if (isDragging) {
       const callbackRef = { current: null as NodeJS.Timeout | null };
-      const dragHandle = getDragHandle([...dragPlans], callbackRef);
+      const dragHandle = getMousemoveCallback([...dragPlans], callbackRef);
+      const closeDrag = (e: MouseEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+      };
 
       // add a new focus state to listeners 
       dispatchListeners({ type: 'register-focus', focusId: `dragging-plans` });
       // mount listeners directly to document for performance 
       document.addEventListener('mousemove', dragHandle);
       document.addEventListener('mouseup', closeDrag);
+      document.body.setAttribute('plan-drag-display', '');
 
       return () => {
+        // cleanup function is drag finish function
         document.removeEventListener('mousemove', dragHandle);
         document.removeEventListener('mouseup', closeDrag);
+        document.body.removeAttribute('plan-drag-display');
+
         callbackRef.current && clearInterval(callbackRef.current);
+
+        dispatchListeners({ type: 'deregister-focus', focusId: `dragging-plans`, removeListeners: false });
+
+        // remove all placeholders
+        if (dragPic) while (dragPic.lastChild) dragPic.removeChild(dragPic.lastChild);
+
+        // finalise drag in async function
+        finaliseDrag();
       }
     }
     return () => {};
     // eslint-disable-next-line
   }, [isDragging])
 
-  const getDragHandle = React.useCallback((dragPlans: DragPlan[], callbackRef: { current: NodeJS.Timeout | null }) => {
+  const getMousemoveCallback = React.useCallback((dragPlans: DragPlan[], callbackRef: { current: NodeJS.Timeout | null }) => {
     const container = document.querySelector('[fp-role="dates-container"]');
     const box = container ? container.getBoundingClientRect() : null;
-    const ret = (e: MouseEvent) => {
+
+    let picture: HTMLElement | null = null, el, x = 0, y = 0;
+    if (!dragPicture.current) {
+      console.error('Expected placeholder for drag');
+    } else {
+      picture = dragPicture.current;
+      el = picture.firstElementChild as HTMLElement;
+  
+      x = (parseInt(el.style.width)) / 2;
+      y = (parseInt(el.style.height)) / 2;
+    }
+
+    const ret = async (e: MouseEvent) => {
       e.preventDefault();
-      // cancel any mouseEvent timeouts
+      // cancel any recursive timeouts
       if (callbackRef.current) {
         clearInterval(callbackRef.current);
         callbackRef.current = null;
       }
 
-      if (!dragPicture.current) {
-        console.error('Expected placeholder during drag');
-        return;
+      if (picture) {
+        picture.style.top =  e.clientY - y + "px";
+        picture.style.left = e.clientX - x + "px";
       }
-      const el = dragPicture.current.firstElementChild as HTMLElement;
-
-      const x = (parseInt(el.style.width)) / 2;
-      const y = (parseInt(el.style.height)) / 2;
-      
-      dragPicture.current.style.top =  e.clientY - y + "px";
-      dragPicture.current.style.left = e.clientX - x + "px";
 
       // scroll container if necessary
       if (container && box) {
@@ -218,29 +247,34 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
         if (box.left < e.clientX && e.clientX < box.right) {
           if (top > 0 && top < 80) {
             container.scrollTop -= 5;
-            callbackRef.current = setTimeout(() => {
-              document.dispatchEvent(new MouseEvent('mousemove', { clientX: e.clientX, clientY: e.clientY }));
-            }, 25);
+            // need to call self recursively, so that scrolling will happen if
+            // mouse is hovered but not moved
+            callbackRef.current = setTimeout(() => ret(e), 25); 
           } else if (bot > 0 && bot < 80) {
             container.scrollTop += 5;
-            callbackRef.current = setTimeout(() => {
-              document.dispatchEvent(new MouseEvent('mousemove', { clientX: e.clientX, clientY: e.clientY }));
-            }, 25);
+            callbackRef.current = setTimeout(() => ret(e), 25);
           } 
         }
       }
 
+      // assert that target exists as html element
+      const target = e.target as HTMLElement | null;
       // give dragging plans and client x/y
-      dispatchCalendar({ type: 'move-plans', dragPlans: getNextDragPlans(dragPlans, e.clientX, e.clientY) });
+      const datesUpdate: DatePlansUpdate | null = await getDragChanges(dragPlans, target?.closest('[fp-role="calendar-date-root"]') || null, e.clientY);
+
+      // dispatch if there are changes
+      if (datesUpdate) {
+        dispatchCalendar({ type: 'move-plans', datesUpdate, draggingPlans: dragPlans.reduce((acc, cur) => ({ ...acc, [cur.planId]: {...cur} }), {})});
+      }
     }
     return ret;
   }, [dispatchCalendar]);
 
 
   return (
-    <DraggingPlansContext.Provider value={{dragPlans, isDragging, startDrag, registerWrapper, updateWrapperPosition}}>
-      {Object.entries(springs).map(([planId, props]) => <PlanSpring key={planId} props={props}/>)}
-      <div ref={dragPicture} style={{position: 'fixed', zIndex: 999, display: isDragging ? 'block' : 'none'}} />
+    <DraggingPlansContext.Provider value={{dragPlans, isDragging, startDrag, declarePlanSpawn }}>
+      {Object.entries(springs).map(([planId, s]) => <PlanSpring key={planId} props={s.props}/>)}
+      <div ref={dragPicture} style={{position: 'fixed', zIndex: 999, display: isDragging ? 'block' : 'none', pointerEvents: 'none'}} />
       {children}
     </DraggingPlansContext.Provider>
   )

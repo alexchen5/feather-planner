@@ -6,6 +6,12 @@
     transition: padding 200ms ease, margin 200ms ease, color 80ms ease;
     font-size: var(--plan-font-size);
     position: relative;
+
+    // prevent unintended highlighting of plan text
+    pointer-events: none; 
+    span {
+        user-select: none !important;
+    }
 }
 
 .toggler {
@@ -54,6 +60,14 @@
             pointer-events: none;
             right: 4px
         }
+    }
+}
+
+body[plan-drag-display] {
+    cursor: grabbing;
+
+    .inner {
+        pointer-events: none;
     }
 }
 
@@ -112,6 +126,12 @@
                 opacity: 1;
                 pointer-events: all;
                 right: -4px;
+            }
+
+            // re-enable highlighting of plan text during edit
+            pointer-events: all;
+            span {
+                user-select: text !important;
             }
         }
     }
