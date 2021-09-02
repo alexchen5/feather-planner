@@ -127,8 +127,11 @@ export async function getChangeTuples(dragPlans: DragPlan[]): Promise<{ beforeT:
     if (!dragChanges) return null;
 
     // make two images of our date changes - all releant dates before and after
-    // we can make before from dragPlans 
-    const before: { [dateStr: string]: string[] } = dragPlans.reduce((acc, cur) => ({ ...acc, [cur.dateStr]: cur.plans }), {});
+    // we can make before from dragPlans, and dragChanges without the dragging plans
+    const before: { [dateStr: string]: string[] } = {
+      [dragChanges.date]: dragChanges.ids.filter(id => !dragPlans.some(d => d.planId === id)),
+      ...dragPlans.reduce((acc, cur) => ({ ...acc, [cur.dateStr]: cur.plans }), {})
+    };
     
     // and make after from the combination of before and dragChanges 
     const after: { [dateStr: string]: string[] } = { 
