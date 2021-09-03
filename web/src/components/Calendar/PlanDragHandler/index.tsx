@@ -20,7 +20,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { addScrollEventListener, removeScrollEventListener } = React.useContext(ScrollHandlerContext);
     
-  const [springs, setSprings] = React.useState(() => ({} as { [planId: string]: { el: HTMLElement, props: PlanSpringProps} }));
+  const [springs, setSprings] = React.useState<{ [planId: string]: { el: HTMLElement, props: PlanSpringProps} }>({});
 
   const { uid } = React.useContext(UidContext);
 
@@ -83,8 +83,6 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   }, []);
 
   const registerPlan = React.useCallback((plan: CalendarPlan, dateStr: string, el: HTMLDivElement) => {
-    // const newNode = el.cloneNode(true) as HTMLDivElement;
-    // newNode.setAttribute()
     setDragPlans(dragPlans => {
       const ret = [
         ...dragPlans,
@@ -246,12 +244,12 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
         const bot = box.bottom - e.clientY;
         if (box.left < e.clientX && e.clientX < box.right) {
           if (top > 0 && top < 80) {
-            container.scrollTop -= 5;
+            container.scrollTop -= (top < 40) ? 5 : 2; // faster scroll for closer to the top
             // need to call self recursively, so that scrolling will happen if
             // mouse is hovered but not moved
             callbackRef.current = setTimeout(() => ret(e), 25); 
           } else if (bot > 0 && bot < 80) {
-            container.scrollTop += 5;
+            container.scrollTop += (bot < 40) ? 5 : 2; // faster scroll for closer to the bottom
             callbackRef.current = setTimeout(() => ret(e), 25);
           } 
         }
