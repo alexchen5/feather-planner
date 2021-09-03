@@ -19,7 +19,7 @@
     "outDir": "dist",
     "baseUrl": "src",
     "typeRoots": [
-      "./types",
+      "src/types",
       "node_modules/@types"
     ],
     "strictNullChecks": true,

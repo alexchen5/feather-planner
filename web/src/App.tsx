@@ -31,8 +31,13 @@ function App() {
             exact
             path={["/", "/calendar", "/notes"]}
             render={() => {
+              // render blank page if uid is still loading
               if (isLoadingUid) return <></>;
+
+              // render the login component if user is not logged in
               if (!uid) return <LoginPage/>;
+
+              // otherwise we can display the actual app
               return <HomePage/>;
             }}
           />

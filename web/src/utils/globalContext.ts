@@ -1,10 +1,18 @@
+// File to put stuff that is needed to be accessed globally 
+
 import React from "react";
 import firebase from "firebase/app";
 import "firebase/firestore";
 
-export const UidContext = React.createContext({} as { uid: string | false });
+/**
+ * The firebase id of the current user, or false if not logged in
+ */
+export const UidContext = React.createContext<{ uid: string | false }>({ uid: false });
 
-export const IS_CACHE_ON: boolean = true; // turn off cache to prevent reading and writing to localStorage
+/**
+ * Debugging option to turn off cache and prevent reading and writing to localStorage
+ */
+export const IS_CACHE_ON: boolean = true; 
 
 // Initialize Firebase
 const firebaseConfig = {
@@ -19,4 +27,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 
+/**
+ * Our firestore database object
+ */
 export const db = firebase.firestore();

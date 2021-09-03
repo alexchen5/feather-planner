@@ -1,4 +1,9 @@
-export const isApple =  (
+// Key commands mean different things on different operating systems. Here we provide methods for different key commands between apple and windows
+
+/**
+ * We calculate the operating system once, and expect that it won't change.
+ */
+export const isApple: boolean =  (
     navigator.userAgent.indexOf("Mac") !== -1 // Macintosh
     || navigator.userAgent.indexOf("like Mac") !== -1 // iOS
 )

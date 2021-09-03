@@ -8,15 +8,15 @@ export const DAY_START: 'MON' | 'SUN' = 'MON';
 const NUM_WEEKS_START = 5;
 
 export function getDayStart() {
-  switch (DAY_START) {
-    case 'SUN':
-      return 0;
-    case 'MON':
-      return 1;
-    default:
-      console.log(`Unrecognised dayStart: ${DAY_START}`);
-      return 0;
-  }
+    switch (DAY_START) {
+        case 'SUN':
+            return 0;
+        case 'MON':
+            return 1;
+        default:
+            console.log(`Unrecognised dayStart: ${DAY_START}`);
+            return 0;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -28,7 +28,7 @@ export function getDayStart() {
  * @returns the associated dateStr
  */
 export function dateToStr(date = new Date()) {
-  return `${date.getFullYear()}` + `${date.getMonth()}`.padStart(2, '0') + `${date.getDate()}`.padStart(2, '0');
+    return `${date.getFullYear()}` + `${date.getMonth()}`.padStart(2, '0') + `${date.getDate()}`.padStart(2, '0');
 }
 
 /**
@@ -37,7 +37,7 @@ export function dateToStr(date = new Date()) {
  * @returns the associated Date object
  */
 export function strToDate(dateStr = dateToStr()) {
-  return new Date(parseInt(dateStr.substring(0, 4)), parseInt(dateStr.substring(4, 6)), parseInt(dateStr.substring(6)));
+    return new Date(parseInt(dateStr.substring(0, 4)), parseInt(dateStr.substring(4, 6)), parseInt(dateStr.substring(6)));
 }
 
 /**
@@ -47,9 +47,9 @@ export function strToDate(dateStr = dateToStr()) {
  * @returns a new dateStr with adjusted days
  */
 export function adjustDays(dateStr = dateToStr(), numDays = 0) {
-  let d = strToDate(dateStr);
-  d.setDate(d.getDate() + numDays);
-  return dateToStr(d);
+    let d = strToDate(dateStr);
+    d.setDate(d.getDate() + numDays);
+    return dateToStr(d);
 }
 
 /**
@@ -59,14 +59,14 @@ export function adjustDays(dateStr = dateToStr(), numDays = 0) {
  * @returns number of days
  */
 export function getRangeLength(dateStart: string, dateEnd: string) {
-  let num = 1;
-  let d = strToDate(dateStart)
-  while (dateToStr(d) !== dateEnd) {
-    d.setDate(d.getDate() + 1);
-    num++;
-  }
+    let num = 1;
+    let d = strToDate(dateStart)
+    while (dateToStr(d) !== dateEnd) {
+        d.setDate(d.getDate() + 1);
+        num++;
+    }
 
-  return num;
+    return num;
 }
 
 /**
@@ -76,26 +76,26 @@ export function getRangeLength(dateStart: string, dateEnd: string) {
  * @returns array of date strings
  */
 export function getRangeDates(dateStart: string, dateEnd: string) {
-  const ret = [];
-  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
-    ret.push(curDate);
-  }
-  return ret;
+    const ret = [];
+    for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
+        ret.push(curDate);
+    }
+    return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // General helper functions 
 
 export function getPlanById(dates: Array<CalendarDate>, planId: string): CalendarPlan | null {
-  let ret: CalendarPlan | null = null;
-  dates.find(date => !!date.plans.find(plan => {
-    if (plan.planId === planId) {
-      ret = plan;
-      return true;
-    }
-    return false;
-  }));
-  return ret;
+    let ret: CalendarPlan | null = null;
+    dates.find(date => !!date.plans.find(plan => {
+        if (plan.planId === planId) {
+            ret = plan;
+            return true;
+        }
+        return false;
+    }));
+    return ret;
 }
 
 /**
@@ -105,8 +105,8 @@ export function getPlanById(dates: Array<CalendarDate>, planId: string): Calenda
  * @returns array of the plan ids
  */
 export function getPlanIds(dates: Array<CalendarDate>, dateStr: string) {
-  const datePlans = dates.find(e => e.dateStr === dateStr)?.plans || [];
-  return datePlans.reduce((acc, cur) => {return [...acc, cur.planId]}, [] as Array<string>)
+    const datePlans = dates.find(e => e.dateStr === dateStr)?.plans || [];
+    return datePlans.reduce((acc, cur) => {return [...acc, cur.planId]}, [] as Array<string>)
 }
 
 /**
@@ -115,9 +115,9 @@ export function getPlanIds(dates: Array<CalendarDate>, dateStr: string) {
  * @returns array of the plans
  */
 export function getAllPlans(dates: Array<CalendarDate>): CalendarPlan[] {
-  let ret: CalendarPlan[] = [];
-  dates.forEach(date => ret = [...ret, ...date.plans]);
-  return ret;
+    let ret: CalendarPlan[] = [];
+    dates.forEach(date => ret = [...ret, ...date.plans]);
+    return ret;
 }
 
 /**
@@ -126,9 +126,9 @@ export function getAllPlans(dates: Array<CalendarDate>): CalendarPlan[] {
  * @returns array of the plans
  */
 export function getAllPlanIds(dates: Array<CalendarDate>): string[] {
-  let ret: string[] = [];
-  dates.forEach(date => date.plans.forEach(plan => ret.push(plan.planId)));
-  return ret;
+    let ret: string[] = [];
+    dates.forEach(date => date.plans.forEach(plan => ret.push(plan.planId)));
+    return ret;
 }
 
 /**
@@ -137,10 +137,10 @@ export function getAllPlanIds(dates: Array<CalendarDate>): string[] {
  * @returns the range
  */
 export function getRenderRange(dates: Array<CalendarDate>): DateRange {
-  return {
-    startDate: dates[0].dateStr,
-    endDate: dates[dates.length - 1].dateStr,
-  }
+    return {
+        startDate: dates[0].dateStr,
+        endDate: dates[dates.length - 1].dateStr,
+    }
 }
 
 /**
@@ -150,7 +150,7 @@ export function getRenderRange(dates: Array<CalendarDate>): DateRange {
  * @returns the CalendarDate, or null if not found
  */
 export function getDateByStr(dates: Array<CalendarDate>, dateStr: string): CalendarDate | null {
-  return dates.find(e => e.dateStr === dateStr) || null;
+    return dates.find(e => e.dateStr === dateStr) || null;
 }
 
 /**
@@ -158,13 +158,13 @@ export function getDateByStr(dates: Array<CalendarDate>, dateStr: string): Calen
  * @returns the Daterange of dates actually on the screen at the current moment
  */
 export function getRenderedDates(): DateRange | null {
-  const nodes = document.querySelectorAll(`[fp-role="calendar-date-root"]`);
-  
-  const start = nodes[0].getAttribute(`data-date`);
-  const end = nodes[nodes.length - 1].getAttribute(`data-date`);
+    const nodes = document.querySelectorAll(`[fp-role="calendar-date-root"]`);
+    
+    const start = nodes[0].getAttribute(`data-date`);
+    const end = nodes[nodes.length - 1].getAttribute(`data-date`);
 
-  if (start && end) return { startDate: start, endDate: end }
-  return null;
+    if (start && end) return { startDate: start, endDate: end }
+    return null;
 }
 
 /**
@@ -172,10 +172,10 @@ export function getRenderedDates(): DateRange | null {
  * @returns DateRange which should be seen initially 
  */
  export function getInitDateRange(): DateRange {
-  const startDate = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);
-  const endDate = adjustDays(startDate, 7 * NUM_WEEKS_START - 1);
+    const startDate = adjustDays(dateToStr(), -7 - (strToDate().getDay() + 7 - getDayStart()) % 7);
+    const endDate = adjustDays(startDate, 7 * NUM_WEEKS_START - 1);
 
-  return {startDate, endDate};
+    return {startDate, endDate};
 }
 
 /**
@@ -190,14 +190,14 @@ export function getRenderedDates(): DateRange | null {
 export function getUpdateRange(dateStart: string, dateEnd: string, type: 'object'): { [dateStr: string]: null };
 export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array'): { [dateStr: string]: [] };
 export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array' | 'object'): { [dateStr: string]: [] | null } {
-  const ret = {} as { [dateStr: string]: [] | null };
-  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
-    if (type === 'object')
-      ret[curDate] = null;
-    else 
-      ret[curDate] = [];
-  }
-  return ret;
+    const ret = {} as { [dateStr: string]: [] | null };
+    for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
+        if (type === 'object')
+            ret[curDate] = null;
+        else 
+            ret[curDate] = [];
+    }
+    return ret;
 }
 
 /**
@@ -210,22 +210,22 @@ export function getUpdateRange(dateStart: string, dateEnd: string, type: 'array'
  * @returns DateRange[] of ranges 7 days
  */
 export function getWeekRanges(startDate: string, endDate: string): DateRange[] {
-  const ret: DateRange[] = [];
-  const cur = {} as { startDate: string, endDate: string };
-  let curRange = 0;
-  for (let i = startDate; i <= endDate; i = adjustDays(i, 1)) {
-    if (curRange === 0) {
-      cur.startDate = i;
+    const ret: DateRange[] = [];
+    const cur = {} as { startDate: string, endDate: string };
+    let curRange = 0;
+    for (let i = startDate; i <= endDate; i = adjustDays(i, 1)) {
+        if (curRange === 0) {
+            cur.startDate = i;
+        }
+        if (curRange === 6) {
+            cur.endDate = i;
+            ret.push({...cur});
+            curRange = -1;
+        }
+        curRange++;
     }
-    if (curRange === 6) {
-      cur.endDate = i;
-      ret.push({...cur});
-      curRange = -1;
-    }
-    curRange++;
-  }
-  
-  return ret;
+    
+    return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -241,28 +241,28 @@ export function getWeekRanges(startDate: string, endDate: string): DateRange[] {
  * @returns array to be used directly in Calendar.dates
  */
 export function getInitCalendarDates(localDates: any, dateStart: string, dateEnd: string): CalendarDate[] {
-  const ret: CalendarDate[] = [];
-  for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
-    let plans, label;
-    try {
-      plans = localDates[curDate]['plans'];
-    } catch (error) {
-      plans = [];
-    }
-    try {
-      label = localDates[curDate]['label'] || null;
-    } catch (error) {
-      label = null;
-    }
-    if (!Array.isArray(plans)) plans = [];
+    const ret: CalendarDate[] = [];
+    for (let curDate = dateStart; curDate !== adjustDays(dateEnd, 1); curDate = adjustDays(curDate, 1)) {
+        let plans, label;
+        try {
+            plans = localDates[curDate]['plans'];
+        } catch (error) {
+            plans = [];
+        }
+        try {
+            label = localDates[curDate]['label'] || null;
+        } catch (error) {
+            label = null;
+        }
+        if (!Array.isArray(plans)) plans = [];
 
-    ret.push({
-      dateStr: curDate,
-      label,
-      plans,
-    });
-  }
-  return ret;
+        ret.push({
+            dateStr: curDate,
+            label,
+            plans,
+        });
+    }
+    return ret;
 }
 
 /**
@@ -271,9 +271,9 @@ export function getInitCalendarDates(localDates: any, dateStart: string, dateEnd
  * @returns 
  */
 function getNumDaysOverflow(dates: DateRange) {
-  const num = getRangeLength(dates.startDate, dates.endDate);
-  
-  return Math.max(num - (NUM_WEEKS_START * 7), 0);
+    const num = getRangeLength(dates.startDate, dates.endDate);
+    
+    return Math.max(num - (NUM_WEEKS_START * 7), 0);
 }
 
 /**
@@ -283,41 +283,41 @@ function getNumDaysOverflow(dates: DateRange) {
  * @returns a updated range of dateStr reflecting the scroll direction
  */
 export function getScrollRange(dates: DateRange, dir: 'up' | 'down', speed: 1 | 2 | 3): DateRange {
-  if (dir === 'up') {
-    if (speed === 3) {
-      return {
-        startDate: adjustDays(dates.startDate, -21),
-        endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
-      }
+    if (dir === 'up') {
+        if (speed === 3) {
+            return {
+                startDate: adjustDays(dates.startDate, -21),
+                endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
+            }
+        }
+        if (speed === 2) {
+            return {
+                startDate: adjustDays(dates.startDate, -14),
+                endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
+            }
+        } 
+        return {
+            startDate: adjustDays(dates.startDate, -7),
+            endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
+        }
+    } else {
+        if (speed === 3) {
+            return {
+                startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
+                endDate: adjustDays(dates.endDate, 21)
+            }
+        }
+        if (speed === 2) {
+            return {
+                startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
+                endDate: adjustDays(dates.endDate, 14)
+            }
+        }
+        return {
+            startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
+            endDate: adjustDays(dates.endDate, 7)
+        }
     }
-    if (speed === 2) {
-      return {
-        startDate: adjustDays(dates.startDate, -14),
-        endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
-      }
-    } 
-    return {
-      startDate: adjustDays(dates.startDate, -7),
-      endDate: adjustDays(dates.endDate, -7 - getNumDaysOverflow(dates))
-    }
-  } else {
-    if (speed === 3) {
-      return {
-        startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
-        endDate: adjustDays(dates.endDate, 21)
-      }
-    }
-    if (speed === 2) {
-      return {
-        startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
-        endDate: adjustDays(dates.endDate, 14)
-      }
-    }
-    return {
-      startDate: adjustDays(dates.startDate, 7 + getNumDaysOverflow(dates)),
-      endDate: adjustDays(dates.endDate, 7)
-    }
-  }
 }
 
 /**
@@ -328,13 +328,13 @@ export function getScrollRange(dates: DateRange, dir: 'up' | 'down', speed: 1 | 
  * @returns a new array of DateRanges
  */
 export function addRangeListeners(currentRanges: ListenerDateRange[], renderRange: DateRange): ListenerDateRange[] {
-  const newRanges = getWeekRanges(renderRange.startDate, renderRange.endDate);
-  const ret = newRanges.map(r => {return { ...r, onScreen: true }});
+    const newRanges = getWeekRanges(renderRange.startDate, renderRange.endDate);
+    const ret = newRanges.map(r => {return { ...r, onScreen: true }});
 
-  currentRanges.forEach(range => {
-    if (!ret.some(r => r.startDate === range.startDate)) 
-      ret.push({ ...range, onScreen: false });
-  })
+    currentRanges.forEach(range => {
+        if (!ret.some(r => r.startDate === range.startDate)) 
+            ret.push({ ...range, onScreen: false });
+    })
 
-  return ret;
+    return ret;
 }

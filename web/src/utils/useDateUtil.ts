@@ -1,3 +1,5 @@
+// Util file for custom hooks related to calculating the date
+
 import React from "react";
 import { dateToStr } from "./dateUtil";
 

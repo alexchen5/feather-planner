@@ -1,3 +1,5 @@
+// Custom hooks for working with the draft-js Editor component
+
 import { ContentState, convertFromRaw, EditorState, RawDraftContentState } from "draft-js";
 import React from "react";
 import { DocumentListenerAction } from "types/components/DocumentEventListener/reducer";

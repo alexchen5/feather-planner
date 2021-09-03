@@ -1,3 +1,17 @@
+// Util file for functions related to dragging calendar plans
+// The exported functions are getDragChanges, and getChangeTuples. 
+
+// getDragChanges is continuously given the location of the pointer and the plans to drag, then based on this 
+// and the assumption the function gets continuosly called through the drag, can form an image of the changing
+// of plans across the calendar.
+
+// getChangeTuples is expected to be called at the end of the drag, returning what in total needs to be logged
+// to the db in order for both the action and its undo.
+
+// Note that these two exported functions have side effects - namely as the previous arrangement plans are always
+// stored. These functions are written with the expectation that getDragChanges will always be called on each 
+// drag mousemove, and that getChangeTuples will always be called to conclude the drag. 
+
 import { DatePlansUpdate } from "types";
 import { DragPlan } from "types/components/Calendar/PlanDragHandler";
 
@@ -9,7 +23,7 @@ function timeout() {
 }
 async function enterPrvDate() {
     while (locked) {
-        console.log('spinlock zone entered'); // this has never been reached in testing
+        console.log('spinlock zone entered'); // this has never been reached in testing (likely bc js runtime doesnt stack events on top of each other but im not certain)
         await timeout(); // spinlock on a random timeout for the lock 
     }
     locked = true; // enter mutex
