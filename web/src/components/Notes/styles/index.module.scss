@@ -1,0 +1,18 @@
+.root {
+    height: 100%;
+    width: 100%;
+    display: grid;
+    grid-template-areas: "directory" "notes";
+    grid-template-columns: 300px auto;
+    grid-template-rows: 1fr;
+}
+
+.directory {
+    grid-area: "directory";
+    background-color: aqua;
+}
+
+.notesContainer {
+    grid-area: "notes";
+    background-color: pink;
+}

@@ -10,13 +10,18 @@ import DateRangeListener from './DateRangeListener';
 
 import DocumentEventListener from 'components/DocumentEventListener';
 import CalendarComponent from 'components/Calendar';
-import SideNotes from 'components/SideNotes';
 
 import { SetStyles } from 'types/pages/HomePage/reducer';
+import Notes from 'components/Notes';
+import { useAllNotes } from 'components/Notes/data';
+import { InodeListener } from 'components/Notes/Listeners';
+import SideNotes from 'components/SideNotes';
 
 function HomePage() {
   const {uid} = React.useContext(UidContext);
   const [featherPlanner, dispatch] = React.useReducer(reducer, null as never, init);
+
+  const notes = useAllNotes(uid);
 
   React.useEffect(() => {
     // attach listener to db for plan styles 
@@ -55,25 +60,34 @@ function HomePage() {
 
   return (
     <DocumentEventListener>
-      <FeatherContext.Provider value={{ featherPlanner, dispatch }}>
+      <FeatherContext.Provider value={{ featherPlanner, dispatch, notes }}>
         {featherPlanner.dateRanges.map(range => <DateRangeListener key={range.startDate} startDate={range.startDate} endDate={range.endDate}/>)}
+        {notes.listeners.inodeListeners.map(path => <InodeListener path={path} giveFile={notes.inodes.giveFile}/>)}
         <div id="home-layout"> 
           <div id="home-menu">
             <button onClick={() => firebase.auth().signOut()}>Sign Out</button>
-            <Link to={'/'}><button>Show Calendar</button></Link>
-            <Link to={'/notes'}><button>Show Notes</button></Link>
+            <Link to={'/'}><button>Calendar</button></Link>
+            <Link to={'/notes'}><button>Notes</button></Link>
+            <Link to={'/old-notes'}><button>Old Notes</button></Link>
           </div>
           <div id="home-app">
             <Switch> 
               <Route
                 exact
+                path='/old-notes'
+                render={() => <SideNotes/>}
+              />
+              <Route
+                exact
                 path='/notes'
-                component={SideNotes}
+                render={() => <Notes/>}
               />
               <Route
                 exact
                 path={['/', 'calendar']}
-                render={() => <CalendarComponent allDates={featherPlanner.calendarDates}/>}
+                render={() => 
+                  <CalendarComponent allDates={featherPlanner.calendarDates}/>
+                }
               />
             </Switch>
           </div>

@@ -1,8 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/{item=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /users/{userId} {
+      match /{item=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      match /inodes/{inodeId} {
+        allow read, write: if request.auth != null && request.auth in get(/databases/$(database)/documents/users/$(userId)/inodes/$(inodeId)).data.adminPermissions;
+        allow read: if request.auth != null && request.auth in get(/databases/$(database)/documents/users/$(userId)/inodes/$(inodeId)).data.editPermissions;
+        allow read: if request.auth != null && request.auth in get(/databases/$(database)/documents/users/$(userId)/inodes/$(inodeId)).data.readPermissions;
+      }
+      match /inodes/{inodeId}/{item=**} {
+        allow read, write: if request.auth != null && request.auth in get(/databases/$(database)/documents/users/$(userId)/inodes/$(inodeId)).data.adminPermissions;
+        allow read, update: if request.auth != null && request.auth in get(/databases/$(database)/documents/users/$(userId)/inodes/$(inodeId)).data.editPermissions;
+        allow read: if request.auth != null && request.auth in get(/databases/$(database)/documents/users/$(userId)/inodes/$(inodeId)).data.readPermissions;
+      }
     }
   }
 }

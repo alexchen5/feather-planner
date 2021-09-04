@@ -29,7 +29,7 @@ function App() {
           />
           <Route
             exact
-            path={["/", "/calendar", "/notes"]}
+            path={["/", "/calendar", "/notes", "/old-notes"]}
             render={() => {
               // render blank page if uid is still loading
               if (isLoadingUid) return <></>;

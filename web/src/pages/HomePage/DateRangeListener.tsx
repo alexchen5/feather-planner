@@ -16,7 +16,7 @@ function DateRangeListener({startDate, endDate}: { startDate: string, endDate: s
   const { uid } = React.useContext(UidContext);
 
   React.useEffect(() => { 
-    // console.log('attaching listeners on: ' + startDate + ' to ' + endDate);
+    console.log('attaching listeners on: ' + startDate + ' to ' + endDate);
     const detachLabelListener = db.collection(`users/${uid}/date-labels`) // labels for each date
       .where('date', '>=', startDate)
       .where('date', '<=', endDate)
