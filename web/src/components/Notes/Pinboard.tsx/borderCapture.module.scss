@@ -1,0 +1,52 @@
+.borderCapture {
+    position: absolute;
+    z-index: 0;
+}
+.borderCapture.top {
+    height: 6px;
+    width: 100%;
+    top: -4px;
+    left: 0px;
+}
+.borderCapture.bottom {
+    height: 6px;
+    width: 100%;
+    bottom: -4px;
+    left: 0px;
+}
+.borderCapture.left {
+    width: 6px;
+    height: 100%;
+    left: -4px;
+    top: 0px;
+}
+.borderCapture.right {
+    width: 6px;
+    height: 100%;
+    right: -4px;
+    top: 0px;
+}
+.borderCapture.bottomRight {
+    height: 8px;
+    width: 8px;
+    bottom: -4px;
+    right: -4px;
+}
+.borderCapture.bottomLeft {
+    height: 8px;
+    width: 8px;
+    bottom: -4px;
+    left: -4px;
+}
+.borderCapture.topLeft {
+    height: 8px;
+    width: 8px;
+    top: -4px;
+    left: -4px;
+}
+.borderCapture.topRight {
+    height: 8px;
+    width: 8px;
+    top: -4px;
+    right: -4px;
+}

@@ -1,0 +1,40 @@
+.tab {
+    max-width: 176px;
+    flex-grow: 1;
+    padding: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    line-height: 18px;
+
+    &[fp-state=closed] {
+        cursor: default;
+
+        .editorContainer:hover {
+            border: 1px solid transparent;
+        }
+    }
+
+    &[fp-state=open] {
+        cursor: auto;
+        background-color: #f0f0f0;
+    }
+}
+
+.editorContainer {
+    width: 100%;
+    height: 100%;
+    border: 1px solid transparent;
+    margin-right: 8px;
+
+    &:hover {
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    &[fp-state="edit"] {
+        border: 1px solid var(--edge-grey);
+    }
+}

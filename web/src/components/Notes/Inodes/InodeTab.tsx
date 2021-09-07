@@ -1,24 +1,110 @@
+import { DocumentListenerContext } from "components/DocumentEventListener/context";
+import { ContentState, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
 import { FeatherContext } from "pages/HomePage/context";
-import React from "react";
+import React, { MouseEventHandler } from "react";
+import { db } from "utils/globalContext";
+import { useEditorFocus, useEditorUpdater } from "utils/useEditorUtil";
+import { UndoRedoContext } from "utils/useUndoRedo";
+import { File } from "../data";
 
-function InodeTab({ inodePath, isOpen }: { inodePath: string, isOpen: boolean }) {
-  const { notes: {allNotes, tabs } } = React.useContext(FeatherContext);
+import 'draft-js/dist/Draft.css';
+import style from './inodes.module.scss';
 
-  const file = allNotes[inodePath];
+function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, isOpen: boolean }) {
+  const { notes: { tabs } } = React.useContext(FeatherContext);
+  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const { addUndo } = React.useContext(UndoRedoContext);
 
-  const closeTab = () => file ? tabs.close(inodePath, file.type) : {};
-  const openTab = () => file ? tabs.open(inodePath, file.type) : {};
+  const editor = React.useRef<Editor>(null);
+  const [editorState, setEditorState] = useEditorUpdater(file.name);
+  const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners, 'tab-focus');
+
+  /**
+   * Take the necessary steps to submit content changes to the db
+   * @param val the current text content
+   */
+  const submitContentChanges = (newName: string) => {
+    if (!newName || newName === file.name) { // reset editor state and do nothing if we have an empty title
+      // weird glitch where text isnt updated solved with timeout
+      setTimeout(() => {
+        if (editor.current)
+          setEditorState(EditorState.createWithContent(ContentState.createFromText(file.name)));
+      }, 150);
+      return;
+    }
+    
+    const redo = async () => {
+      db.doc(inodePath).set({ name: newName }, { merge: true });
+    };
+    const undo = async () => {
+      db.doc(inodePath).set({...file.restoreData});
+    }
+    
+    redo(); // execute update
+    addUndo({undo, redo})
+  };
+
+  const handleClick = () => {
+    tabs.open(inodePath, file.type);
+  }
+
+  const handleClickEdit = () => {
+    if (isOpen) editor.current?.focus();
+  }
+
+  const handleCloseClick: MouseEventHandler = (e) => {
+    e.stopPropagation();
+    tabs.close(inodePath, file.type)
+  }
+
+  const handleFocus = () => {
+    declareFocus();
+  }
+
+  const handleBlur = () => {
+    declareBlur()
+    const text = editorState.getCurrentContent().getPlainText(' ').replace('\n', ' ').trim();
+    submitContentChanges(text);
+  }
+
+  /**
+   * Callback on every key, to check that no new line characters are entered
+   * @param e 
+   * @returns 
+   */
+   const checkKey = (e: React.KeyboardEvent): string | null => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      editor.current?.blur(); 
+      return 'submit';
+    } else if (e.key === 'Enter') {
+      return 'none';
+    }
+    return getDefaultKeyBinding(e);
+  }
 
   return (
-  <>{
-    file ?
-    <div>
-      {inodePath + ' ' + file.name + ' open=' + isOpen}
-      <button onClick={openTab}>open</button>
-      <button onClick={closeTab}>close</button>
+    <div
+      className={style.tab}
+      fp-state={isOpen ? 'open' : 'closed'}
+      onClick={handleClick}
+    >
+      <div
+        className={style.editorContainer}
+        fp-state={isFocused ? 'edit' : 'normal'}
+        onClick={handleClickEdit}
+      >
+        <Editor
+          ref={editor}
+          readOnly={!isOpen}
+          editorState={editorState} 
+          onChange={setEditorState}
+          keyBindingFn={checkKey}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+        />
+      </div>
+      <button className={style.close} onClick={handleCloseClick}>x</button>
     </div>
-    : null
-  }</>
   )
 }
 

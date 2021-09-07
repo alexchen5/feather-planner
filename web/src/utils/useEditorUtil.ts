@@ -2,6 +2,7 @@
 
 import { ContentState, convertFromRaw, EditorState, RawDraftContentState } from "draft-js";
 import React from "react";
+import { DocumentEventListener } from "types/components/DocumentEventListener";
 import { DocumentListenerAction } from "types/components/DocumentEventListener/reducer";
 
 /**
@@ -21,27 +22,25 @@ export const useEditorFocus = (
 ): 
 [
     boolean, 
-    (listeners?: {
-        type: keyof DocumentEventMap;
-        action: (ev: DocumentEventMap[keyof DocumentEventMap]) => void;
-    }[]) => void, 
+    (listeners?: Omit<DocumentEventListener<keyof DocumentEventMap>, 'focusId'>[]) => void, 
     () => void,
 ] => {
     const [isFocused, setFocus] = React.useState(false);
 
-    const declareFocus = (listeners = [] as { type: keyof DocumentEventMap, action: (ev: DocumentEventMap[keyof DocumentEventMap]) => void; }[] ) => {
+    const declareFocus = React.useCallback<(listeners?: Omit<DocumentEventListener<keyof DocumentEventMap>, 'focusId'>[]) => void>((listeners = []) => {
         dispatchListeners({ 
             type: 'register-focus', 
             focusId,
-            listeners: listeners.map(l => ({ focusId, type: l.type, callback: l.action })),
+            // @ts-ignore
+            listeners: listeners.map(l => ({ focusId, ...l })),
         });
         setFocus(true);
-    }
+    }, [dispatchListeners, focusId])
 
-    const declareBlur = () => {
+    const declareBlur = React.useCallback(() => {
         dispatchListeners({ type: 'deregister-focus', focusId, removeListeners: true });
         setFocus(false);
-    }
+    }, [dispatchListeners, focusId]);
 
     return [isFocused, declareFocus, declareBlur];
 }
@@ -85,7 +84,7 @@ export const useEditorChangeLogger = (initState: EditorState): [ boolean, (newSt
     const originalState = React.useRef<EditorState>(initState);
     const [didChange, setDidChange] = React.useState(false);
 
-    const logChange = (newState: EditorState) => {
+    const logChange = React.useCallback((newState: EditorState) => {
         const currentContentState = originalState.current.getCurrentContent()
         const newContentState = newState.getCurrentContent()
     
@@ -97,12 +96,12 @@ export const useEditorChangeLogger = (initState: EditorState): [ boolean, (newSt
             // No change from original / the change was triggered by a change in focus/selection
             setDidChange(false);
         }
-    }
+    }, []);
 
-    const reset = (reset: EditorState) => {
+    const reset = React.useCallback((reset: EditorState) => {
         setDidChange(false);
         originalState.current = reset;
-    }
+    }, [])
 
     return [didChange, logChange, reset];
 }

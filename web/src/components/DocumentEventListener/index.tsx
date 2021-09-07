@@ -10,8 +10,12 @@ function DocumentEventListener({children}: {children: ReactNode}) {
     const focusedComponent = listeners.focusIdStack[listeners.focusIdStack.length - 1] || 'homepage';
     listeners.documentEventListeners.forEach(l => {
       if (l.focusId === focusedComponent) {
+        // TODO: convince ts this is okay
+        // @ts-ignore
         document.addEventListener(l.type, l.callback);
       }
+      // TODO: convince ts this is okay
+      // @ts-ignore
       cleanup.push(() => {document.removeEventListener(l.type, l.callback)});
     });
 

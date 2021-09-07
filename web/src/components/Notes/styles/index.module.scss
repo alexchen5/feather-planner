@@ -3,16 +3,19 @@
     width: 100%;
     display: grid;
     grid-template-areas: "directory" "notes";
-    grid-template-columns: 300px auto;
+    grid-template-columns: 260px auto;
     grid-template-rows: 1fr;
 }
 
 .directory {
     grid-area: "directory";
-    background-color: aqua;
+    // background-color: white;
 }
 
 .notesContainer {
     grid-area: "notes";
-    background-color: pink;
+}
+
+.tabsContainer {
+    display: flex;
 }

@@ -66,12 +66,13 @@ export function PinboardListener({ inodePath } : { inodePath: string }) {
         snapshot.forEach((doc) => {
           const d = doc.data();
           const content = d.content as string | RawDraftContentState;
+          const lastEdited = d.lastEdited as number;
           const position = d.position as { left: number, top: number };
           const size = d.size as { width: number, height: number };
           
-          pins.push({ docPath: doc.ref.path, content, position, size, restoreData: d })
+          pins.push({ docPath: doc.ref.path, content, lastEdited, position, size, restoreData: d })
         })
-        listenerReceive.pinboard(inodePath, pins);
+        listenerReceive.pinboard(inodePath, pins.sort((a, b) => a.lastEdited - b.lastEdited));
       })
 
     return () => detach();

@@ -1,31 +1,44 @@
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
+import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
 import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState, RichUtils } from "draft-js";
-import React, { KeyboardEvent as ReactKeyboardEvent, MouseEventHandler } from "react";
+import React, { MouseEventHandler, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { db } from "utils/globalContext";
 import { key } from "utils/keyUtil";
-import { useEditorChangeLogger, useEditorFocus, useEditorUpdater } from "utils/useEditorUtil";
-import { UndoRedoContext, useUndoRedo } from "utils/useUndoRedo";
+import { useEditorChangeLogger, useEditorUpdater } from "utils/useEditorUtil";
+import { UndoRedoContext } from "utils/useUndoRedo";
 import { PinboardPin } from "../data";
 
+import 'draft-js/dist/Draft.css';
 import style from './pinboard.module.scss';
+import borderStyle from './borderCapture.module.scss';
+
+type ResizeStyle = 'ns' | 'ew' | 'nwse' | 'nesw';
+type ResizeDirections = 'n' | 'e' | 's' | 'w';
+let clientDx: number, clientDy: number, clientX: number, clientY: number // track drag positions
 
 function Pin({ pin }: {pin: PinboardPin}) {
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
   const { addUndo } = React.useContext(UndoRedoContext);
 
-  const handleEditEnd = React.useRef(() => {});
+  const pinRef = React.useRef<HTMLDivElement>(null);
+  const [state, setState] = React.useState<'normal' | 'edit' | 'dragging' | 'resizing'>('normal');
 
   const editor = React.useRef<Editor>(null);
   const [editorState, setEditorState] = useEditorUpdater(pin.content);
-  const [isFocused, declareFocus, declareBlur] = useEditorFocus(dispatchListeners, 'pinboard-focus');
   const [ didChange, logChange, reset ] = useEditorChangeLogger(editorState);
+
+  /**
+   * Ref wrapper for the edit end function. We use a ref so its mutable in a callback
+   */
+  const handleEditEnd = React.useRef(() => {});
 
   /**
    * Helper function to take the necessary steps to delete self
    */
   const deleteSelf = React.useCallback(() => {
     // ensure edit listeners are cleaned up
-    declareBlur();
+    deregisterFocus('pin-edit');
 
     const redo = async () => {
       db.doc(pin.docPath).delete();
@@ -36,13 +49,14 @@ function Pin({ pin }: {pin: PinboardPin}) {
     
     redo(); // execute delete
     addUndo({undo, redo})
-  }, []);
+    // expect addUndo, declareBlur are memoised 
+  }, [ addUndo, deregisterFocus, pin.docPath, pin.restoreData ]);
 
   /**
    * Take the necessary steps to submit content changes to the db
    * @param val the current text content
    */
-  const submitContentChanges = (val: RawDraftContentState | false) => {
+  const submitContentChanges = React.useCallback((val: RawDraftContentState | false) => {
     if (!didChange) return;
 
     if (!val) { // run delete first
@@ -51,7 +65,193 @@ function Pin({ pin }: {pin: PinboardPin}) {
     }
     
     const redo = async () => {
-      db.doc(pin.docPath).set({ content: val }, { merge: true });
+      db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
+    };
+    const undo = async () => {
+      db.doc(pin.docPath).set({...pin.restoreData});
+    }
+    
+    redo(); // execute update
+    addUndo({undo, redo})
+    // expect addUndo, deleteSelf are memoised 
+  }, [addUndo, deleteSelf, didChange, pin.docPath, pin.restoreData]);
+
+  // update our handleEditEnd function whenever its dependancies change
+  React.useEffect(() => {
+    // our edit end handler function
+    handleEditEnd.current = () => {
+      setState('normal')
+      deregisterFocus('pin-edit');
+      submitContentChanges(
+        editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
+      );
+    }
+    // expect deregisterFocus, submitContentChanges are memoised
+  }, [deregisterFocus, submitContentChanges, editorState])
+
+  const handleClick: MouseEventHandler = (e) => {
+    if (state === 'normal') { 
+      // register edit state after the completion of a click
+      setState('edit')
+      reset(editorState);
+      registerFocus('pin-edit', [
+        {
+          type: 'keydown',
+          // TODO: figure out how to convince ts that this is okay without type assertion
+          callback: handleKeyDown as (ev: DocumentEventMap[keyof DocumentEventMap]) => void, // handle document keydowns
+        },
+        {
+          type: 'mousedown',
+          // edit end function contained in a ref so its value is mutable
+          callback: () => handleEditEnd.current(),
+        }
+      ]); 
+    } else if (state === 'edit') {
+      // ensure focus if we have declared focus
+      editor.current?.focus();
+    } else if (state === 'dragging') {
+      // set state back to normal when the click registers after drag 
+      // with timeout so we dont get flashing with z-index changes
+      setTimeout(() => {
+        if (pinRef.current) setState('normal')
+      }, 50);
+    }
+  }
+
+  const handleMouseDown: MouseEventHandler = (e) => {
+    if (state === 'normal') {
+      mousedownDragInitiate(e); // potentially start drag
+    } else if (state === 'edit') {
+      e.stopPropagation() // stop mousedown from going to document
+    }
+  }
+
+  /**
+   * Helper function to set up drag from mousedown
+   * @param e 
+   */
+  const mousedownDragInitiate = (e: React.MouseEvent<Element, MouseEvent>) => {
+    clientX = e.clientX;
+    clientY = e.clientY;
+
+    registerFocus('pin-try-drag', [
+      {
+        type: 'mousemove',
+        callback: mousemoveTryStartDrag,
+      },
+      {
+        type: 'mouseup',
+        // cancel try drag focus on mouseup
+        callback: () => deregisterFocus('pin-try-drag'),
+      }
+    ])
+  }
+
+  const mousemoveTryStartDrag = (e: MouseEvent) => {
+    // ensure mouse moved enough for a drag
+    if (!pinRef.current) {
+      console.error('Expected pinRef during drag');
+      return;
+    }
+
+    if (!(Math.abs(e.clientX - clientX) > 2 || Math.abs(e.clientY - clientY) > 2)) return;
+
+    // Can start the drag now
+    setState('dragging'); // set state to dragging
+
+    // dereg previous focus
+    deregisterFocus('pin-try-drag');
+    deregisterFocus('pin-edit')
+
+    // reg actual dragging listeners
+    registerFocus('pin-drag', [
+      {
+        type: 'mousemove',
+        callback: mousemoveHandleDrag
+      },
+      {
+        type: 'mouseup',
+        callback: mouseupEndDrag,
+      }
+    ])
+  }
+
+  const handleMouseDownResize = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, directions: ResizeDirections[], style: ResizeStyle) => {
+    e.stopPropagation();
+    // set document cursor style
+    document.documentElement.style.cursor = style + '-resize';
+    setState('resizing'); // set state to resizing
+
+    clientX = e.clientX;
+    clientY = e.clientY;
+
+    // reg resize listeners
+    registerFocus('pin-resize', [
+      {
+        type: 'mousemove',
+        callback: (e: MouseEvent) => mousemoveResize(e, directions)
+      },
+      {
+        type: 'mouseup',
+        callback: () => mouseupResize(),
+      }
+    ])
+  }
+
+  const mousemoveHandleDrag = (e: MouseEvent) => {
+    e.preventDefault();
+    clientDx = clientX - e.clientX;
+    clientDy = clientY - e.clientY;
+    if (!pinRef.current) {
+      console.error('Expected pinRef during drag');
+      return;
+    }
+    if (pinRef.current.offsetTop - clientDy >= 12) clientY = e.clientY;
+    if (pinRef.current.offsetLeft - clientDx >= 8) clientX = e.clientX;
+    pinRef.current.style.top = Math.max(12, pinRef.current.offsetTop - clientDy) + "px";
+    pinRef.current.style.left = Math.max(8, pinRef.current.offsetLeft - clientDx) + "px";
+  }
+
+  const mousemoveResize = (e: MouseEvent, directions: ResizeDirections[]) => {
+    e.preventDefault();
+    clientDx = clientX - e.clientX;
+    clientDy = clientY - e.clientY;
+    if (!pinRef.current) {
+      console.error('Expected pinRef during resize');
+      return;
+    }
+    if (parseInt(getComputedStyle(pinRef.current).height) - clientDy >= 25) clientY = e.clientY;
+    if (parseInt(getComputedStyle(pinRef.current).width) - clientDx >= 25) clientX = e.clientX;
+
+    // change height/width/left/top depending on direction of resize
+    if (directions.includes('n')) {
+      pinRef.current.style.height = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) + clientDy) + "px";
+      pinRef.current.style.top = pinRef.current.offsetTop - clientDy + 'px';
+    }
+    if (directions.includes('s')) {
+      pinRef.current.style.height = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) - clientDy) + "px";
+    }
+    if (directions.includes('e')) {
+      pinRef.current.style.width = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) - clientDx) + "px";
+    }
+    if (directions.includes('w')) {
+      pinRef.current.style.width = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) + clientDx) + "px";
+      pinRef.current.style.left = pinRef.current.offsetLeft - clientDx + 'px';
+    }
+  }
+
+  const mouseupEndDrag = (e: MouseEvent) => {
+    deregisterFocus('pin-drag')
+    if (!pinRef.current) {
+      console.error('Expected pinRef at drag end');
+      return;
+    }
+
+    const top = parseInt(pinRef.current.style.top);
+    const left = parseInt(pinRef.current.style.left);
+
+    const redo = async () => {
+      db.doc(pin.docPath).set({ position: { top, left }, lastEdited: Date.now() }, { merge: true });
     };
     const undo = async () => {
       db.doc(pin.docPath).set({...pin.restoreData});
@@ -61,41 +261,31 @@ function Pin({ pin }: {pin: PinboardPin}) {
     addUndo({undo, redo})
   }
 
-  const handleClick: MouseEventHandler = (e) => {
-    if (!isFocused) { 
-      reset(editorState);
+  const mouseupResize = () => {
+    // reset document cursor style
+    document.documentElement.style.cursor = '';
 
-      // register edit state after the completion of a click
-      declareFocus([
-        {
-          type: 'keydown',
-          // TODO: figure out how to convince ts that this is okay
-          action: handleKeyDown as (ev: DocumentEventMap[keyof DocumentEventMap]) => void, // handle document keydowns
-        },
-        {
-          type: 'mousedown',
-          action: () => handleEditEnd.current(), // blur if document receives mousedown
-        }
-      ]); 
-    } else {
-      // ensure focus if we have declared focus
-      editor.current?.focus();
+    setState('normal')
+    deregisterFocus('pin-resize')
+    if (!pinRef.current) {
+      console.error('Expected pinRef at resize end');
+      return;
     }
-  }
 
-  const handleMouseDown: MouseEventHandler = (e) => {
-    if (!isFocused) {
-      // potentially start drag
-    } else {
-      e.stopPropagation() // stop mousedown from going to document
+    const width = parseInt(pinRef.current.style.width);
+    const height = parseInt(pinRef.current.style.height);
+    const top = parseInt(pinRef.current.style.top);
+    const left = parseInt(pinRef.current.style.left);
+
+    const redo = async () => {
+      db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
+    };
+    const undo = async () => {
+      db.doc(pin.docPath).set({...pin.restoreData});
     }
-  }
-
-  handleEditEnd.current = () => {
-    declareBlur();
-    submitContentChanges(
-      editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
-    );
+    
+    redo(); // execute update
+    addUndo({undo, redo})
   }
 
   /**
@@ -107,8 +297,23 @@ function Pin({ pin }: {pin: PinboardPin}) {
       console.log('delete from backspace');
       
       deleteSelf();
+    } else if (e.key === 'Enter') {
+      handleEditEnd.current();
     }
   }, [deleteSelf]);
+
+  /**
+   * Callback on every key, to check if submit was called
+   * @param {KeyboardEvent} e 
+   * @returns 
+   */
+   const checkSubmit = (e: ReactKeyboardEvent): string | null => {
+    // if (e.key === 'Enter' && !e.shiftKey) {
+    //   handleEditEnd.current();
+    //   return 'submit';
+    // }
+    return getDefaultKeyBinding(e);
+  }
 
   /**
    * Handle key-styling command for text edit
@@ -135,8 +340,9 @@ function Pin({ pin }: {pin: PinboardPin}) {
   }
   
   return <div
+    ref={pinRef}
     className={style.pin}
-    data-state={isFocused ? 'focus' : 'normal'}
+    data-state={state}
     onClick={handleClick}
     onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
@@ -146,14 +352,27 @@ function Pin({ pin }: {pin: PinboardPin}) {
       width: pin.size.width + 'px', 
       height: pin.size.height + 'px',
     }}
-  >
+  > 
+    { (state === 'normal' || state === 'edit') && 
+      <>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['n'],'ns')} className={borderStyle.borderCapture + ' ' + borderStyle.top} style={{cursor: 'ns-resize'}}/>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['e'],'ew')} className={borderStyle.borderCapture + ' ' + borderStyle.right} style={{cursor: 'ew-resize'}}/>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['s'],'ns')} className={borderStyle.borderCapture + ' ' + borderStyle.bottom} style={{cursor: 'ns-resize'}}/>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['w'],'ew')} className={borderStyle.borderCapture + ' ' + borderStyle.left} style={{cursor: 'ew-resize'}}/>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['s', 'e'],'nwse')} className={borderStyle.borderCapture + ' ' + borderStyle.bottomRight} style={{cursor: 'nwse-resize'}}/>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['n', 'w'],'nwse')} className={borderStyle.borderCapture + ' ' + borderStyle.topLeft} style={{cursor: 'nwse-resize'}}/>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['n', 'e'],'nesw')} className={borderStyle.borderCapture + ' ' + borderStyle.topRight} style={{cursor: 'nesw-resize'}}/>
+        <div onMouseDown={(e) => handleMouseDownResize(e, ['s', 'w'],'nesw')} className={borderStyle.borderCapture + ' ' + borderStyle.bottomLeft} style={{cursor: 'nesw-resize'}}/>
+      </>
+    }
     <Editor
       ref={editor}
-      placeholder={'Empty Note'}
-      readOnly={!isFocused}
+      placeholder={'Empty note'}
+      readOnly={state !== 'edit'}
       editorState={editorState} 
       handleKeyCommand={handleKeyCommand}
       onChange={handleChange}
+      keyBindingFn={checkSubmit}
     />
   </div>
 }

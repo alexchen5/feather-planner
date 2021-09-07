@@ -7,9 +7,15 @@ import DirectoryInode from './Inodes/DirectoryInode';
 import PinboardInode from './Inodes/PinboardInode';
 import style from './styles/index.module.scss';
 import InodeTab from './Inodes/InodeTab';
+import { DocumentListenerContext } from 'components/DocumentEventListener/context';
+import { useDocumentEventListeners } from 'components/DocumentEventListener/useDocumentEventListeners';
+import { key } from 'utils/keyUtil';
 
 function Notes() {
   const { notes: {allNotes, noteTabs, inodes: { loadInodes }} } = React.useContext(FeatherContext);
+  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
+
   const {uid} = React.useContext(UidContext);
   
   const { stack, addUndo, undo, redo } = useUndoRedo();
@@ -27,6 +33,23 @@ function Notes() {
   React.useEffect(() => {
     loadInodes(homeNodes);
   }, [homeNodes, loadInodes]);
+
+  React.useEffect(() => {
+    registerFocus('notes-base-focus', [
+      {
+        type: 'keydown',
+        callback: (e: KeyboardEvent) => {
+          if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
+            undo();
+          } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
+            redo();
+          }
+        }
+      }
+    ])
+    return () => deregisterFocus('notes-base-focus');
+    // we expect all dependancies to be memoised and never require rerendering
+  }, [registerFocus, deregisterFocus, redo, undo])
 
   const addPinboard = async () => {
     // add new inode for the pinboard 
@@ -126,7 +149,9 @@ function Notes() {
           }
         </div>
         <div className={style.notesContainer}>
-          { noteTabs.map(note => <InodeTab key={note.inodePath} inodePath={note.inodePath} isOpen={note.isOpen}/>) }
+          <div className={style.tabsContainer}>{ 
+            noteTabs.map(note => allNotes[note.inodePath] ? <InodeTab key={note.inodePath} file={allNotes[note.inodePath]!} inodePath={note.inodePath} isOpen={note.isOpen}/> : null)
+          }</div>
           {
           noteTabs.map(note => {
             if (note.isOpen) {

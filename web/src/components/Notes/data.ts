@@ -39,6 +39,7 @@ export interface Pinboard extends FileBase {
 export interface PinboardPin {
     docPath: string,
     content: string | RawDraftContentState,
+    lastEdited: number, // timestamp
     position: {
         left: number,
         top: number,
@@ -59,64 +60,6 @@ export interface Sheet extends FileBase {
     type: 'sheet';
     file: null;
 }
-
-/**
- * At `users/${uid}/inodes/index/dir/index`: 
- *  {
- *      inodes: [ ...pathToInode ]
- *  }
- *  - read and edit by uid only 
- * 
- * At `users/${uid_a}/requests/${uid_b}`:
- *  {
- *      inodes: [ ...pathToInode ]
- *  }
- *  - read and edit by uid_a and uid_b
- * 
- * At `users/${uid}/inodes/inodeId`:
- *  {
- *      type: 'dir' | 'pinboard' | 'doc' | 'sheet',
- *      name: string,
- *      roles: {
- *          [ uid: string ]: 'admin', 'edit', 'read',
- *      }
- *  }
- * - read by uid, and all uid in adminPermissions, editPermissions and readPermissions
- * - edit by uid, and all uid in adminPermissions only 
- * - therefore only owner and admins can edit the document title, permissions, and 
- *      deleting the document
- * 
- * At `users/${uid}/inodes/inodeId/dir/index`:
- *  {
- *      inodes: [ ...pathToInode ],
- *  }
- * 
- * At `users/${uid}/inodes/inodeId/pinboard/pinId`
- *  {
- *      content: RawDraftContent,
- *      position: {
- *          left: number,
- *          top: number,
- *      },
- *      size: {
- *          width: number,
- *          height: number,
- *      }
- *  }
- * 
- * At `users/${uid}/inodes/inodeId/doc/index`
- *  {
- *      content: RawDraftContent
- *  }
- * 
- * At `users/${uid}/inodes/inodeId/sheet`
- *  {
- *      ?
- *  }
- * 
- * - user permissions determined by information in its corresponding inode 
- * - note file type and file title are determined from its corresponding inode
- */
 
 /**
  * Hook for the db info on all inodes

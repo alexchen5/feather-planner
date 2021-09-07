@@ -6,6 +6,7 @@ import { useEditorChangeLogger, useEditorFocus, useEditorUpdater } from "utils/u
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { CalendarContext } from "../context";
 
+import 'draft-js/dist/Draft.css';
 import style from "./date.module.scss";
 
 function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLabel | null }) {
@@ -24,8 +25,7 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     handleSubmission();
   }
 
-  // TODO: fix the range on this
-  const handleMouseDown: MouseEventHandler = () => {
+  const handleClick: MouseEventHandler = () => {
     declareFocus();
     reset(editorState);
     editor.current?.focus();
@@ -104,11 +104,10 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     <div 
       className={style.dateLabelContainer}
       data-state={isFocused ? 'edit' : 'normal'}
-      onMouseDown={handleMouseDown}
+      onClick={handleClick}
     >
       <Editor
         ref={editor}
-        readOnly={!isFocused}
         editorState={editorState} 
         onChange={handleChange}
         onBlur={handleBlur}
