@@ -15,20 +15,31 @@ import { DocumentListenerAction } from "types/components/DocumentEventListener/r
  * 
  * declareBlur - call to declare blur i.e. remove focus declaration
  */
-export const useEditorFocus = (dispatchListeners: (value: DocumentListenerAction<keyof DocumentEventMap>) => void):
-[boolean, () => void, () => void] => {
+export const useEditorFocus = (
+    dispatchListeners: (value: DocumentListenerAction<keyof DocumentEventMap>) => void, 
+    focusId = 'editor-focus'
+): 
+[
+    boolean, 
+    (listeners?: {
+        type: keyof DocumentEventMap;
+        action: (ev: DocumentEventMap[keyof DocumentEventMap]) => void;
+    }[]) => void, 
+    () => void,
+] => {
     const [isFocused, setFocus] = React.useState(false);
 
-    const declareFocus = () => {
+    const declareFocus = (listeners = [] as { type: keyof DocumentEventMap, action: (ev: DocumentEventMap[keyof DocumentEventMap]) => void; }[] ) => {
         dispatchListeners({ 
             type: 'register-focus', 
-            focusId: 'editor-focus',
+            focusId,
+            listeners: listeners.map(l => ({ focusId, type: l.type, callback: l.action })),
         });
         setFocus(true);
     }
 
     const declareBlur = () => {
-        dispatchListeners({ type: 'deregister-focus', focusId: 'editor-focus', removeListeners: false });
+        dispatchListeners({ type: 'deregister-focus', focusId, removeListeners: true });
         setFocus(false);
     }
 

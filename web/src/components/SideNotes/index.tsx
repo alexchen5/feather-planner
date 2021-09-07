@@ -11,7 +11,7 @@ function SideNotes() {
   // const {layout} = React.useContext(userLayout);
 
   React.useEffect(() => {
-    db.collection(`users/${uid}/notes`)
+    const unsub = db.collection(`users/${uid}/notes`)
       .onSnapshot(snapshot => {
         const newNotes: any[] = [];
         snapshot.forEach(doc => {
@@ -24,6 +24,7 @@ function SideNotes() {
         });
         setNotes(newNotes);
       })
+    return () => unsub();
   }, [uid]);
 
   // const handleResizeDrag = e => {

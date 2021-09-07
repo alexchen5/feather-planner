@@ -55,7 +55,7 @@ function PlanSpring({props: { spawnBox, updateBox, onUpdate }}: {props: PlanSpri
     // eslint-disable-next-line
   }, [spawnBox])
 
-  return <></>
+  return null
 }
 
 export default PlanSpring;

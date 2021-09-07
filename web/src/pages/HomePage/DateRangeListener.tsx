@@ -9,14 +9,14 @@ import { SetLabels, SetPlans } from "types/pages/HomePage/reducer";
 /**
  * Dummy component that takes care of listening to db on a given range of dates
  * @param props given DateRange to listen to
- * @returns empty <></>
+ * @returns null (renders nothing)
  */
 function DateRangeListener({startDate, endDate}: { startDate: string, endDate: string }) {
   const { dispatch } = React.useContext(FeatherContext);
   const { uid } = React.useContext(UidContext);
 
   React.useEffect(() => { 
-    console.log('attaching listeners on: ' + startDate + ' to ' + endDate);
+    // console.log('attaching listeners on: ' + startDate + ' to ' + endDate);
     const detachLabelListener = db.collection(`users/${uid}/date-labels`) // labels for each date
       .where('date', '>=', startDate)
       .where('date', '<=', endDate)
@@ -104,7 +104,7 @@ function DateRangeListener({startDate, endDate}: { startDate: string, endDate: s
     })
   }, [uid, dispatch, startDate, endDate])
 
-  return (<></>)
+  return null
 }
 
 export default DateRangeListener;

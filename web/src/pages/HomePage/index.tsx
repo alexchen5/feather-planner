@@ -14,7 +14,7 @@ import CalendarComponent from 'components/Calendar';
 import { SetStyles } from 'types/pages/HomePage/reducer';
 import Notes from 'components/Notes';
 import { useAllNotes } from 'components/Notes/data';
-import { InodeListener } from 'components/Notes/Listeners';
+import { DirectoryListener, InodeListener, PinboardListener } from 'components/Notes/Listeners';
 import SideNotes from 'components/SideNotes';
 
 function HomePage() {
@@ -62,7 +62,9 @@ function HomePage() {
     <DocumentEventListener>
       <FeatherContext.Provider value={{ featherPlanner, dispatch, notes }}>
         {featherPlanner.dateRanges.map(range => <DateRangeListener key={range.startDate} startDate={range.startDate} endDate={range.endDate}/>)}
-        {notes.listeners.inodeListeners.map(path => <InodeListener path={path} giveFile={notes.inodes.giveFile}/>)}
+        {notes.listeners.inodeListeners.map(path => <InodeListener key={path} inodePath={path}/>)}
+        {notes.listeners.directoryListeners.map(path => <DirectoryListener key={path} inodePath={path}/>)}
+        {notes.listeners.pinboardListeners.map(path => <PinboardListener key={path} inodePath={path}/>)}
         <div id="home-layout"> 
           <div id="home-menu">
             <button onClick={() => firebase.auth().signOut()}>Sign Out</button>

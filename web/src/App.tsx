@@ -32,7 +32,7 @@ function App() {
             path={["/", "/calendar", "/notes", "/old-notes"]}
             render={() => {
               // render blank page if uid is still loading
-              if (isLoadingUid) return <></>;
+              if (isLoadingUid) return null;
 
               // render the login component if user is not logged in
               if (!uid) return <LoginPage/>;
