@@ -1,7 +1,9 @@
 .root {
-    margin: 4px;
-    height: 100%;
+    margin: 4px 4px 0px 4px;
+    flex-grow: 1;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .day {
@@ -22,7 +24,7 @@
 .dates {
     overflow-y: scroll;
     overflow-x: hidden;
-    height: calc(100% - 42px);
+    flex-grow: 1;
     display: flex;
     flex-wrap: wrap;
     margin: 0px;

@@ -1,3 +1,7 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -69,6 +73,8 @@ code {
 #home-app {
   grid-area: app;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .border-capture {

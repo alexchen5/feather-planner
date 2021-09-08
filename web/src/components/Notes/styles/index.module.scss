@@ -1,21 +1,28 @@
 .root {
-    height: 100%;
-    width: 100%;
     display: grid;
-    grid-template-areas: "directory" "notes";
+    grid-template-areas: "directory notes";
     grid-template-columns: 260px auto;
     grid-template-rows: 1fr;
+    background-color: #f0f0f0;;
+    flex-grow: 1;
 }
 
 .directory {
-    grid-area: "directory";
-    // background-color: white;
+    grid-area: directory;
 }
 
 .notesContainer {
-    grid-area: "notes";
+    grid-area: notes;
+    display: flex;
+    flex-direction: column;
 }
 
 .tabsContainer {
     display: flex;
+}
+
+.fileRoot {
+    background-color: white;
+    flex-grow: 1;
+    padding: 6px 0px 0px 4px;
 }

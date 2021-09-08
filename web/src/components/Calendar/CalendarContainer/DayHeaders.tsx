@@ -11,7 +11,7 @@ function DayHeaders() {
   return (
     <GridList
       cols={7} spacing={0} 
-      style={{margin: '0px', padding: '0px 4px'}} // override materialUi styles
+      style={{margin: '0px', padding: '0px 4px', height: '52px'}} // override materialUi styles
     >
       {weekdays.map(day => 
         <li 

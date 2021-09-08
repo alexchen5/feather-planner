@@ -1,14 +1,19 @@
 .tab {
     max-width: 176px;
     flex-grow: 1;
-    padding: 6px;
+    padding: 6px 8px 2px 6px;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     display: flex;
     justify-content: space-between;
     font-size: 14px;
     line-height: 18px;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    transition: background-color 200ms ease;
+
+    &:hover {
+        background-color: #f8f8f8;
+    }
 
     &[fp-state=closed] {
         cursor: default;
@@ -20,15 +25,26 @@
 
     &[fp-state=open] {
         cursor: auto;
-        background-color: #f0f0f0;
+        background-color: white;
+    }
+
+    [class~=MuiIconButton-sizeSmall] {
+        height: 18px;
+        width: 18px;
+    }
+    [class~=MuiSvgIcon-root] {
+        font-size: 17px;
+        cursor: default;
     }
 }
 
 .editorContainer {
     width: 100%;
-    height: 100%;
+    height: 22px;
+    overflow: hidden;
     border: 1px solid transparent;
-    margin-right: 8px;
+    margin-right: 2px;
+    border-radius: 2px;
 
     &:hover {
         border: 1px solid rgba(0, 0, 0, 0.05);

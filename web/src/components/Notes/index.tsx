@@ -149,21 +149,22 @@ function Notes() {
           }
         </div>
         <div className={style.notesContainer}>
-          <div className={style.tabsContainer}>{ 
-            noteTabs.map(note => allNotes[note.inodePath] ? <InodeTab key={note.inodePath} file={allNotes[note.inodePath]!} inodePath={note.inodePath} isOpen={note.isOpen}/> : null)
-          }</div>
-          {
-          noteTabs.map(note => {
-            if (note.isOpen) {
-              const file = allNotes[note.inodePath];
-              
-              if (file) switch (file.type) {
-                case 'pinboard': return <PinboardComponent key={note.inodePath} inodePath={note.inodePath} pins={file.file?.pins || []}/>
+          <div className={style.tabsContainer}>
+            { noteTabs.map(note => allNotes[note.inodePath] ? <InodeTab key={note.inodePath} file={allNotes[note.inodePath]!} inodePath={note.inodePath} isOpen={note.isOpen}/> : null) }
+          </div>
+          <div className={style.fileRoot}>
+            {noteTabs.map(note => {
+              if (note.isOpen) {
+                const file = allNotes[note.inodePath];
+                
+                if (file) switch (file.type) {
+                  case 'pinboard': return <PinboardComponent key={note.inodePath} inodePath={note.inodePath} pins={file.file?.pins || []}/>
+                }
               }
-            }
-            return null;
-          })
-        }</div>
+              return null;
+            })}
+          </div>
+        </div>
       </div>
     </UndoRedoContext.Provider>
   )

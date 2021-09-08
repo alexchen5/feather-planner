@@ -7,8 +7,11 @@ import { useEditorFocus, useEditorUpdater } from "utils/useEditorUtil";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { File } from "../data";
 
+import CloseIcon from '@material-ui/icons/Close';
+
 import 'draft-js/dist/Draft.css';
 import style from './inodes.module.scss';
+import { Icon, IconButton } from "@material-ui/core";
 
 function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, isOpen: boolean }) {
   const { notes: { tabs } } = React.useContext(FeatherContext);
@@ -103,7 +106,7 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
           onBlur={handleBlur}
         />
       </div>
-      <button className={style.close} onClick={handleCloseClick}>x</button>
+      <IconButton size='small' onClick={handleCloseClick}><CloseIcon/></IconButton>
     </div>
   )
 }

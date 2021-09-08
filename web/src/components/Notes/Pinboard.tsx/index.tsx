@@ -1,3 +1,5 @@
+import { IconButton } from "@material-ui/core";
+import AddIcon from '@material-ui/icons/Add';
 import React from "react";
 import { db } from "utils/globalContext";
 import { UndoRedoContext } from "utils/useUndoRedo";
@@ -14,8 +16,8 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
       content: '',
       lastEdited: Date.now(),
       position: {
-        left: 8,
-        top: 12,
+        left: 6,
+        top: 6,
       },
       size: {
         width: 260,
@@ -36,12 +38,12 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
 
   return (
     <div className={style.root}>
-      <div style={{position: 'relative', textAlign: 'right'}}>
-        <button onClick={addNote}>add note</button>
-      </div>
       {
         pins.map(pin => <Pin key={pin.docPath} pin={pin}/>)
       }
+      <div className={style.addButton}>
+        <IconButton size='medium' onClick={addNote}><AddIcon/></IconButton>
+      </div>
     </div>
   )
 }

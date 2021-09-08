@@ -206,10 +206,10 @@ function Pin({ pin }: {pin: PinboardPin}) {
       console.error('Expected pinRef during drag');
       return;
     }
-    if (pinRef.current.offsetTop - clientDy >= 12) clientY = e.clientY;
-    if (pinRef.current.offsetLeft - clientDx >= 8) clientX = e.clientX;
-    pinRef.current.style.top = Math.max(12, pinRef.current.offsetTop - clientDy) + "px";
-    pinRef.current.style.left = Math.max(8, pinRef.current.offsetLeft - clientDx) + "px";
+    if (pinRef.current.offsetTop - clientDy >= 6) clientY = e.clientY;
+    if (pinRef.current.offsetLeft - clientDx >= 6) clientX = e.clientX;
+    pinRef.current.style.top = Math.max(6, pinRef.current.offsetTop - clientDy) + "px";
+    pinRef.current.style.left = Math.max(6, pinRef.current.offsetLeft - clientDx) + "px";
   }
 
   const mousemoveResize = (e: MouseEvent, directions: ResizeDirections[]) => {
@@ -220,23 +220,37 @@ function Pin({ pin }: {pin: PinboardPin}) {
       console.error('Expected pinRef during resize');
       return;
     }
-    if (parseInt(getComputedStyle(pinRef.current).height) - clientDy >= 25) clientY = e.clientY;
-    if (parseInt(getComputedStyle(pinRef.current).width) - clientDx >= 25) clientX = e.clientX;
 
     // change height/width/left/top depending on direction of resize
     if (directions.includes('n')) {
-      pinRef.current.style.height = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) + clientDy) + "px";
-      pinRef.current.style.top = pinRef.current.offsetTop - clientDy + 'px';
+      const newH = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) + clientDy) + "px"
+      if (newH !== pinRef.current.style.height) {
+        clientY = e.clientY;
+        pinRef.current.style.height = newH;
+        pinRef.current.style.top = pinRef.current.offsetTop - clientDy + 'px';
+      }
     }
     if (directions.includes('s')) {
-      pinRef.current.style.height = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) - clientDy) + "px";
+      const newH = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) - clientDy) + "px";
+      if (newH !== pinRef.current.style.height) {
+        clientY = e.clientY;
+        pinRef.current.style.height = newH
+      }
     }
     if (directions.includes('e')) {
-      pinRef.current.style.width = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) - clientDx) + "px";
+      const newW = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) - clientDx) + "px";
+      if (newW !== pinRef.current.style.width) {
+        clientX = e.clientX
+        pinRef.current.style.width = newW
+      }
     }
     if (directions.includes('w')) {
-      pinRef.current.style.width = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) + clientDx) + "px";
-      pinRef.current.style.left = pinRef.current.offsetLeft - clientDx + 'px';
+      const newW = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) + clientDx) + "px";
+      if (newW !== pinRef.current.style.width) {
+        clientX = e.clientX
+        pinRef.current.style.width = newW
+        pinRef.current.style.left = pinRef.current.offsetLeft - clientDx + 'px';
+      }
     }
   }
 
@@ -365,15 +379,17 @@ function Pin({ pin }: {pin: PinboardPin}) {
         <div onMouseDown={(e) => handleMouseDownResize(e, ['s', 'w'],'nesw')} className={borderStyle.borderCapture + ' ' + borderStyle.bottomLeft} style={{cursor: 'nesw-resize'}}/>
       </>
     }
-    <Editor
-      ref={editor}
-      placeholder={'Empty note'}
-      readOnly={state !== 'edit'}
-      editorState={editorState} 
-      handleKeyCommand={handleKeyCommand}
-      onChange={handleChange}
-      keyBindingFn={checkSubmit}
-    />
+    <div style={{overflow: 'hidden', height: '100%', width: '100%'}}>
+      <Editor
+        ref={editor}
+        placeholder={'Empty note'}
+        readOnly={state !== 'edit'}
+        editorState={editorState} 
+        handleKeyCommand={handleKeyCommand}
+        onChange={handleChange}
+        keyBindingFn={checkSubmit}
+      />
+    </div>
   </div>
 }
 
