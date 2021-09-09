@@ -38,6 +38,7 @@ export interface Pinboard extends FileBase {
 
 export interface PinboardPin {
     docPath: string,
+    inodePath: string,
     content: string | RawDraftContentState,
     lastEdited: number, // timestamp
     position: {
@@ -97,6 +98,10 @@ export function useAllNotes(uid: string | boolean) {
                 setListeners(listeners => listeners.filter(l => l !== path));
             }, 30000), // 30 second timeout to remove listener 
         });
+    }
+    // remove listener without timeout
+    const deletePath = (path: string, setListeners: React.Dispatch<React.SetStateAction<string[]>>) => {
+        setListeners(listeners => listeners.filter(l => l !== path));
     }
 
     const listenerReceive = React.useMemo(() => ({
@@ -176,13 +181,13 @@ export function useAllNotes(uid: string | boolean) {
             })
         },
 
-        close: (inodePath: string, type: FileType) => {
+        close: (inodePath: string, type: FileType, immediate = false) => {
             switch (type) {
                 case 'dir': 
-                    removePath(inodePath, setDirectoryListeners);
+                    immediate ? deletePath(inodePath, setDirectoryListeners) : removePath(inodePath, setDirectoryListeners);
                     break;
                 case 'pinboard': 
-                    removePath(inodePath, setPinboardListeners);
+                    immediate ? deletePath(inodePath, setPinboardListeners) : removePath(inodePath, setPinboardListeners);
                     break;
             }
             setNoteTabs(allTabs => {
@@ -198,7 +203,7 @@ export function useAllNotes(uid: string | boolean) {
                     }
                 })
                 if (removalIndex === -1) {
-                    console.error('No tab to close: ' + inodePath);
+                    // No tab to close
                     return allTabs;
                 }
                 if (!hasOpen) {
@@ -212,19 +217,45 @@ export function useAllNotes(uid: string | boolean) {
 
     const inodes = React.useMemo(() => ({
         /**
-         * add the inode path to the inode listeners, if the path is not there already
+         * Call when mounting an inode. 
+         * We add the inode path to the inode listeners, if the path is not there already
          * @param paths document paths to inodes to load
          */
-        loadInodes: (paths: string[]) => {
+        open: (paths: string[]) => {
             addPaths(paths, setInodeListeners);
         },
 
         /**
-         * called when an inode unmounts, 
+         * Called when the parent folder of an inode is collapsed, and the inode is unmounted
          * @param path document path to inode
          */
-        declareInodeUnmount: (path: string) => {
+        close: (path: string) => {
             removePath(path, setInodeListeners);
+        },
+
+        /**
+         * Use for deleting an inode, i.e. deleting a file. 
+         * Note that tab.close must be called separately to clear the file specific listener
+         * Removes the inode from its parent directory, and clears inode listeners
+         * @param inodePath 
+         * @param parentInode 
+         */
+        delete: (inodePath: string, parentInode: string) => {
+            deletePath(inodePath, setInodeListeners);
+            setAllNotes(notes => {
+                const parentDir = notes[parentInode];
+                // do nothing if parent dir doesnt exist, parent isnt a dir, or file doesnt exist
+                if (!parentDir || parentDir.type !== 'dir' || !parentDir.file) return notes;
+                return {
+                    ...notes,
+                    [parentInode]: {
+                        ...parentDir,
+                        file: {
+                            inodePaths: parentDir.file.inodePaths.filter(path => path !== inodePath),
+                        }
+                    } 
+                }
+            })
         },
     }), []);
 

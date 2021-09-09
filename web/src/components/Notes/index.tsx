@@ -2,17 +2,16 @@ import { FeatherContext } from 'pages/HomePage/context';
 import React from 'react';
 import { db, UidContext } from 'utils/globalContext';
 import { UndoRedoContext, useUndoRedo } from 'utils/useUndoRedo';
-import PinboardComponent from './Pinboard.tsx';
-import DirectoryInode from './Inodes/DirectoryInode';
-import PinboardInode from './Inodes/PinboardInode';
+import PinboardComponent from './Pinboard';
 import style from './styles/index.module.scss';
 import InodeTab from './Inodes/InodeTab';
 import { DocumentListenerContext } from 'components/DocumentEventListener/context';
 import { useDocumentEventListeners } from 'components/DocumentEventListener/useDocumentEventListeners';
 import { key } from 'utils/keyUtil';
+import Inode from './Inodes';
 
 function Notes() {
-  const { notes: {allNotes, noteTabs, inodes: { loadInodes }} } = React.useContext(FeatherContext);
+  const { notes: {allNotes, noteTabs, inodes: { open }} } = React.useContext(FeatherContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
 
@@ -31,8 +30,8 @@ function Notes() {
   }, [uid, allNotes]);
 
   React.useEffect(() => {
-    loadInodes(homeNodes);
-  }, [homeNodes, loadInodes]);
+    open(homeNodes);
+  }, [homeNodes, open]);
 
   React.useEffect(() => {
     registerFocus('notes-base-focus', [
@@ -136,34 +135,26 @@ function Notes() {
       <div className={style.root}>
         <div className={style.directory}>
           <button onClick={addPinboard}>Add pinboard</button>
-          <button onClick={addHomeDirectory}>Add directory</button>
-          {
-            homeNodes.map(path => {
-              const file = allNotes[path];
-              if (file) switch (file.type) {
-                case 'dir': return <DirectoryInode key={path} inodePath={path} file={file}/>
-                case 'pinboard': return <PinboardInode key={path} inodePath={path} file={file}/>
-              }
-              return null
-            })
-          }
+          <button onClick={addHomeDirectory}>Add folder</button>
+          { homeNodes.map(path => allNotes[path] ? <Inode key={path} inodePath={path} file={allNotes[path]!}/> : null) }
         </div>
         <div className={style.notesContainer}>
           <div className={style.tabsContainer}>
             { noteTabs.map(note => allNotes[note.inodePath] ? <InodeTab key={note.inodePath} file={allNotes[note.inodePath]!} inodePath={note.inodePath} isOpen={note.isOpen}/> : null) }
           </div>
-          <div className={style.fileRoot}>
-            {noteTabs.map(note => {
-              if (note.isOpen) {
-                const file = allNotes[note.inodePath];
-                
-                if (file) switch (file.type) {
-                  case 'pinboard': return <PinboardComponent key={note.inodePath} inodePath={note.inodePath} pins={file.file?.pins || []}/>
-                }
+          {noteTabs.map(note => {
+            if (note.isOpen) {
+              const file = allNotes[note.inodePath];
+              if (file) switch (file.type) {
+                case 'pinboard': return (
+                  <div key={note.inodePath} className={style.fileRoot}>
+                    <PinboardComponent inodePath={note.inodePath} pins={file.file?.pins || []}/>
+                  </div>
+                )
               }
-              return null;
-            })}
-          </div>
+            }
+            return null;
+          })}
         </div>
       </div>
     </UndoRedoContext.Provider>

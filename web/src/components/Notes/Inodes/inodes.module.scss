@@ -1,6 +1,4 @@
 .tab {
-    max-width: 176px;
-    flex-grow: 1;
     padding: 6px 8px 2px 6px;
     overflow: hidden;
     display: flex;
@@ -9,48 +7,146 @@
     line-height: 18px;
     border-top-left-radius: 4px;
     border-top-right-radius: 4px;
-    transition: background-color 200ms ease;
+    position: relative;
+    transition: background-color 100ms ease;
 
     &:hover {
-        background-color: #f8f8f8;
-    }
-
-    &[fp-state=closed] {
-        cursor: default;
-
-        .editorContainer:hover {
-            border: 1px solid transparent;
-        }
+        background-color: #ffffff62;
     }
 
     &[fp-state=open] {
         cursor: auto;
         background-color: white;
+        box-shadow: 0px -6px 6px rgba(7, 21, 58, 0.02);
+        z-index: 1;
+    }
+    &[fp-drag-state=dragging] {
+        z-index: 2;
+    }
+
+    .editorContainer {
+        width: 100%;
+        height: 22px;
+
+        &[fp-state=normal], &[fp-state=dragging] {
+            cursor: default;
+
+            span {
+                user-select: none !important;
+            }
+        }
+
+        &[fp-state=normal]:hover, &[fp-state=dragging]:hover {
+            border: 1px solid transparent;
+        }
     }
 
     [class~=MuiIconButton-sizeSmall] {
         height: 18px;
         width: 18px;
+        cursor: default;
     }
     [class~=MuiSvgIcon-root] {
         font-size: 17px;
-        cursor: default;
+    }
+}
+
+.inode {
+    font-size: 14px;
+    line-height: 18px;
+    height: 24px;
+    padding: 2px 4px 2px 4px;
+    transition: background-color 50ms ease;
+    display: flex;
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.6);
+    }
+
+    &[fp-state=open] {
+        cursor: auto;
+        background-color: rgba(255, 255, 255, 0.9);
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+    }
+
+    &.pinboard {
+    }
+
+    &.directory {
+
+    }
+
+    .editorContainer {
+        width: 100%;
+        height: 20px;
+
+        &[fp-state=normal], &[fp-state=dragging] {
+            cursor: default;
+
+            span {
+                user-select: none !important;
+            }
+        }
+
+        &[fp-state=normal]:hover, &[fp-state=dragging]:hover {
+            border: 1px solid transparent;
+        }
+    }
+
+    &[fp-state=open]:hover [class~=MuiIconButton-sizeSmall] {
+        opacity: 1;
+        pointer-events: all;
+        transition: opacity 420ms ease;
+    }
+
+    [class~=MuiIconButton-sizeSmall] {
+        transition: opacity 120ms ease;
+        opacity: 0;
+        pointer-events: none;
+        height: 18px;
+        width: 18px;
+        cursor: pointer;
+    }
+    [class~=MuiSvgIcon-root] {
+        font-size: 18px;
+    }
+}
+
+.icon {
+    height: 100%;
+    width: 18px;
+    display: flex;
+    align-items: center;
+}
+
+.directory {
+    [class=MuiSvgIcon-root] {
+        transition: transform 120ms ease;
+    }
+
+    &[fp-state=collapsed] [class=MuiSvgIcon-root] {
+        transform: rotateZ(-90deg);
+    }
+
+    &[fp-state=expanded] [class=MuiSvgIcon-root] {
+        transform: rotateZ(0deg);
     }
 }
 
 .editorContainer {
-    width: 100%;
-    height: 22px;
     overflow: hidden;
     border: 1px solid transparent;
     margin-right: 2px;
     border-radius: 2px;
 
-    &:hover {
-        border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-
     &[fp-state="edit"] {
         border: 1px solid var(--edge-grey);
+    }
+
+    span {
+        white-space: nowrap !important;
     }
 }

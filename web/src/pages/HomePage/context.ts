@@ -20,11 +20,12 @@ export const FeatherContext = React.createContext({} as {
         }
         tabs: {
             open: (inodePath: string, type: FileType) => void;
-            close: (inodePath: string, type: FileType) => void;
+            close: (inodePath: string, type: FileType, immediate?: boolean) => void;
         }
         inodes: {
-            loadInodes: (paths: string[]) => void;
-            declareInodeUnmount: (path: string) => void;
+            open: (paths: string[]) => void;
+            close: (path: string) => void;
+            delete: (inodePath: string, parent: string) => void;
         };
     }
 });

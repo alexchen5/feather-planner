@@ -11,12 +11,14 @@ import { PinboardPin } from "../data";
 import 'draft-js/dist/Draft.css';
 import style from './pinboard.module.scss';
 import borderStyle from './borderCapture.module.scss';
+import { FeatherContext } from "pages/HomePage/context";
 
 type ResizeStyle = 'ns' | 'ew' | 'nwse' | 'nesw';
 type ResizeDirections = 'n' | 'e' | 's' | 'w';
 let clientDx: number, clientDy: number, clientX: number, clientY: number // track drag positions
 
 function Pin({ pin }: {pin: PinboardPin}) {
+  const { notes: { tabs } } = React.useContext(FeatherContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
   const { addUndo } = React.useContext(UndoRedoContext);
@@ -41,16 +43,22 @@ function Pin({ pin }: {pin: PinboardPin}) {
     deregisterFocus('pin-edit');
 
     const redo = async () => {
-      db.doc(pin.docPath).delete();
+      setTimeout(() => {
+        tabs.open(pin.inodePath, 'pinboard')
+        db.doc(pin.docPath).delete();
+      }, 50);
     }
     const undo = async () => {
-      db.doc(pin.docPath).set({...pin.restoreData});
+      setTimeout(() => {
+        tabs.open(pin.inodePath, 'pinboard')
+        db.doc(pin.docPath).set({...pin.restoreData});
+      }, 50);
     }
     
     redo(); // execute delete
     addUndo({undo, redo})
-    // expect addUndo, declareBlur are memoised 
-  }, [ addUndo, deregisterFocus, pin.docPath, pin.restoreData ]);
+    // expect addUndo, declareBlur, tabs are memoised 
+  }, [ addUndo, deregisterFocus, tabs, pin.docPath, pin.restoreData, pin.inodePath ]);
 
   /**
    * Take the necessary steps to submit content changes to the db
@@ -65,16 +73,22 @@ function Pin({ pin }: {pin: PinboardPin}) {
     }
     
     const redo = async () => {
-      db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
+      setTimeout(() => {
+        tabs.open(pin.inodePath, 'pinboard')
+        db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
+      }, 50);
     };
     const undo = async () => {
-      db.doc(pin.docPath).set({...pin.restoreData});
-    }
+      setTimeout(() => {
+        tabs.open(pin.inodePath, 'pinboard')
+        db.doc(pin.docPath).set({...pin.restoreData});
+      }, 50);
+  }
     
     redo(); // execute update
     addUndo({undo, redo})
-    // expect addUndo, deleteSelf are memoised 
-  }, [addUndo, deleteSelf, didChange, pin.docPath, pin.restoreData]);
+    // expect addUndo, deleteSelf, tabs are memoised 
+  }, [addUndo, deleteSelf, tabs, didChange, pin.docPath, pin.restoreData, pin.inodePath]);
 
   // update our handleEditEnd function whenever its dependancies change
   React.useEffect(() => {
@@ -224,7 +238,7 @@ function Pin({ pin }: {pin: PinboardPin}) {
     // change height/width/left/top depending on direction of resize
     if (directions.includes('n')) {
       const newH = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) + clientDy) + "px"
-      if (newH !== pinRef.current.style.height) {
+      if (newH !== pinRef.current.style.height && pinRef.current.offsetTop - clientDy >= 6) {
         clientY = e.clientY;
         pinRef.current.style.height = newH;
         pinRef.current.style.top = pinRef.current.offsetTop - clientDy + 'px';
@@ -246,7 +260,7 @@ function Pin({ pin }: {pin: PinboardPin}) {
     }
     if (directions.includes('w')) {
       const newW = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) + clientDx) + "px";
-      if (newW !== pinRef.current.style.width) {
+      if (newW !== pinRef.current.style.width && pinRef.current.offsetLeft - clientDx >= 6) {
         clientX = e.clientX
         pinRef.current.style.width = newW
         pinRef.current.style.left = pinRef.current.offsetLeft - clientDx + 'px';
@@ -265,10 +279,16 @@ function Pin({ pin }: {pin: PinboardPin}) {
     const left = parseInt(pinRef.current.style.left);
 
     const redo = async () => {
-      db.doc(pin.docPath).set({ position: { top, left }, lastEdited: Date.now() }, { merge: true });
+      setTimeout(() => {
+        tabs.open(pin.inodePath, 'pinboard')
+        db.doc(pin.docPath).set({ position: { top, left }, lastEdited: Date.now() }, { merge: true });
+      }, 50);
     };
     const undo = async () => {
-      db.doc(pin.docPath).set({...pin.restoreData});
+      setTimeout(() => {
+        tabs.open(pin.inodePath, 'pinboard')
+        db.doc(pin.docPath).set({...pin.restoreData});
+      }, 50);
     }
     
     redo(); // execute update

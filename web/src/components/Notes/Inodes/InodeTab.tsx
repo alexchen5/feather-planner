@@ -3,7 +3,7 @@ import { ContentState, Editor, EditorState, getDefaultKeyBinding } from "draft-j
 import { FeatherContext } from "pages/HomePage/context";
 import React, { MouseEventHandler } from "react";
 import { db } from "utils/globalContext";
-import { useEditorFocus, useEditorUpdater } from "utils/useEditorUtil";
+import { useEditorUpdater } from "utils/useEditorUtil";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { File } from "../data";
 
@@ -11,16 +11,22 @@ import CloseIcon from '@material-ui/icons/Close';
 
 import 'draft-js/dist/Draft.css';
 import style from './inodes.module.scss';
-import { Icon, IconButton } from "@material-ui/core";
+import { IconButton } from "@material-ui/core";
+import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
+
+let clientDx: number, clientX: number // track drag positions
 
 function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, isOpen: boolean }) {
   const { notes: { tabs } } = React.useContext(FeatherContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { addUndo } = React.useContext(UndoRedoContext);
 
+  const tabRef = React.useRef<HTMLDivElement>(null);
+  const [state, setState] = React.useState<'normal' | 'edit' | 'dragging'>('normal');
+  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
+
   const editor = React.useRef<Editor>(null);
   const [editorState, setEditorState] = useEditorUpdater(file.name);
-  const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners, 'tab-focus');
 
   /**
    * Take the necessary steps to submit content changes to the db
@@ -47,12 +53,115 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
     addUndo({undo, redo})
   };
 
-  const handleClick = () => {
-    tabs.open(inodePath, file.type);
+  const handleMouseDown: MouseEventHandler = (e) => {
+    if (state === 'normal') {
+      if (!isOpen) tabs.open(inodePath, file.type); // open tab
+      mousedownDragInitiate(e); // potentially start drag
+    } 
+  }
+
+  /**
+   * Helper function to set up drag from mousedown
+   * @param e 
+   */
+  const mousedownDragInitiate = (e: React.MouseEvent<Element, MouseEvent>) => {
+    clientX = e.clientX;
+
+    registerFocus('tab-try-drag', [
+      {
+        type: 'mousemove',
+        callback: mousemoveTryStartDrag,
+      },
+      {
+        type: 'mouseup',
+        // cancel try drag focus on mouseup
+        callback: () => deregisterFocus('tab-try-drag'),
+      }
+    ])
+  }
+
+  const mousemoveTryStartDrag = (e: MouseEvent) => {
+    // ensure mouse moved enough for a drag
+    if (!tabRef.current) {
+      console.error('Expected tabRef during drag');
+      return;
+    }
+
+    if (!(Math.abs(e.clientX - clientX) > 2)) return;
+
+    // Can start the drag now
+    setState('dragging'); // set state to dragging
+
+    // dereg previous focus
+    deregisterFocus('tab-try-drag');
+    deregisterFocus('tab-edit')
+
+    // reg actual dragging listeners
+    registerFocus('tab-drag', [
+      {
+        type: 'mousemove',
+        callback: mousemoveHandleDrag
+      },
+      {
+        type: 'mouseup',
+        callback: mouseupEndDrag,
+      }
+    ])
+  }
+
+  const mousemoveHandleDrag = (e: MouseEvent) => {
+    e.preventDefault();
+    clientDx = clientX - e.clientX;
+    if (!tabRef.current) {
+      console.error('Expected tabRef during drag');
+      return;
+    }
+    const newLeft = (parseInt(tabRef.current.style.left) || 0) - clientDx
+    const absLeft = tabRef.current.offsetLeft - clientDx
+    if (absLeft >= 0) {
+      clientX = e.clientX;
+      tabRef.current.style.left = newLeft + "px";
+    } else {
+      clientX = e.clientX - absLeft;
+      tabRef.current.style.left = newLeft - absLeft + "px";
+    }
+  }
+
+  const mouseupEndDrag = (e: MouseEvent) => {
+    deregisterFocus('tab-drag')
+    if (!tabRef.current) {
+      console.error('Expected tabRef at drag end');
+      return;
+    }
+    tabRef.current.style.left = '';
+    setTimeout(() => {
+      if (tabRef.current) setState('normal')
+    }, 50);
   }
 
   const handleClickEdit = () => {
-    if (isOpen) editor.current?.focus();
+    // expect that pointer event none if tab not open
+    if (state === 'normal') {
+      setState('edit')
+      registerFocus('tab-focus', [
+        {
+          type: 'mousedown',
+          callback: () => {
+            if (tabRef.current) setState('normal')
+            deregisterFocus('tab-focus')
+          }
+        }
+      ])
+    } else if (state === 'edit') {
+      editor.current?.focus();
+    }
+  }
+
+  const handleMouseDownEdit: MouseEventHandler = (e) => {
+    // expect that pointer event none if tab not open
+    if (state === 'edit') {
+      e.stopPropagation();
+    }
   }
 
   const handleCloseClick: MouseEventHandler = (e) => {
@@ -60,12 +169,9 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
     tabs.close(inodePath, file.type)
   }
 
-  const handleFocus = () => {
-    declareFocus();
-  }
-
   const handleBlur = () => {
-    declareBlur()
+    setState('normal')
+    deregisterFocus('tab-focus')
     const text = editorState.getCurrentContent().getPlainText(' ').replace('\n', ' ').trim();
     submitContentChanges(text);
   }
@@ -87,26 +193,35 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
 
   return (
     <div
+      ref={tabRef}
       className={style.tab}
       fp-state={isOpen ? 'open' : 'closed'}
-      onClick={handleClick}
+      fp-drag-state={state}
+      onMouseDown={handleMouseDown}
     >
       <div
+        style={!isOpen ? {pointerEvents: 'none'} : {}}
         className={style.editorContainer}
-        fp-state={isFocused ? 'edit' : 'normal'}
+        fp-state={state}
         onClick={handleClickEdit}
+        onMouseDown={handleMouseDownEdit}
       >
         <Editor
           ref={editor}
-          readOnly={!isOpen}
+          readOnly={!isOpen || state !== 'edit'}
           editorState={editorState} 
           onChange={setEditorState}
           keyBindingFn={checkKey}
-          onFocus={handleFocus}
           onBlur={handleBlur}
         />
       </div>
-      <IconButton size='small' onClick={handleCloseClick}><CloseIcon/></IconButton>
+      <IconButton 
+        size='small' 
+        onClick={handleCloseClick}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        <CloseIcon/>
+      </IconButton>
     </div>
   )
 }

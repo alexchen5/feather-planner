@@ -1,5 +1,6 @@
 import { IconButton } from "@material-ui/core";
 import AddIcon from '@material-ui/icons/Add';
+import { FeatherContext } from "pages/HomePage/context";
 import React from "react";
 import { db } from "utils/globalContext";
 import { UndoRedoContext } from "utils/useUndoRedo";
@@ -9,6 +10,7 @@ import Pin from "./Pin";
 import style from './pinboard.module.scss';
 
 function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: PinboardPin[] }) {
+  const { notes: { tabs } } = React.useContext(FeatherContext);
   const { addUndo } = React.useContext(UndoRedoContext);
 
   const addNote = async () => {
@@ -27,10 +29,16 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
     const newDoc = await db.collection(inodePath + '/pinboard').add(initContent)
 
     const redo = async () => {
-      db.doc(newDoc.path).set(initContent);
+      setTimeout(() => {
+        tabs.open(inodePath, 'pinboard')
+        db.doc(newDoc.path).set(initContent);
+      }, 50);
     }
     const undo = async () => {
-      newDoc.delete();
+      setTimeout(() => {
+        tabs.open(inodePath, 'pinboard')
+        newDoc.delete();
+      }, 50);
     }
     
     addUndo({undo, redo})
