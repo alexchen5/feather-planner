@@ -6,12 +6,12 @@ import React, { MouseEventHandler } from "react";
 import { db } from "utils/globalContext";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { FileBase } from "../data";
-import { getParentInode } from "../Listeners";
 
 import firebase from "firebase/app";
 import "firebase/firestore";
 
 import style from './inodes.module.scss';
+import { getParentInode } from "../Listeners";
 
 function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: FileBase, editor: { ref: React.RefObject<Editor>, component: JSX.Element } }) {
   const { notes: {tabs, inodes, noteTabs} } = React.useContext(FeatherContext);

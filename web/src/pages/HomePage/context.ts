@@ -1,4 +1,4 @@
-import { AllNotes, FileBase, FileType, PinboardPin } from "components/Notes/data";
+import { AllNotes, FileBase, FileType, PinboardPin } from "pages/Notes/data";
 import React from "react";
 import { FeatherPlanner } from "types/pages/HomePage";
 import { FeatherPlannerAction } from "types/pages/HomePage/reducer";

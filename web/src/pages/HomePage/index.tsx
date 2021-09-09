@@ -6,16 +6,20 @@ import "firebase/auth";
 import { db, UidContext } from 'utils/globalContext';
 import { FeatherContext } from './context';
 import { init, reducer } from './reducer';
-import DateRangeListener from './DateRangeListener';
+import DateRangeListener from '../Calendar/DateRangeListener';
 
 import DocumentEventListener from 'components/DocumentEventListener';
-import CalendarComponent from 'components/Calendar';
+import CalendarComponent from 'pages/Calendar';
 
 import { SetStyles } from 'types/pages/HomePage/reducer';
-import Notes from 'components/Notes';
-import { useAllNotes } from 'components/Notes/data';
-import { DirectoryListener, InodeListener, PinboardListener } from 'components/Notes/Listeners';
-import SideNotes from 'components/SideNotes';
+import Notes from 'pages/Notes';
+import { useAllNotes } from 'pages/Notes/data';
+import { DirectoryListener, InodeListener, PinboardListener } from 'pages/Notes/Listeners';
+
+import { IconButton } from '@material-ui/core';
+import HomeIcon from '@material-ui/icons/Home';
+import DescriptionIcon from '@material-ui/icons/Description';
+import AccountCircleIcon from '@material-ui/icons/AccountCircle';
 
 function HomePage() {
   const {uid} = React.useContext(UidContext);
@@ -68,17 +72,12 @@ function HomePage() {
         <div id="home-layout"> 
           <div id="home-menu">
             <button onClick={() => firebase.auth().signOut()}>Sign Out</button>
-            <Link to={'/'}><button>Calendar</button></Link>
-            <Link to={'/notes'}><button>Notes</button></Link>
-            <Link to={'/old-notes'}><button>Old Notes</button></Link>
+            <Link to={'/'}><IconButton size='medium'><HomeIcon/></IconButton></Link>
+            <Link to={'/notes'}><IconButton size='medium'><DescriptionIcon/></IconButton></Link>
+            <Link to={'/profile'}><IconButton size='medium'><AccountCircleIcon/></IconButton></Link>
           </div>
           <div id="home-app">
-            <Switch> 
-              <Route
-                exact
-                path='/old-notes'
-                render={() => <SideNotes/>}
-              />
+            <Switch>
               <Route
                 exact
                 path='/notes'
