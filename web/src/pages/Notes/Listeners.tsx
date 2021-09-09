@@ -1,7 +1,6 @@
 import { RawDraftContentState } from "draft-js";
-import { FeatherContext } from "pages/HomePage/context";
 import React from "react";
-import { db } from "utils/globalContext";
+import { AppContext, db } from "utils/globalContext";
 import { PinboardPin } from "./data";
 import firebase from "firebase/app";
 import "firebase/firestore";
@@ -41,7 +40,7 @@ async function deleteFromParent(inodePath: string) {
 }
 
 export function InodeListener({ inodePath } : { inodePath: string }) {
-  const { notes: { listenerReceive } } = React.useContext(FeatherContext);
+  const { notes: { listenerReceive } } = React.useContext(AppContext);
 
   React.useEffect(() => {
     const detach = db.doc(inodePath)
@@ -73,7 +72,7 @@ export function InodeListener({ inodePath } : { inodePath: string }) {
 }
 
 export function DirectoryListener({ inodePath } : { inodePath: string }) {
-  const { notes: { listenerReceive } } = React.useContext(FeatherContext);
+  const { notes: { listenerReceive } } = React.useContext(AppContext);
 
   React.useEffect(() => {
     const detach = db.doc(inodePath + '/dir/index')
@@ -96,7 +95,7 @@ export function DirectoryListener({ inodePath } : { inodePath: string }) {
 }
 
 export function PinboardListener({ inodePath } : { inodePath: string }) {
-  const { notes: { listenerReceive } } = React.useContext(FeatherContext);
+  const { notes: { listenerReceive } } = React.useContext(AppContext);
 
   React.useEffect(() => {
     const detach = db.collection(inodePath + '/pinboard')

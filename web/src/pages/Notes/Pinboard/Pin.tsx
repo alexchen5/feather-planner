@@ -2,7 +2,7 @@ import { DocumentListenerContext } from "components/DocumentEventListener/contex
 import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
 import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState, RichUtils } from "draft-js";
 import React, { MouseEventHandler, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { db } from "utils/globalContext";
+import { AppContext, db } from "utils/globalContext";
 import { key } from "utils/keyUtil";
 import { useEditorChangeLogger, useEditorUpdater } from "utils/useEditorUtil";
 import { UndoRedoContext } from "utils/useUndoRedo";
@@ -11,14 +11,13 @@ import { PinboardPin } from "../data";
 import 'draft-js/dist/Draft.css';
 import style from './pinboard.module.scss';
 import borderStyle from './borderCapture.module.scss';
-import { FeatherContext } from "pages/HomePage/context";
 
 type ResizeStyle = 'ns' | 'ew' | 'nwse' | 'nesw';
 type ResizeDirections = 'n' | 'e' | 's' | 'w';
 let clientDx: number, clientDy: number, clientX: number, clientY: number // track drag positions
 
 function Pin({ pin }: {pin: PinboardPin}) {
-  const { notes: { tabs } } = React.useContext(FeatherContext);
+  const { notes: { tabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
   const { addUndo } = React.useContext(UndoRedoContext);

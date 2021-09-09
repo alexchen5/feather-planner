@@ -1,8 +1,7 @@
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { ContentState, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
-import { FeatherContext } from "pages/HomePage/context";
 import React, { MouseEventHandler } from "react";
-import { db } from "utils/globalContext";
+import { AppContext, db } from "utils/globalContext";
 import { useEditorUpdater } from "utils/useEditorUtil";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { FileBase } from "../data";
@@ -14,7 +13,7 @@ import style from './inodes.module.scss';
 import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
 
 function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
-  const { notes: { noteTabs } } = React.useContext(FeatherContext);
+  const { notes: { noteTabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { addUndo } = React.useContext(UndoRedoContext);
 

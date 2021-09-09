@@ -5,7 +5,6 @@ import { key } from "utils/keyUtil";
 import { init, reducer } from "./reducer";
 import { CalendarContext } from "./context";
 
-import { FeatherContext } from "pages/HomePage/context";
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 
 import CalendarContainer from "./CalendarContainer";
@@ -13,12 +12,12 @@ import PlanDragHandler from "./PlanDragHandler";
 import Date from "./Date";
 import PlanWrapper from "./PlanDragHandler/PlanWrapper";
 import Plan from './Plan'
+import { AppContext } from "utils/globalContext";
 
-import { AllCalendarDates } from "types/pages/HomePage";
-
-function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
+function CalendarComponent() {
+  const { calendar: { state: { calendarDates: allDates }, dispatch: dispatchCalendarData } } = React.useContext(AppContext);
   const [calendar, dispatch] = useReducer(reducer, allDates, init);
-  const { dispatch: dispatchFeather } = React.useContext(FeatherContext);
+
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   
   React.useEffect(() => {
@@ -32,11 +31,11 @@ function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
     // we are letting the higher feather component know that we are 
     // trying to render a new range of dates, and that they may need to 
     // prepare for us a new allDates object
-    dispatchFeather({ 
+    dispatchCalendarData({ 
       type: 'update-date-ranges', 
       newRenderRange: getRenderRange(calendar.dates),
     })
-  }, [calendar.dates, dispatchFeather])
+  }, [calendar.dates, dispatchCalendarData])
 
   React.useEffect(() => {
     // set up drag listeners
@@ -66,33 +65,28 @@ function CalendarComponent({ allDates } : {allDates: AllCalendarDates}) {
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>
-      
-        <div style={{textAlign: 'right'}}>
-          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-undo"}) }}>Undo ({calendar.undoStack.length})</button>
-          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-redo"}) }}>Redo ({calendar.redoStack.length})</button>
-        </div>
-        <CalendarContainer>
-          <PlanDragHandler>
-            {calendar.dates.map(date => 
-              <Date
-                key={date.dateStr}
-                dateStr={date.dateStr}
-                label={date.label}
-              >
-                {date.plans.map((plan, i) => 
-                  <PlanWrapper key={plan.planId + i} planId={plan.planId} moveTrigger={'' + i}>
-                    <Plan plan={{
-                      ...plan,
-                      dateStr: date.dateStr,
-                      nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
-                      prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
-                    }} />
-                  </PlanWrapper>
-                )}
-              </Date>
-            )}
-          </PlanDragHandler>
-        </CalendarContainer>
+      <CalendarContainer>
+        <PlanDragHandler>
+          {calendar.dates.map(date => 
+            <Date
+              key={date.dateStr}
+              dateStr={date.dateStr}
+              label={date.label}
+            >
+              {date.plans.map((plan, i) => 
+                <PlanWrapper key={plan.planId + i} planId={plan.planId} moveTrigger={'' + i}>
+                  <Plan plan={{
+                    ...plan,
+                    dateStr: date.dateStr,
+                    nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
+                    prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
+                  }} />
+                </PlanWrapper>
+              )}
+            </Date>
+          )}
+        </PlanDragHandler>
+      </CalendarContainer>
     </CalendarContext.Provider>
   );
 }

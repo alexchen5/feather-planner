@@ -1,5 +1,6 @@
 import StyledFirebaseAuth from 'react-firebaseui/StyledFirebaseAuth';
 import firebase from "firebase/app";
+import "firebase/auth";
 
 // Configure FirebaseUI.
 const uiConfig = {
@@ -15,9 +16,8 @@ const uiConfig = {
 
 function LoginPage() {
 	return (
-    <div>
-			<h1>Welcome to Feather Planner</h1>
-			<p>Please sign-in:</p>
+    <div style={{ textAlign: 'center' }}>
+			<h1>Welcome to Feather Planner!</h1>
 			<StyledFirebaseAuth uiConfig={uiConfig} firebaseAuth={firebase.auth()} />
 		</div>
 	)

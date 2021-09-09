@@ -20,7 +20,7 @@ function getInitScrollHeight(datenodeEl: Element) {
 }
 
 function CalendarContainer({children} : {children: ReactNode}) {
-  const { dispatch } = React.useContext(CalendarContext);
+  const { calendar, dispatch } = React.useContext(CalendarContext);
   const datesContainer = React.useRef<HTMLUListElement>(null);
   const [ scrollEventListeners, setScrollEventListeners ] = React.useState<ScrollEventListener[]>([]);
 
@@ -127,14 +127,22 @@ function CalendarContainer({children} : {children: ReactNode}) {
 
   return (
     <div fp-role={"calendar-container"} className={style.root}>
-      <button 
-        onMouseDown={handleToday} // use mousedown to hide the render delay
-        className={style.today}
-      >today</button>
-      <DayHeaders />
+      <div>
+        <button 
+          onMouseDown={handleToday} // use mousedown to hide the render delay
+        >today</button>
+        
+        <div style={{textAlign: 'right'}}>
+          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-undo"}) }}>Undo ({calendar.undoStack.length})</button>
+          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-redo"}) }}>Redo ({calendar.redoStack.length})</button>
+        </div>
+      </div>
+      <div>
+        <DayHeaders />
+      </div>
       <ScrollHandlerContext.Provider value={{ addScrollEventListener, removeScrollEventListener }}>
         <ul
-          className={style.dates}
+          className={style.datesContainer}
           ref={datesContainer}
           onScroll={handleScroll}
           fp-role={"dates-container"}

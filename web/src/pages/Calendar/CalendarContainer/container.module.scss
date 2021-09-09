@@ -14,14 +14,7 @@
     color: #333;
 }
 
-.today {
-    position: absolute; 
-    z-index: 3;
-    top: 54px; 
-    left: 16px;
-}
-
-.dates {
+.datesContainer {
     overflow-y: scroll;
     overflow-x: hidden;
     flex-grow: 1;

@@ -1,8 +1,8 @@
 // A set of helper functions for date manipulation and initialisation
 
+import { ListenerDateRange } from "pages/Calendar/listeners/DateRangeListener";
 import { DateRange } from "types";
 import { CalendarDate, CalendarPlan } from "types/components/Calendar";
-import { ListenerDateRange } from "types/pages/HomePage/DateRangeListener";
 
 export const DAY_START: 'MON' | 'SUN' = 'MON';
 const NUM_WEEKS_START = 5;

@@ -1,5 +1,4 @@
 import { Editor } from "draft-js";
-import { FeatherContext } from "pages/HomePage/context";
 import React, { MouseEventHandler } from "react";
 import { FileBase } from "../data";
 
@@ -7,8 +6,8 @@ import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
 
 import style from './inodes.module.scss';
 
-function DirectoryInode({ inodePath, editor } : { inodePath: string, file: FileBase, editor: { ref: React.RefObject<Editor>, setForceOpen: React.Dispatch<React.SetStateAction<boolean>>, component: JSX.Element } }) {
-  const { notes: { noteTabs } } = React.useContext(FeatherContext);
+function DirectoryInode({ editor } : { inodePath: string, file: FileBase, editor: { ref: React.RefObject<Editor>, setForceOpen: React.Dispatch<React.SetStateAction<boolean>>, component: JSX.Element } }) {
+  // const { notes: { noteTabs } } = React.useContext(AppContext);
   const [state, setState] = React.useState<'collapsed' | 'expanded'>('collapsed')
 
   const handleMouseDown: MouseEventHandler = (e) => {

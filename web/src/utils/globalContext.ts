@@ -3,11 +3,21 @@
 import React from "react";
 import firebase from "firebase/app";
 import "firebase/firestore";
+import { CalendarData } from "pages/Calendar/data";
+import { NotesData } from "pages/Notes/data";
 
 /**
  * The firebase id of the current user, or false if not logged in
  */
 export const UidContext = React.createContext<{ uid: string | false }>({ uid: false });
+
+/**
+ * The global context of our app
+ */
+export const AppContext = React.createContext({} as { 
+    calendar: CalendarData,
+    notes: NotesData,
+});
 
 /**
  * Debugging option to turn off cache and prevent reading and writing to localStorage

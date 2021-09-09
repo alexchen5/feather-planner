@@ -1,10 +1,15 @@
 import { RawDraftContentState } from "draft-js";
-import { db, UidContext } from "utils/globalContext";
+import { AppContext, db, UidContext } from "utils/globalContext";
 import React from "react";
 import { CalendarPlan } from "types/components/Calendar";
-import { getUpdateRange } from "../../utils/dateUtil";
-import { FeatherContext } from "pages/HomePage/context";
-import { SetLabels, SetPlans } from "types/pages/HomePage/reducer";
+import { getUpdateRange } from "../../../utils/dateUtil";
+import { SetLabels, SetPlans } from "../data";
+
+export interface ListenerDateRange {
+  startDate: string;
+  endDate: string;
+  onScreen: boolean;
+}
 
 /**
  * Dummy component that takes care of listening to db on a given range of dates
@@ -12,7 +17,7 @@ import { SetLabels, SetPlans } from "types/pages/HomePage/reducer";
  * @returns null (renders nothing)
  */
 function DateRangeListener({startDate, endDate}: { startDate: string, endDate: string }) {
-  const { dispatch } = React.useContext(FeatherContext);
+  const { calendar: { dispatch } } = React.useContext(AppContext);
   const { uid } = React.useContext(UidContext);
 
   React.useEffect(() => { 

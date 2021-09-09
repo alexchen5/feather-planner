@@ -1,9 +1,8 @@
 import { IconButton } from "@material-ui/core";
 import DeleteForeverIcon from '@material-ui/icons/DeleteForever';
 import { Editor } from "draft-js";
-import { FeatherContext } from "pages/HomePage/context";
 import React, { MouseEventHandler } from "react";
-import { db } from "utils/globalContext";
+import { AppContext, db } from "utils/globalContext";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { FileBase } from "../data";
 
@@ -14,7 +13,7 @@ import style from './inodes.module.scss';
 import { getParentInode } from "../Listeners";
 
 function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: FileBase, editor: { ref: React.RefObject<Editor>, component: JSX.Element } }) {
-  const { notes: {tabs, inodes, noteTabs} } = React.useContext(FeatherContext);
+  const { notes: {tabs, inodes, noteTabs} } = React.useContext(AppContext);
   const { addUndo } = React.useContext(UndoRedoContext);
   
   const isOpen = React.useMemo(() => noteTabs.find(note => note.inodePath === inodePath)?.isOpen || false, [noteTabs, inodePath]);

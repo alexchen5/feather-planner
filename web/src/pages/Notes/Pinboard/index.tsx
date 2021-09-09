@@ -1,8 +1,7 @@
 import { IconButton } from "@material-ui/core";
 import AddIcon from '@material-ui/icons/Add';
-import { FeatherContext } from "pages/HomePage/context";
 import React from "react";
-import { db } from "utils/globalContext";
+import { AppContext, db } from "utils/globalContext";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { PinboardPin } from "../data";
 import Pin from "./Pin";
@@ -10,7 +9,7 @@ import Pin from "./Pin";
 import style from './pinboard.module.scss';
 
 function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: PinboardPin[] }) {
-  const { notes: { tabs } } = React.useContext(FeatherContext);
+  const { notes: { tabs } } = React.useContext(AppContext);
   const { addUndo } = React.useContext(UndoRedoContext);
 
   const addNote = async () => {

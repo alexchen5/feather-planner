@@ -1,6 +1,5 @@
-import { FeatherContext } from 'pages/HomePage/context';
 import React from 'react';
-import { db, UidContext } from 'utils/globalContext';
+import { AppContext, db, UidContext } from 'utils/globalContext';
 import { UndoRedoContext, useUndoRedo } from 'utils/useUndoRedo';
 import PinboardComponent from './Pinboard';
 import style from './styles/index.module.scss';
@@ -11,7 +10,7 @@ import { key } from 'utils/keyUtil';
 import Inode from './Inodes';
 
 function Notes() {
-  const { notes: {allNotes, noteTabs, inodes: { open }} } = React.useContext(FeatherContext);
+  const { notes: {allNotes, noteTabs, inodes: { open }} } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
 

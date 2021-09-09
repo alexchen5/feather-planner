@@ -62,10 +62,34 @@ export interface Sheet extends FileBase {
     file: null;
 }
 
+export interface NotesData {
+    allNotes: AllNotes;
+    noteTabs: { inodePath: string, isOpen: boolean }[];
+    listeners: {
+        inodeListeners: string[];
+        directoryListeners: string[];
+        pinboardListeners: string[];
+    };
+    listenerReceive: {
+        inode: (inodePath: string, filebase: FileBase) => void;
+        directory: (inodePath: string, inodePaths: string[]) => void;
+        pinboard: (inodePath: string, pins: PinboardPin[]) => void;
+    }
+    tabs: {
+        open: (inodePath: string, type: FileType) => void;
+        close: (inodePath: string, type: FileType, immediate?: boolean) => void;
+    }
+    inodes: {
+        open: (paths: string[]) => void;
+        close: (path: string) => void;
+        delete: (inodePath: string, parent: string) => void;
+    };
+}
+
 /**
  * Hook for the db info on all inodes
  */
-export function useAllNotes(uid: string | boolean) {
+export function useNotes(uid: string | boolean): NotesData {
     const [allNotes, setAllNotes] = React.useState<AllNotes>({
         [`users/${uid}/inodes/index`]: {
             type: 'dir',

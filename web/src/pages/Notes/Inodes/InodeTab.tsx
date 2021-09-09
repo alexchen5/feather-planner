@@ -1,8 +1,7 @@
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { ContentState, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
-import { FeatherContext } from "pages/HomePage/context";
 import React, { MouseEventHandler } from "react";
-import { db } from "utils/globalContext";
+import { AppContext, db } from "utils/globalContext";
 import { useEditorUpdater } from "utils/useEditorUtil";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { File } from "../data";
@@ -17,7 +16,7 @@ import { useDocumentEventListeners } from "components/DocumentEventListener/useD
 let clientDx: number, clientX: number // track drag positions
 
 function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, isOpen: boolean }) {
-  const { notes: { tabs } } = React.useContext(FeatherContext);
+  const { notes: { tabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { addUndo } = React.useContext(UndoRedoContext);
 
