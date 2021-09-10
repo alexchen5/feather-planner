@@ -41,6 +41,9 @@ function Pin({ pin }: {pin: PinboardPin}) {
     // ensure edit listeners are cleaned up
     deregisterFocus('pin-edit');
 
+    // execute delete
+    db.doc(pin.docPath).delete();
+
     const redo = async () => {
       setTimeout(() => {
         tabs.open(pin.inodePath, 'pinboard')
@@ -53,8 +56,6 @@ function Pin({ pin }: {pin: PinboardPin}) {
         db.doc(pin.docPath).set({...pin.restoreData});
       }, 50);
     }
-    
-    redo(); // execute delete
     addUndo({undo, redo})
     // expect addUndo, declareBlur, tabs are memoised 
   }, [ addUndo, deregisterFocus, tabs, pin.docPath, pin.restoreData, pin.inodePath ]);
@@ -71,6 +72,9 @@ function Pin({ pin }: {pin: PinboardPin}) {
       return;
     }
     
+    // execute update
+    db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
+
     const redo = async () => {
       setTimeout(() => {
         tabs.open(pin.inodePath, 'pinboard')
@@ -82,9 +86,7 @@ function Pin({ pin }: {pin: PinboardPin}) {
         tabs.open(pin.inodePath, 'pinboard')
         db.doc(pin.docPath).set({...pin.restoreData});
       }, 50);
-  }
-    
-    redo(); // execute update
+    }
     addUndo({undo, redo})
     // expect addUndo, deleteSelf, tabs are memoised 
   }, [addUndo, deleteSelf, tabs, didChange, pin.docPath, pin.restoreData, pin.inodePath]);
@@ -277,6 +279,9 @@ function Pin({ pin }: {pin: PinboardPin}) {
     const top = parseInt(pinRef.current.style.top);
     const left = parseInt(pinRef.current.style.left);
 
+    // execute update
+    db.doc(pin.docPath).set({ position: { top, left }, lastEdited: Date.now() }, { merge: true });
+
     const redo = async () => {
       setTimeout(() => {
         tabs.open(pin.inodePath, 'pinboard')
@@ -289,8 +294,6 @@ function Pin({ pin }: {pin: PinboardPin}) {
         db.doc(pin.docPath).set({...pin.restoreData});
       }, 50);
     }
-    
-    redo(); // execute update
     addUndo({undo, redo})
   }
 
@@ -310,14 +313,15 @@ function Pin({ pin }: {pin: PinboardPin}) {
     const top = parseInt(pinRef.current.style.top);
     const left = parseInt(pinRef.current.style.left);
 
+    // execute update
+    db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
+
     const redo = async () => {
       db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
     };
     const undo = async () => {
       db.doc(pin.docPath).set({...pin.restoreData});
     }
-    
-    redo(); // execute update
     addUndo({undo, redo})
   }
 
