@@ -1,6 +1,6 @@
 import { Delete, FormatBold, FormatItalic, FormatUnderlined, MoreVert } from "@material-ui/icons";
 import { ContentState, convertFromRaw, convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState, RichUtils, SelectionState } from "draft-js";
-import React, { KeyboardEvent, useState } from "react";
+import React, { KeyboardEvent as ReactKeyboardEvent, useState } from "react";
 import PlanStyles from "./PlanStyles";
 import { CalendarPlanProp } from "types/components/Calendar";
 import { db, UidContext } from "utils/globalContext";
@@ -42,7 +42,9 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
   const [styleOpen, setStyleOpen] = useState(false);
 
   const {uid} = React.useContext(UidContext);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { stack, addUndo, undo, redo } = React.useContext(UndoRedoContext);
+  const editChangeCount = React.useRef<number>(0);
+  const editUndoCount = React.useRef<number>(0);
 
   // text editor management
   const textEdit = React.useRef<Editor>(null);
@@ -131,6 +133,8 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     }
     if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
     if (hasChange) { // dispatch changes to the plan content
+      editChangeCount.current = editChangeCount.current + 1; // increment change counter
+
       const action = async () => {
         db.doc(`users/${uid}/plans/${planId}`).update('header', val);
       };
@@ -207,7 +211,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
           // keydown events to be handled by this plan
           focusId: 'plan-edit', 
           type: 'keydown', 
-          callback: handleKeyDown, 
+          callback: (e) => handleKeyDown.current(e), 
         },
         {
           // add own deregister event
@@ -218,6 +222,8 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       ],
     });
 
+    editChangeCount.current = 0; // reset change counters
+    editUndoCount.current = 0; 
     setState('edit'); // set edit state
     selectAllText();
   }
@@ -281,6 +287,10 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     e.preventDefault();
     e.stopPropagation();
 
+    if (isEdit(state)) {
+      editChangeCount.current = editChangeCount.current + 1;
+    }
+
     const action = async () => {
       db.doc(`users/${uid}/plans/${planId}`).update('done', !isDone);
     }
@@ -296,29 +306,44 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
    * plan is in edit state.
    * @param {KeyboardEvent} e 
    */
-  const handleKeyDown = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
+  const handleKeyDown = React.useRef<(e: KeyboardEvent) => void>(() => {})
+  handleKeyDown.current = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
     if (key.isDelete(e)) {
-      e.stopPropagation();
       deleteSelf();
     }
     else if (e.key === 'Enter') {
-      e.stopPropagation();
       deregisterPlanEdit();
     }
     else if (key.isMeta(e) && e.key === 'b') {
-      e.stopPropagation();
       changeStyleHelper.current('BOLD')
     }
     else if (key.isMeta(e) && e.key === 'i') {
-      e.stopPropagation();
       changeStyleHelper.current('ITALIC')
     }
     else if (key.isMeta(e) && e.key === 'u') {
-      e.stopPropagation();
       changeStyleHelper.current('UNDERLINE')
     }
+    else if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
+      if (editChangeCount.current > 0) {
+        editChangeCount.current = editChangeCount.current - 1;
+        editUndoCount.current = editUndoCount.current + 1;
+        undo();
+      } else if (stack.undo.length) {
+        deregisterPlanEdit();
+        undo();
+      }
+    } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
+      if (editUndoCount.current > 0) {
+        editUndoCount.current = editUndoCount.current - 1;
+        editChangeCount.current = editChangeCount.current + 1;
+        redo();
+      } else if (stack.redo.length) {
+        deregisterPlanEdit();
+        redo();
+      }
+    }
     // else console.log(e.key)
-  }, [deleteSelf, deregisterPlanEdit]);
+  }, [deleteSelf, deregisterPlanEdit, redo, undo, stack.redo.length, stack.undo.length]);
 
   /**
    * Handle key-styling command for text edit
@@ -336,10 +361,8 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
 
   /**
    * Callback on every key, to check if submit was called
-   * @param {KeyboardEvent} e 
-   * @returns 
    */
-  const checkSubmit = (e: KeyboardEvent): string | null => {
+  const checkSubmit = (e: ReactKeyboardEvent): string | null => {
     if (e.key === 'Enter' && !e.shiftKey) {
       submitPlanChanges(
         editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
