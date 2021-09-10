@@ -12,8 +12,6 @@ export const init = (allDates: AllCalendarDates): Calendar => {
     return {
         dates: getInitCalendarDates(allDates, startDate, endDate), // TODO: error checking for valid local storage is incomplete
         shouldSyncDates: true,
-        undoStack: [],
-        redoStack: [],
     }
 }
 
@@ -121,36 +119,7 @@ export const reducer = (state: Calendar, action: CalendarAction): Calendar => {
                 return date;
             }),
         }
-    } else if (action.type === 'add-undo') {
-        return {
-            ...state,
-            undoStack: [...state.undoStack, {...action.undo}],
-            redoStack: [], // clear redo stack when a new action is added
-        }
-    } else if (action.type === 'use-undo' || action.type === 'use-redo') {
-        const undoStack = [...state.undoStack];
-        const redoStack = [...state.redoStack];
-
-        if (action.type === 'use-undo') {
-            const curUndo = undoStack.pop();
-            if (curUndo) {
-                curUndo.undo();
-                redoStack.push(curUndo);
-            }
-        } else {
-            const curRedo = redoStack.pop();
-            if (curRedo) {
-                curRedo.redo();
-                undoStack.push(curRedo);
-            }
-        }
-
-        return {
-            ...state,
-            undoStack,
-            redoStack,
-        }
-    }  else { // this is never reached
+    } else { // this is never reached
         const _exhaustiveCheck: never = action;
         return _exhaustiveCheck;
     }

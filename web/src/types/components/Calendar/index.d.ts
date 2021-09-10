@@ -19,16 +19,6 @@ export interface Calendar {
      * False if Calendar.dates should not be updated when Calendar.datesAll are updated
      */
     shouldSyncDates: boolean;
-
-    /**
-     * Undo functions which can be called
-     */
-    undoStack: {undo: () => void, redo: () => void}[];
-
-    /**
-     * Redo functions which can be called
-     */
-    redoStack: {undo: () => void, redo: () => void}[];
 }
 
 /**

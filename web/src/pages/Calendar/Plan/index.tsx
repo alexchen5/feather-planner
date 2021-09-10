@@ -13,6 +13,7 @@ import { key } from "utils/keyUtil";
 import { DraggingPlansContext } from "../PlanDragHandler/context";
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { CalendarContext } from "../context";
+import { UndoRedoContext } from "utils/useUndoRedo";
 
 /**
  * Describes the state of the plan. Note that text values are connected to stylesheets.
@@ -32,7 +33,7 @@ const timeOutSubscriptions: NodeJS.Timeout[] = []; // track any timeout function
 let pos3: number, pos4 = 0; // track drag positions
 
 function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nxt, prv}}: { plan: CalendarPlanProp }) {
-  const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
+  const { calendar } = React.useContext(CalendarContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { dragPlans, isDragging, startDrag } = React.useContext(DraggingPlansContext);
 
@@ -41,6 +42,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
   const [styleOpen, setStyleOpen] = useState(false);
 
   const {uid} = React.useContext(UidContext);
+  const { addUndo } = React.useContext(UndoRedoContext);
 
   // text editor management
   const textEdit = React.useRef<Editor>(null);
@@ -103,9 +105,9 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       delBatch.commit();
     }
     action();
-    dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
+    addUndo({ undo, redo: action })
 
-  }, [uid, calendar.dates, dateStr, planId, restoreData, dispatchCalendar, dispatchListeners]);
+  }, [uid, calendar.dates, dateStr, planId, restoreData, addUndo, dispatchListeners]);
 
   /**
    * Take the necessary steps to submit plan changes to the db
@@ -126,7 +128,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       const undo = async () => {
         db.doc(`users/${uid}/plans/${planId}`).update('header', typeof content === 'string' ? content : {...content});
       }
-      dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
+      addUndo({ undo, redo: action })
       action();
     } else {
       // no changes to dispatch
@@ -286,7 +288,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       db.doc(`users/${uid}/plans/${planId}`).update('done', isDone);
     }
     action();
-    dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
+    addUndo({ undo, redo: action })
   }
 
   /**
@@ -297,8 +299,6 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
   const handleKeyDown = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
     if (key.isDelete(e)) {
       e.stopPropagation();
-      console.log('delete from backspace');
-      
       deleteSelf();
     }
     else if (e.key === 'Enter') {

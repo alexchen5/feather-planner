@@ -24,13 +24,18 @@ function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
   const editor = React.useRef<Editor>(null);
   const [editorState, setEditorState] = useEditorUpdater(file.name);
 
+  const editorStateRef = React.useRef<EditorState>(editorState);
+  React.useEffect(() => {
+    editorStateRef.current = editorState;
+  }, [editorState])
+
   const isOpen = React.useMemo(() => noteTabs.find(note => note.inodePath === inodePath)?.isOpen || false, [noteTabs, inodePath]);
 
   /**
    * Take the necessary steps to submit content changes to the db
    * @param val the current text content
    */
-   const submitContentChanges = (newName: string) => {
+   const submitContentChanges = React.useCallback((newName: string) => {
     if (!newName || newName === file.name) { // reset editor state and do nothing if we have an empty title
       // weird glitch where text isnt updated solved with timeout
       setTimeout(() => {
@@ -49,7 +54,18 @@ function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
     
     redo(); // execute update
     addUndo({undo, redo})
-  };
+  }, [addUndo, setEditorState, file.name, file.restoreData, inodePath]);
+
+  // Use effect to submit potential changes when the state leaves edit
+  React.useEffect(() => {
+    if (state === 'edit') {
+      return () => {
+        const text = editorStateRef.current.getCurrentContent().getPlainText(' ').replace('\n', ' ').trim();
+        submitContentChanges(text);
+      }
+    }
+    return () => {}
+  }, [state, submitContentChanges])
 
   const handleClickEdit = () => {
     // expect that pointer event none if tab not open
@@ -79,10 +95,7 @@ function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
   const handleBlur = () => {
     setState('normal')
     deregisterFocus('inode-focus')
-    const text = editorState.getCurrentContent().getPlainText(' ').replace('\n', ' ').trim();
-    submitContentChanges(text);
   }
-
 
   /**
    * Callback on every key, to check that no new line characters are entered

@@ -13,10 +13,16 @@ import Date from "./Date";
 import PlanWrapper from "./PlanDragHandler/PlanWrapper";
 import Plan from './Plan'
 import { AppContext } from "utils/globalContext";
+import { UndoRedoAction, UndoRedoContext, useUndoRedo } from "utils/useUndoRedo";
+
+const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } | null} = { current: null };
 
 function CalendarComponent() {
   const { calendar: { state: { calendarDates: allDates }, dispatch: dispatchCalendarData } } = React.useContext(AppContext);
   const [calendar, dispatch] = useReducer(reducer, allDates, init);
+
+  const { stack, addUndo, undo, redo } = useUndoRedo(saveUndoRedo);
+  const undoRedoContextValue = React.useMemo(() => ({ stack, addUndo, undo, redo }), [stack, addUndo, undo, redo]);
 
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   
@@ -57,36 +63,38 @@ function CalendarComponent() {
 
   const handleKeydown = React.useCallback((e: KeyboardEvent) => {
     if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
-      dispatch({ type: "use-undo" });
+      undo();
     } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
-      dispatch({ type: "use-redo" });
+      redo();
     }
-  }, []);
+  }, [undo, redo]);
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>
-      <CalendarContainer>
-        <PlanDragHandler>
-          {calendar.dates.map(date => 
-            <Date
-              key={date.dateStr}
-              dateStr={date.dateStr}
-              label={date.label}
-            >
-              {date.plans.map((plan, i) => 
-                <PlanWrapper key={plan.planId + i} planId={plan.planId} moveTrigger={'' + i}>
-                  <Plan plan={{
-                    ...plan,
-                    dateStr: date.dateStr,
-                    nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
-                    prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
-                  }} />
-                </PlanWrapper>
-              )}
-            </Date>
-          )}
-        </PlanDragHandler>
-      </CalendarContainer>
+      <UndoRedoContext.Provider value={undoRedoContextValue}>
+        <CalendarContainer>
+          <PlanDragHandler>
+            {calendar.dates.map(date => 
+              <Date
+                key={date.dateStr}
+                dateStr={date.dateStr}
+                label={date.label}
+              >
+                {date.plans.map((plan, i) => 
+                  <PlanWrapper key={plan.planId + i} planId={plan.planId} moveTrigger={'' + i}>
+                    <Plan plan={{
+                      ...plan,
+                      dateStr: date.dateStr,
+                      nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
+                      prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
+                    }} />
+                  </PlanWrapper>
+                )}
+              </Date>
+            )}
+          </PlanDragHandler>
+        </CalendarContainer>
+      </UndoRedoContext.Provider>
     </CalendarContext.Provider>
   );
 }

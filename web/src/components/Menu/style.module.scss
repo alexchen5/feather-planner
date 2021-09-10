@@ -1,3 +1,59 @@
 .root {
-    background-color: blanchedalmond;
+    background-color: white;
+    box-shadow: 0px 0px 6px rgba(7, 21, 58, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 32px 2px 20px;
+
+    [class="MuiButtonBase-root MuiButton-root MuiButton-text"] {
+        padding: 10px 36px;
+        margin: 0px 4px;
+    }
+
+    [class="MuiSvgIcon-root"] {
+        font-size: 26px;
+        color: #7d7e81;
+    }
+}
+
+.mainLinks {
+    // width: 420px;
+}
+
+[link-state=on] [class="MuiSvgIcon-root"] {
+    color: #df87d0;
+}
+
+.logoContainer {
+    pointer-events: none;
+    width: 26px;
+}
+
+.logo {
+    height: 26px;
+    width: 26px;
+
+    [class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeSmall"] {
+        height: 24px;
+        width: 24px;
+    }
+}
+
+.profileContainer {
+    pointer-events: none;
+    height: 30px;
+    width: 30px;
+    border-radius: 100%;
+    overflow: hidden;
+}
+
+.profileImg {
+    height: 100%;
+    width: 100%;
+
+    &[class^="MuiSvgIcon-root"] {
+        height: 100%;
+        width: 100%;
+    }
 }

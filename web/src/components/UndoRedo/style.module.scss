@@ -1,0 +1,47 @@
+.root {
+    width: 76px;
+    display: flex;
+    justify-content: space-between;
+
+    [class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeSmall"] {
+        width: 36px;
+        height: 36px;
+        // background-color: rgb(182, 182, 182);
+    }
+    [class="MuiButtonBase-root MuiIconButton-root Mui-disabled MuiIconButton-sizeSmall Mui-disabled"] {
+        width: 36px;
+        height: 36px;
+        // background-color: rgb(182, 182, 182);
+    }
+}
+
+.buttonContent {
+    margin-top: -6px;
+    width: 32px;
+    height: 32px;
+    position: relative;
+}
+
+.undoIcon {
+    transform: rotateZ(6deg);
+    margin-right: -4px;
+}
+
+.redoIcon {
+    transform: rotateZ(-6deg);
+    margin-left: -4px;
+}
+
+.number {
+    position: absolute;
+    bottom: 4px;
+    font-size: 12px;
+
+    &.undoNumber {
+        right: 7px;
+    }
+
+    &.redoNumber {
+        left: 7px;
+    }
+}

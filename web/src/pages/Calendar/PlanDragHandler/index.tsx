@@ -7,6 +7,7 @@ import { PlanSpringProps, SpringChanges } from "types/components/Calendar/PlanDr
 import { getAllPlanIds, getPlanIds } from "utils/dateUtil";
 import { getChangeTuples, getDragChanges } from "utils/dragUtil";
 import { db, UidContext } from "utils/globalContext";
+import { UndoRedoContext } from "utils/useUndoRedo";
 import { ScrollHandlerContext } from "../CalendarContainer/context";
 import { CalendarContext } from "../context";
 import { DraggingPlansContext } from "./context";
@@ -19,6 +20,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { addScrollEventListener, removeScrollEventListener } = React.useContext(ScrollHandlerContext);
+  const { addUndo } = React.useContext(UndoRedoContext);
     
   const [springs, setSprings] = React.useState<{ [planId: string]: { el: HTMLElement, props: PlanSpringProps} }>({});
 
@@ -155,7 +157,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
       action(); 
       
       // add undo and redo
-      dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
+      addUndo({ undo, redo: action })
 
       // resume data sync, after updates have been made
       setTimeout(() => {

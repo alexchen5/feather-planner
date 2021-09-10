@@ -7,6 +7,10 @@ import style from "./container.module.scss";
 import { CalendarContext } from "../context";
 import { ScrollHandlerContext } from "./context";
 import { ScrollEventListener } from "types/components/Calendar/CalendarContainer";
+import { Button } from "@material-ui/core";
+import { useDateDisplay } from "utils/useDateUtil";
+import UndoRedo from "components/UndoRedo";
+import { UndoRedoContext } from "utils/useUndoRedo";
 
 let prvScrollHeight: number;
 
@@ -20,9 +24,12 @@ function getInitScrollHeight(datenodeEl: Element) {
 }
 
 function CalendarContainer({children} : {children: ReactNode}) {
-  const { calendar, dispatch } = React.useContext(CalendarContext);
+  const { dispatch } = React.useContext(CalendarContext);
   const datesContainer = React.useRef<HTMLUListElement>(null);
   const [ scrollEventListeners, setScrollEventListeners ] = React.useState<ScrollEventListener[]>([]);
+  const dateDisplay = useDateDisplay();
+
+  const { stack, undo, redo } = React.useContext(UndoRedoContext);
 
   React.useLayoutEffect(() => {
     if (datesContainer.current) {
@@ -127,15 +134,11 @@ function CalendarContainer({children} : {children: ReactNode}) {
 
   return (
     <div fp-role={"calendar-container"} className={style.root}>
-      <div>
-        <button 
-          onMouseDown={handleToday} // use mousedown to hide the render delay
-        >today</button>
-        
-        <div style={{textAlign: 'right'}}>
-          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-undo"}) }}>Undo ({calendar.undoStack.length})</button>
-          <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); dispatch({type:"use-redo"}) }}>Redo ({calendar.redoStack.length})</button>
+      <div className={style.menu}>
+        <div onMouseDown={handleToday} className={style.todayButton}>
+          <Button> {dateDisplay} </Button>
         </div>
+        <UndoRedo undo={{ callback: undo, length: stack.undo.length }} redo={{ callback: redo, length: stack.redo.length }} />
       </div>
       <div>
         <DayHeaders />

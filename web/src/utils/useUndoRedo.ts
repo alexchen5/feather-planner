@@ -20,11 +20,24 @@ export type UndoRedoAction = {
     redo: () => void;
 };
 
-export function useUndoRedo() {
+/**
+ * Custom hook to use the undo redo stack
+ * @param saveUndoRedo a global variable whos .current attribute represents the saved stack
+ * @returns undo redo methods
+ */
+export function useUndoRedo(saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } | null}) {
     const [stack, setStack] = React.useState<{
         undo: UndoRedoAction[];
         redo: UndoRedoAction[];
-    }>({ undo: [], redo: [] });
+    }>(saveUndoRedo.current ? {...saveUndoRedo.current} : { undo: [], redo: [] });
+
+    React.useEffect(() => {
+        saveUndoRedo.current = stack;
+        const t = setTimeout(() => {
+            saveUndoRedo.current = null;
+        }, 1800000) // 30 minute timeout to clear undo/redo stack
+        return () => clearInterval(t) // clear timeout on update
+    }, [saveUndoRedo, stack])
 
     const addUndo = React.useCallback((action: UndoRedoAction) => {
         setStack(stack => ({

@@ -4,6 +4,10 @@ import { ListenerDateRange } from "pages/Calendar/listeners/DateRangeListener";
 import { DateRange } from "types";
 import { CalendarDate, CalendarPlan } from "types/components/Calendar";
 
+export const weekdayArray = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const longWeekdayArray = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const monthArray = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export const DAY_START: 'MON' | 'SUN' = 'MON';
 const NUM_WEEKS_START = 5;
 

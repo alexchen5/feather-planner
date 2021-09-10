@@ -22,11 +22,18 @@ import style from 'app.module.scss';
  */
 function MainApp() {
   const { uid } = React.useContext(UidContext);
+
+  const user = React.useMemo(() => firebase.auth().currentUser, []);
   const calendar = useCalendar();
   const notes = useNotes(uid);
 
+  if (user === null) {
+    console.error('Expected user to be logged in');
+    return null;
+  }
+
   return (
-    <AppContext.Provider value={{ calendar, notes }}>
+    <AppContext.Provider value={{ calendar, notes, user }}>
       <div className={style.root}> 
         <Menu/>
         <div className={style.body}>

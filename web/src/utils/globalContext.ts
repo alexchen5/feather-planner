@@ -15,6 +15,7 @@ export const UidContext = React.createContext<{ uid: string | false }>({ uid: fa
  * The global context of our app
  */
 export const AppContext = React.createContext({} as { 
+    user: firebase.User,
     calendar: CalendarData,
     notes: NotesData,
 });

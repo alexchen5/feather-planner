@@ -27,11 +27,16 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
   const editor = React.useRef<Editor>(null);
   const [editorState, setEditorState] = useEditorUpdater(file.name);
 
+  const editorStateRef = React.useRef<EditorState>(editorState);
+  React.useEffect(() => {
+    editorStateRef.current = editorState;
+  }, [editorState])
+
   /**
    * Take the necessary steps to submit content changes to the db
    * @param val the current text content
    */
-  const submitContentChanges = (newName: string) => {
+  const submitContentChanges = React.useCallback((newName: string) => {
     if (!newName || newName === file.name) { // reset editor state and do nothing if we have an empty title
       // weird glitch where text isnt updated solved with timeout
       setTimeout(() => {
@@ -50,7 +55,18 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
     
     redo(); // execute update
     addUndo({undo, redo})
-  };
+  }, [addUndo, setEditorState, file.name, file.restoreData, inodePath]);
+
+  // Use effect to submit potential changes when the state leaves edit
+  React.useEffect(() => {
+    if (state === 'edit') {
+      return () => {
+        const text = editorStateRef.current.getCurrentContent().getPlainText(' ').replace('\n', ' ').trim();
+        submitContentChanges(text);
+      }
+    }
+    return () => {}
+  }, [state, submitContentChanges])
 
   const handleMouseDown: MouseEventHandler = (e) => {
     if (state === 'normal') {
@@ -171,8 +187,6 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
   const handleBlur = () => {
     setState('normal')
     deregisterFocus('tab-focus')
-    const text = editorState.getCurrentContent().getPlainText(' ').replace('\n', ' ').trim();
-    submitContentChanges(text);
   }
 
   /**

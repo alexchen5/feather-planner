@@ -6,6 +6,29 @@
     flex-direction: column;
 }
 
+.menu {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 12px 12px 12px;
+}
+
+.todayButton {
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0px 0px 12px rgba(10, 44, 136, 0.015);
+
+    [class="MuiButtonBase-root MuiButton-root MuiButton-text"] {
+        text-transform: none;
+        font-size: 18px;
+        font-weight: 300;
+        padding: 6px 16px;
+
+        &:hover {
+            background-color: rgb(230, 230, 230);
+        }
+    }
+}
+
 .day {
     text-align: right;
     font-size: var(--day-label-font-size);

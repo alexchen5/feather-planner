@@ -13,7 +13,6 @@ export type CalendarAction =
     | AcceptAllDatesUpdate | SetRenderRange | MoveRenderRange 
     | PauseDataSync | ResumeDataSync
     | MovePlans
-    | AddUndo | UseUndo | UseRedo;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Data manipulation CalendarAction dispatch
@@ -69,31 +68,4 @@ export interface MovePlans {
     type: 'move-plans';
     datesUpdate: DatePlansUpdate;
     draggingPlans: { [planId: string]: CalendarPlan }
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Calendar data dispatch items 
-
-/**
-* Add an undo function, alongside its redo action
-*/
-export interface AddUndo {
-    type: 'add-undo';
-    undo: { undo: () => Promise<void>, redo: () => Promise<void> };
-}
-
-/**
-* Use the undo function at the top of the stack, and add the 
-* associated redo to the redo stack
-*/
-export interface UseUndo {
-    type: 'use-undo';
-}
-
-/**
-* Use the redo function at the top of the stack, and add the 
-* associated undo to the undo stack
-*/
-export interface UseRedo {
-    type: 'use-redo';
 }

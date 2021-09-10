@@ -1,6 +1,6 @@
 import React from 'react';
 import { AppContext, db, UidContext } from 'utils/globalContext';
-import { UndoRedoContext, useUndoRedo } from 'utils/useUndoRedo';
+import { UndoRedoAction, UndoRedoContext, useUndoRedo } from 'utils/useUndoRedo';
 import PinboardComponent from './Pinboard';
 import style from './styles/index.module.scss';
 import InodeTab from './Inodes/InodeTab';
@@ -8,6 +8,9 @@ import { DocumentListenerContext } from 'components/DocumentEventListener/contex
 import { useDocumentEventListeners } from 'components/DocumentEventListener/useDocumentEventListeners';
 import { key } from 'utils/keyUtil';
 import Inode from './Inodes';
+import UndoRedo from 'components/UndoRedo';
+
+const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } | null} = { current: null };
 
 function Notes() {
   const { notes: {allNotes, noteTabs, inodes: { open }} } = React.useContext(AppContext);
@@ -16,7 +19,7 @@ function Notes() {
 
   const {uid} = React.useContext(UidContext);
   
-  const { stack, addUndo, undo, redo } = useUndoRedo();
+  const { stack, addUndo, undo, redo } = useUndoRedo(saveUndoRedo);
   const undoRedoContextValue = React.useMemo(() => ({ stack, addUndo, undo, redo }), [stack, addUndo, undo, redo]);
 
   const homeNodes = React.useMemo<string[]>(() => {
@@ -127,9 +130,8 @@ function Notes() {
 
   return (
     <UndoRedoContext.Provider value={undoRedoContextValue}>
-      <div style={{textAlign: 'right'}}>
-        <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); undo() }}>Undo ({stack.undo.length})</button>
-        <button onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); redo() }}>Redo ({stack.redo.length})</button>
+      <div style={{display: 'flex', justifyContent: 'end', paddingRight: '24px'}}>
+        <UndoRedo undo={{ callback: undo, length: stack.undo.length }} redo={{ callback: redo, length: stack.redo.length }}/>
       </div>
       <div className={style.root}>
         <div className={style.directory}>

@@ -2,7 +2,7 @@ import React, { MouseEventHandler, ReactNode } from "react";
 import { CalendarDateLabel } from "types/components/Calendar";
 
 import AddPlan from "../Plan/AddPlan";
-import { strToDate } from 'utils/dateUtil';
+import { monthArray, strToDate } from 'utils/dateUtil';
 
 import { useSpring, animated } from 'react-spring';
 import { useMeasure } from "react-use";
@@ -63,7 +63,7 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
                 <div className={style.dateNumber}>{thisDate.getDate()}</div>
                 {
                   thisDate.getDate() === 1 &&  
-                  <div className={style.monthText}>{thisDate.toLocaleDateString('default', {month: 'short'})}</div>
+                  <div className={style.monthText}>{monthArray[thisDate.getMonth()]}</div>
                 }
               </div>
             </div>

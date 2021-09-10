@@ -10,14 +10,15 @@ import style from './plan.module.scss';
 import { CalendarContext } from "../context";
 import { useEditorFocus } from "utils/useEditorUtil";
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
+import { UndoRedoContext } from "utils/useUndoRedo";
 
 const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateStr}, ref) => {
   const { calendar } = React.useContext(CalendarContext);
   const editor = React.createRef<Editor>();
   const [editorState, setEditorState] = React.useState(() => EditorState.createEmpty());
-  const { dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners);
+  const { addUndo } = React.useContext(UndoRedoContext);
 
   const {uid} = React.useContext(UidContext);
 
@@ -56,7 +57,7 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
       newDoc.delete();
     }
     
-    dispatchCalendar({ type: 'add-undo', undo: { undo, redo } });
+    addUndo({ undo, redo })
   }
 
   React.useEffect(() => {

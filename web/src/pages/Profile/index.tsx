@@ -3,7 +3,9 @@ import firebase from "firebase/app";
 function Profile() {
 
   return (
-    <button onClick={() => firebase.auth().signOut()}>Sign Out</button>
+    <div style={{ textAlign: 'center', paddingTop: '40px' }}>
+      <button onClick={() => firebase.auth().signOut()}>Sign Out</button>
+    </div>
   )
 }
 

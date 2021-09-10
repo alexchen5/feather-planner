@@ -4,14 +4,14 @@ import { CalendarDateLabel } from "types/components/Calendar";
 import { db, UidContext } from "utils/globalContext";
 import { useEditorChangeLogger, useEditorFocus, useEditorUpdater } from "utils/useEditorUtil";
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
-import { CalendarContext } from "../context";
 
 import 'draft-js/dist/Draft.css';
 import style from "./date.module.scss";
+import { UndoRedoContext } from "utils/useUndoRedo";
 
 function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLabel | null }) {
-  const { dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const { addUndo } = React.useContext(UndoRedoContext);
 
   const {uid} = React.useContext(UidContext);
 
@@ -40,6 +40,10 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     if (e.key === 'Enter' && !e.shiftKey) {
       declareBlur();
       handleSubmission();
+      setTimeout(() => {
+        // we want to blur after submission has been dealt with
+        editor.current?.blur();
+      }, 50);
       return 'submit';
     }
     return getDefaultKeyBinding(e);
@@ -74,7 +78,7 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     }
 
     action();
-    dispatchCalendar({ type: 'add-undo', undo: {undo: undo, redo: action} });
+    addUndo({ undo, redo: action })
   }
 
   const handleNewSubmission = async () => {
@@ -96,8 +100,7 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     const undo = async () => {
       newDoc.delete();
     }
-    
-    dispatchCalendar({ type: 'add-undo', undo: { undo, redo } });
+    addUndo({ undo, redo })
   }
 
   return (
