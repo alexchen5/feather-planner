@@ -104,6 +104,14 @@ function Pin({ pin }: {pin: PinboardPin}) {
     // expect deregisterFocus, submitContentChanges are memoised
   }, [deregisterFocus, submitContentChanges, editorState])
 
+  React.useEffect(() => {
+    if (state === 'edit') {
+      // handle edit end whenever state leaves edit
+      return () => handleEditEnd.current()
+    }
+    return () => {}
+  }, [state]);
+
   const handleClick: MouseEventHandler = (e) => {
     if (state === 'normal') { 
       // register edit state after the completion of a click
@@ -118,7 +126,10 @@ function Pin({ pin }: {pin: PinboardPin}) {
         {
           type: 'mousedown',
           // edit end function contained in a ref so its value is mutable
-          callback: () => handleEditEnd.current(),
+          callback: () => { 
+            deregisterFocus('pin-edit');
+            if (pinRef.current) setState('normal') 
+          },
         }
       ]); 
     } else if (state === 'edit') {
@@ -152,7 +163,7 @@ function Pin({ pin }: {pin: PinboardPin}) {
     registerFocus('pin-try-drag', [
       {
         type: 'mousemove',
-        callback: mousemoveTryStartDrag,
+        callback: (e: MouseEvent) => mousemoveTryStartDrag.current(e),
       },
       {
         type: 'mouseup',
@@ -162,7 +173,8 @@ function Pin({ pin }: {pin: PinboardPin}) {
     ])
   }
 
-  const mousemoveTryStartDrag = (e: MouseEvent) => {
+  const mousemoveTryStartDrag = React.useRef<(e: MouseEvent) => void>((e) => {});
+  mousemoveTryStartDrag.current = (e: MouseEvent) => {
     // ensure mouse moved enough for a drag
     if (!pinRef.current) {
       console.error('Expected pinRef during drag');
@@ -192,7 +204,7 @@ function Pin({ pin }: {pin: PinboardPin}) {
   }
 
   const handleMouseDownResize = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, directions: ResizeDirections[], style: ResizeStyle) => {
-    e.stopPropagation();
+    if (state === 'normal') e.stopPropagation();
     // set document cursor style
     document.documentElement.style.cursor = style + '-resize';
     setState('resizing'); // set state to resizing
@@ -204,11 +216,11 @@ function Pin({ pin }: {pin: PinboardPin}) {
     registerFocus('pin-resize', [
       {
         type: 'mousemove',
-        callback: (e: MouseEvent) => mousemoveResize(e, directions)
+        callback: (e: MouseEvent) => mousemoveResize.current(e, directions)
       },
       {
         type: 'mouseup',
-        callback: () => mouseupResize(),
+        callback: () => mouseupResize.current(),
       }
     ])
   }
@@ -227,7 +239,8 @@ function Pin({ pin }: {pin: PinboardPin}) {
     pinRef.current.style.left = Math.max(6, pinRef.current.offsetLeft - clientDx) + "px";
   }
 
-  const mousemoveResize = (e: MouseEvent, directions: ResizeDirections[]) => {
+  const mousemoveResize = React.useRef<(e: MouseEvent, directions: ResizeDirections[]) => void>((a, b) => {})
+  mousemoveResize.current = (e: MouseEvent, directions: ResizeDirections[]) => {
     e.preventDefault();
     clientDx = clientX - e.clientX;
     clientDy = clientY - e.clientY;
@@ -297,7 +310,8 @@ function Pin({ pin }: {pin: PinboardPin}) {
     addUndo({undo, redo})
   }
 
-  const mouseupResize = () => {
+  const mouseupResize = React.useRef<() => void>(() => {})
+  mouseupResize.current = () => {
     // reset document cursor style
     document.documentElement.style.cursor = '';
 
