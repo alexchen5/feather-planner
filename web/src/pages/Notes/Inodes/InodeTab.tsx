@@ -36,7 +36,8 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
    * Take the necessary steps to submit content changes to the db
    * @param val the current text content
    */
-  const submitContentChanges = React.useCallback((newName: string) => {
+  const submitContentChanges = React.useRef<(newName: string) => void>((a) => {})
+  submitContentChanges.current = React.useCallback((newName: string) => {
     if (!newName || newName === file.name) { // reset editor state and do nothing if we have an empty title
       // weird glitch where text isnt updated solved with timeout
       setTimeout(() => {
@@ -62,11 +63,11 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
     if (state === 'edit') {
       return () => {
         const text = editorStateRef.current.getCurrentContent().getPlainText(' ').replace('\n', ' ').trim();
-        submitContentChanges(text);
+        submitContentChanges.current(text);
       }
     }
     return () => {}
-  }, [state, submitContentChanges])
+  }, [state])
 
   const handleMouseDown: MouseEventHandler = (e) => {
     if (state === 'normal') {
