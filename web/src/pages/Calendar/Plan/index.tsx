@@ -110,12 +110,21 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
   }, [uid, calendar.dates, dateStr, planId, restoreData, addUndo, dispatchListeners]);
 
   /**
+   * Take the necessary steps to deregister current plan as edit
+   */
+   const deregisterPlanEdit = React.useCallback(() => {
+    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true });
+    // TODO: remove unsafe timeout
+    timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
+  }, [dispatchListeners]);
+
+  /**
    * Take the necessary steps to submit plan changes to the db
    * @param val the current text content
    * @param shouldClose true if we want to lose edit state
    * @param hasChange true if the submission contains meaningful content changes
    */
-  const submitPlanChanges = (val: RawDraftContentState | false, shouldClose: boolean, hasChange: boolean) => {
+  const submitPlanChanges = React.useCallback((val: RawDraftContentState | false, shouldClose: boolean, hasChange: boolean) => {
     if (!val) { // run delete first
       deleteSelf();
       return;
@@ -133,7 +142,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     } else {
       // no changes to dispatch
     }
-  }
+  }, [addUndo, content, deleteSelf, deregisterPlanEdit, planId, uid])
 
   /**
    * Handle the click event of a plan. 
@@ -212,15 +221,6 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     setState('edit'); // set edit state
     selectAllText();
   }
-
-  /**
-   * Take the necessary steps to deregister current plan as edit
-   */
-  const deregisterPlanEdit = React.useCallback(() => {
-    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true });
-    // TODO: remove unsafe timeout
-    timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
-  }, [dispatchListeners]);
 
   /**
    * Callback to start drag on the plan
@@ -305,6 +305,18 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       e.stopPropagation();
       deregisterPlanEdit();
     }
+    else if (key.isMeta(e) && e.key === 'b') {
+      e.stopPropagation();
+      changeStyleHelper.current('BOLD')
+    }
+    else if (key.isMeta(e) && e.key === 'i') {
+      e.stopPropagation();
+      changeStyleHelper.current('ITALIC')
+    }
+    else if (key.isMeta(e) && e.key === 'u') {
+      e.stopPropagation();
+      changeStyleHelper.current('UNDERLINE')
+    }
     // else console.log(e.key)
   }, [deleteSelf, deregisterPlanEdit]);
 
@@ -362,12 +374,36 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
   }
 
   /**
+   * Wrapper function to set editor state. Used to log changes so that db writes 
+   * are not wasted
+   * @param {EditorState} newState 
+   */
+   const handleChange = React.useCallback((newState: EditorState) => {
+    const currentContentState = originalState.getCurrentContent()
+    const newContentState = newState.getCurrentContent()
+  
+    // note that this comparison of variables is incomplete
+    if (currentContentState !== newContentState) {
+      // There was a change in the content  
+      setDidChange(true);
+    } else {
+      // No change from original / the change was triggered by a change in focus/selection
+      setDidChange(false);
+    }
+    setEditorState(newState);
+  }, [originalState])
+
+  /**
    * Handle the editor style changes that should occur when a toggle button is pressed
    * @param {MouseEvent} e 
    * @param {string} style
    */
   const handleStyleToggleMouseDown = (e: React.MouseEvent, style: string) => {
     e.preventDefault(); 
+    changeStyleHelper.current(style)
+  }
+  const changeStyleHelper = React.useRef<(style: string) => void>((a) => {})
+  changeStyleHelper.current = React.useCallback((style: string) => {
     const newState = RichUtils.toggleInlineStyle(editorState, style);
     handleChange(newState);
     // TODO: find proper way to implement textEdit.current?.editor
@@ -382,7 +418,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
         true
       )
     }
-  }
+  }, [editorState, handleChange, submitPlanChanges])
 
   /**
    * Helper function to reset selection to all text so that styling buttons affect all text
@@ -402,26 +438,6 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       focusOffset: lengthOfLastBlock,
     });
     handleChange(EditorState.acceptSelection(editorState, selection));
-  }
-
-  /**
-   * Wrapper function to set editor state. Used to log changes so that db writes 
-   * are not wasted
-   * @param {EditorState} newState 
-   */
-  const handleChange = (newState: EditorState) => {
-    const currentContentState = originalState.getCurrentContent()
-    const newContentState = newState.getCurrentContent()
-  
-    // note that this comparison of variables is incomplete
-    if (currentContentState !== newContentState) {
-      // There was a change in the content  
-      setDidChange(true);
-    } else {
-      // No change from original / the change was triggered by a change in focus/selection
-      setDidChange(false);
-    }
-    setEditorState(newState);
   }
 
   return (
