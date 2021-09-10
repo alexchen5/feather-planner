@@ -18,7 +18,7 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
   const [editorState, setEditorState] = React.useState(() => EditorState.createEmpty());
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const {uid} = React.useContext(UidContext);
 

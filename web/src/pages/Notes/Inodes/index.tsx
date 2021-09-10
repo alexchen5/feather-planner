@@ -15,7 +15,7 @@ import { useDocumentEventListeners } from "components/DocumentEventListener/useD
 function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
   const { notes: { noteTabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const [state, setState] = React.useState<'normal' | 'edit' | 'dragging'>('normal');
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);

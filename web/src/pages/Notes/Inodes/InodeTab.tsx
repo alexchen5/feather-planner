@@ -18,7 +18,7 @@ let clientDx: number, clientX: number // track drag positions
 function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, isOpen: boolean }) {
   const { notes: { tabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const tabRef = React.useRef<HTMLDivElement>(null);
   const [state, setState] = React.useState<'normal' | 'edit' | 'dragging'>('normal');

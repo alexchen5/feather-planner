@@ -9,8 +9,9 @@ import { useDocumentEventListeners } from 'components/DocumentEventListener/useD
 import { key } from 'utils/keyUtil';
 import Inode from './Inodes';
 import UndoRedo from 'components/UndoRedo';
+import useCurrent from 'utils/useCurrent';
 
-const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } | null} = { current: null };
+const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
 
 function Notes() {
   const { notes: {allNotes, noteTabs, inodes: { open }} } = React.useContext(AppContext);
@@ -19,8 +20,9 @@ function Notes() {
 
   const {uid} = React.useContext(UidContext);
   
-  const { stack, addUndo, undo, redo } = useUndoRedo(saveUndoRedo);
-  const undoRedoContextValue = React.useMemo(() => ({ stack, addUndo, undo, redo }), [stack, addUndo, undo, redo]);
+  const undoRedo = useUndoRedo(saveUndoRedo);
+  const undo = useCurrent(undoRedo.undo)
+  const redo = useCurrent(undoRedo.redo)
 
   const homeNodes = React.useMemo<string[]>(() => {
     const ret = allNotes[`users/${uid}/inodes/index`];
@@ -41,16 +43,16 @@ function Notes() {
         type: 'keydown',
         callback: (e: KeyboardEvent) => {
           if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
-            undo();
+            undo.current();
           } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
-            redo();
+            redo.current();
           }
         }
       }
     ])
     return () => deregisterFocus('notes-base-focus');
     // we expect all dependancies to be memoised and never require rerendering
-  }, [registerFocus, deregisterFocus, redo, undo])
+  }, [registerFocus, deregisterFocus, undo, redo])
 
   const addPinboard = async () => {
     // add new inode for the pinboard 
@@ -87,7 +89,7 @@ function Notes() {
       }, { merge: true });
     }
 
-    addUndo({ undo, redo });
+    undoRedo.addAction({ undo, redo });
   }
 
   const addHomeDirectory = async () => {
@@ -125,13 +127,13 @@ function Notes() {
       }, { merge: true });
     }
 
-    addUndo({ undo, redo });
+    undoRedo.addAction({ undo, redo });
   }
 
   return (
-    <UndoRedoContext.Provider value={undoRedoContextValue}>
+    <UndoRedoContext.Provider value={undoRedo}>
       <div style={{display: 'flex', justifyContent: 'end', paddingRight: '24px'}}>
-        <UndoRedo undo={{ callback: undo, length: stack.undo.length }} redo={{ callback: redo, length: stack.redo.length }}/>
+        <UndoRedo undo={{ callback: undoRedo.undo, length: undoRedo.undoLength }} redo={{ callback: undoRedo.redo, length: undoRedo.redoLength }}/>
       </div>
       <div className={style.root}>
         <div className={style.directory}>

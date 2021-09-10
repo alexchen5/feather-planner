@@ -10,7 +10,7 @@ import style from './pinboard.module.scss';
 
 function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: PinboardPin[] }) {
   const { notes: { tabs } } = React.useContext(AppContext);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const addNote = async () => {
     const initContent = {

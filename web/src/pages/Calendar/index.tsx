@@ -14,15 +14,17 @@ import PlanWrapper from "./PlanDragHandler/PlanWrapper";
 import Plan from './Plan'
 import { AppContext } from "utils/globalContext";
 import { UndoRedoAction, UndoRedoContext, useUndoRedo } from "utils/useUndoRedo";
+import useCurrent from "utils/useCurrent";
 
-const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } | null} = { current: null };
+const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
 
 function CalendarComponent() {
   const { calendar: { state: { calendarDates: allDates }, dispatch: dispatchCalendarData } } = React.useContext(AppContext);
   const [calendar, dispatch] = useReducer(reducer, allDates, init);
 
-  const { stack, addUndo, undo, redo } = useUndoRedo(saveUndoRedo);
-  const undoRedoContextValue = React.useMemo(() => ({ stack, addUndo, undo, redo }), [stack, addUndo, undo, redo]);
+  const undoRedo = useUndoRedo(saveUndoRedo);
+  const undo = useCurrent(undoRedo.undo)
+  const redo = useCurrent(undoRedo.redo)
 
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   
@@ -63,15 +65,16 @@ function CalendarComponent() {
 
   const handleKeydown = React.useCallback((e: KeyboardEvent) => {
     if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
-      undo();
+      undo.current();
     } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
-      redo();
+      redo.current();
     }
+    // expect undo, redo are memoised
   }, [undo, redo]);
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>
-      <UndoRedoContext.Provider value={undoRedoContextValue}>
+      <UndoRedoContext.Provider value={undoRedo}>
         <CalendarContainer>
           <PlanDragHandler>
             {calendar.dates.map(date => 

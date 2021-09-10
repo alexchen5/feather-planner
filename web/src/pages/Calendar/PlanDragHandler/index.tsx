@@ -20,7 +20,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { addScrollEventListener, removeScrollEventListener } = React.useContext(ScrollHandlerContext);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
     
   const [springs, setSprings] = React.useState<{ [planId: string]: { el: HTMLElement, props: PlanSpringProps} }>({});
 

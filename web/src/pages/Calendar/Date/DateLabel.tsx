@@ -11,7 +11,7 @@ import { UndoRedoContext } from "utils/useUndoRedo";
 
 function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLabel | null }) {
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const {uid} = React.useContext(UidContext);
 

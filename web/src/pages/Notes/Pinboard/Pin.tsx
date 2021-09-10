@@ -20,7 +20,7 @@ function Pin({ pin }: {pin: PinboardPin}) {
   const { notes: { tabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const pinRef = React.useRef<HTMLDivElement>(null);
   const [state, setState] = React.useState<'normal' | 'edit' | 'dragging' | 'resizing'>('normal');

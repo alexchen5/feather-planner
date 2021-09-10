@@ -29,7 +29,7 @@ function CalendarContainer({children} : {children: ReactNode}) {
   const [ scrollEventListeners, setScrollEventListeners ] = React.useState<ScrollEventListener[]>([]);
   const dateDisplay = useDateDisplay();
 
-  const { stack, undo, redo } = React.useContext(UndoRedoContext);
+  const { undo, redo, undoLength, redoLength } = React.useContext(UndoRedoContext);
 
   React.useLayoutEffect(() => {
     if (datesContainer.current) {
@@ -138,7 +138,7 @@ function CalendarContainer({children} : {children: ReactNode}) {
         <div onMouseDown={handleToday} className={style.todayButton}>
           <Button> {dateDisplay} </Button>
         </div>
-        <UndoRedo undo={{ callback: undo, length: stack.undo.length }} redo={{ callback: redo, length: stack.redo.length }} />
+        <UndoRedo undo={{ callback: undo, length: undoLength }} redo={{ callback: redo, length: redoLength }} />
       </div>
       <div>
         <DayHeaders />

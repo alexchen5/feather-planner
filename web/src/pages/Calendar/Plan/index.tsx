@@ -42,7 +42,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
   const [styleOpen, setStyleOpen] = useState(false);
 
   const {uid} = React.useContext(UidContext);
-  const { stack, addUndo, undo, redo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo, undo, redo, undoLength, redoLength } = React.useContext(UndoRedoContext);
 
   // Below two refs are used for tracking the db changes which happened while the plan was in some edit state, 
   // so that we know we can keep the edit state when executing undo and redo. This allows us to turn off edit
@@ -333,7 +333,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
         editChangeCount.current = editChangeCount.current - 1;
         editUndoCount.current = editUndoCount.current + 1;
         undo();
-      } else if (stack.undo.length) {
+      } else if (undoLength) {
         deregisterPlanEdit();
         undo();
       }
@@ -342,13 +342,13 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
         editUndoCount.current = editUndoCount.current - 1;
         editChangeCount.current = editChangeCount.current + 1;
         redo();
-      } else if (stack.redo.length) {
+      } else if (redoLength) {
         deregisterPlanEdit();
         redo();
       }
     }
     // else console.log(e.key)
-  }, [deleteSelf, deregisterPlanEdit, redo, undo, stack.redo.length, stack.undo.length]);
+  }, [deleteSelf, deregisterPlanEdit, redo, undo, redoLength, undoLength]);
 
   /**
    * Handle key-styling command for text edit

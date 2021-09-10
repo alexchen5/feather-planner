@@ -14,7 +14,7 @@ import { getParentInode } from "../Listeners";
 
 function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: FileBase, editor: { ref: React.RefObject<Editor>, component: JSX.Element } }) {
   const { notes: {tabs, inodes, noteTabs} } = React.useContext(AppContext);
-  const { addUndo } = React.useContext(UndoRedoContext);
+  const { addAction: addUndo } = React.useContext(UndoRedoContext);
   
   const isOpen = React.useMemo(() => noteTabs.find(note => note.inodePath === inodePath)?.isOpen || false, [noteTabs, inodePath]);
   

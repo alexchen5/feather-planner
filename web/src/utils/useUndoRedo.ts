@@ -1,19 +1,20 @@
 import React from "react";
 
-export const UndoRedoContext = React.createContext<{
-    stack: { 
-        undo: UndoRedoAction[],
-        redo: UndoRedoAction[],
-    };
-    addUndo: (action: UndoRedoAction) => void;
-    undo: () => void;
-    redo: () => void;
-}>({
-    stack: { undo: [], redo: [] },
-    addUndo: () => console.error('Unexpected use of default UndoRedoContext'),
+export const UndoRedoContext = React.createContext<UndoRedoData>({
+    addAction: () => console.error('Unexpected use of default UndoRedoContext'),
     undo: () => console.error('Unexpected use of default UndoRedoContext'),
     redo: () => console.error('Unexpected use of default UndoRedoContext'),
+    undoLength: 0,
+    redoLength: 0,
 });
+
+export interface UndoRedoData {
+    addAction: (action: UndoRedoAction) => void;
+    undo: () => void;
+    redo: () => void;
+    undoLength: number;
+    redoLength: number;
+}
 
 export type UndoRedoAction = { 
     undo: () => void;
@@ -23,23 +24,29 @@ export type UndoRedoAction = {
 /**
  * Custom hook to use the undo redo stack
  * @param saveUndoRedo a global variable whos .current attribute represents the saved stack
- * @returns undo redo methods
+ * @returns memoised UndoRedoData
  */
-export function useUndoRedo(saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } | null}) {
+export function useUndoRedo(saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] }}): UndoRedoData {
     const [stack, setStack] = React.useState<{
         undo: UndoRedoAction[];
         redo: UndoRedoAction[];
-    }>(saveUndoRedo.current ? {...saveUndoRedo.current} : { undo: [], redo: [] });
+    }>({...saveUndoRedo.current});
 
     React.useEffect(() => {
+        // save the stack every time it changes
         saveUndoRedo.current = stack;
-        const t = setTimeout(() => {
-            saveUndoRedo.current = null;
-        }, 1800000) // 30 minute timeout to clear undo/redo stack
-        return () => clearInterval(t) // clear timeout on update
+
+        // set 30 minute timeout to clear undo/redo stack if it has any content
+        if (stack.undo.length || stack.redo.length) {
+            const t = setTimeout(() => {
+                setStack({ undo: [], redo: [] })
+            }, 1800000) 
+            return () => clearInterval(t) // clean up timeout
+        }
+        return () => {}
     }, [saveUndoRedo, stack])
 
-    const addUndo = React.useCallback((action: UndoRedoAction) => {
+    const addAction = React.useCallback((action: UndoRedoAction) => {
         setStack(stack => ({
             undo: [ ...stack.undo, action ],
             redo: [],
@@ -82,5 +89,10 @@ export function useUndoRedo(saveUndoRedo: { current: { undo: UndoRedoAction[], r
         })
     ], [])
 
-    return { stack, addUndo, undo, redo };
+    const ret = React.useMemo<UndoRedoData>(
+        () => ({ addAction, undo, redo, undoLength: stack.undo.length, redoLength: stack.redo.length }), 
+        [addAction, undo, redo, stack.undo.length, stack.redo.length]
+    );
+
+    return ret;
 }
