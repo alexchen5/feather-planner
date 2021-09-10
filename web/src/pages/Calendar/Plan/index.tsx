@@ -43,7 +43,12 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
 
   const {uid} = React.useContext(UidContext);
   const { stack, addUndo, undo, redo } = React.useContext(UndoRedoContext);
-  const editChangeCount = React.useRef<number>(0);
+
+  // Below two refs are used for tracking the db changes which happened while the plan was in some edit state, 
+  // so that we know we can keep the edit state when executing undo and redo. This allows us to turn off edit
+  // state if we sense that undo/redo refers to a plan outside of us. This implementation is a bit spaghetti 
+  // since we always have to log the changes... can def be upgraded 
+  const editChangeCount = React.useRef<number>(0); 
   const editUndoCount = React.useRef<number>(0);
 
   // text editor management
