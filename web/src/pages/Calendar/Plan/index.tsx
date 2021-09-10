@@ -14,6 +14,7 @@ import { DraggingPlansContext } from "../PlanDragHandler/context";
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { CalendarContext } from "../context";
 import { UndoRedoContext } from "utils/useUndoRedo";
+import useCurrent from "utils/useCurrent";
 
 /**
  * Describes the state of the plan. Note that text values are connected to stylesheets.
@@ -312,7 +313,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
    * @param {KeyboardEvent} e 
    */
   const handleKeyDown = React.useRef<(e: KeyboardEvent) => void>(() => {})
-  handleKeyDown.current = React.useCallback((e) => { // useCallback to preserve referential equality between renders 
+  useCurrent(handleKeyDown, React.useCallback((e: KeyboardEvent) => {
     if (key.isDelete(e)) {
       deleteSelf();
     }
@@ -348,7 +349,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       }
     }
     // else console.log(e.key)
-  }, [deleteSelf, deregisterPlanEdit, redo, undo, redoLength, undoLength]);
+  }, [deleteSelf, deregisterPlanEdit, redo, undo, redoLength, undoLength]));
 
   /**
    * Handle key-styling command for text edit

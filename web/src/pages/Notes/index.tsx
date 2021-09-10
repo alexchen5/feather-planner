@@ -21,8 +21,10 @@ function Notes() {
   const {uid} = React.useContext(UidContext);
   
   const undoRedo = useUndoRedo(saveUndoRedo);
-  const undo = useCurrent(undoRedo.undo)
-  const redo = useCurrent(undoRedo.redo)
+  const undo = React.useRef<() => void>(() => {})
+  const redo = React.useRef<() => void>(() => {})
+  useCurrent(undo, undoRedo.undo)
+  useCurrent(redo, undoRedo.redo)
 
   const homeNodes = React.useMemo<string[]>(() => {
     const ret = allNotes[`users/${uid}/inodes/index`];
@@ -52,7 +54,7 @@ function Notes() {
     ])
     return () => deregisterFocus('notes-base-focus');
     // we expect all dependancies to be memoised and never require rerendering
-  }, [registerFocus, deregisterFocus, undo, redo])
+  }, [registerFocus, deregisterFocus])
 
   const addPinboard = async () => {
     // add new inode for the pinboard 

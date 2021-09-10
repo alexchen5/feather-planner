@@ -30,11 +30,6 @@ function Pin({ pin }: {pin: PinboardPin}) {
   const [ didChange, logChange, reset ] = useEditorChangeLogger(editorState);
 
   /**
-   * Ref wrapper for the edit end function. We use a ref so its mutable in a callback
-   */
-  const handleEditEnd = React.useRef(() => {});
-
-  /**
    * Helper function to take the necessary steps to delete self
    */
   const deleteSelf = React.useCallback(() => {
@@ -91,6 +86,10 @@ function Pin({ pin }: {pin: PinboardPin}) {
     // expect addUndo, deleteSelf, tabs are memoised 
   }, [addUndo, deleteSelf, tabs, didChange, pin.docPath, pin.restoreData, pin.inodePath]);
 
+  /**
+   * Ref wrapper for the edit end function. We use a ref so its mutable in a callback
+   */
+  const handleEditEnd = React.useRef(() => {});
   // update our handleEditEnd function whenever its dependancies change
   React.useEffect(() => {
     // our edit end handler function

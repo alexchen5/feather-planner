@@ -23,8 +23,11 @@ function CalendarComponent() {
   const [calendar, dispatch] = useReducer(reducer, allDates, init);
 
   const undoRedo = useUndoRedo(saveUndoRedo);
-  const undo = useCurrent(undoRedo.undo)
-  const redo = useCurrent(undoRedo.redo)
+  const undo = React.useRef<() => void>(() => {})
+  const redo = React.useRef<() => void>(() => {})
+  useCurrent(undo, undoRedo.undo)
+  useCurrent(redo, undoRedo.redo)
+
 
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   
@@ -69,8 +72,7 @@ function CalendarComponent() {
     } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
       redo.current();
     }
-    // expect undo, redo are memoised
-  }, [undo, redo]);
+  }, []);
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>

@@ -1,13 +1,14 @@
 import React from "react";
 
-function useCurrent<T>(arg: T) {
-    const ref = React.useRef<T>(arg);
-
+/**
+ * Use for assigning a ref to a mutable value
+ * @param val value to be used for updating the ref
+ * @returns memoised ref with .current always up to date with val
+ */
+function useCurrent<T>(ref: React.MutableRefObject<T>, val: T) {
     React.useEffect(() => {
-        ref.current = arg
-    }, [arg])
-
-    return ref
+        ref.current = val
+    }, [val, ref])
 }
 
 export default useCurrent;
