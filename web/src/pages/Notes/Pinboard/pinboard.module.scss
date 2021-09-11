@@ -1,6 +1,17 @@
 .root {
     width: 100%;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.menu {
+    // height: 48px;
+}
+
+.board {
+    width: 100%;
+    flex-grow: 1;
     position: relative;
     background-color: rgba(145, 92, 12, 0.115);
     box-shadow: 0px 0px 4px inset rgba(109, 85, 7, 0.1);
@@ -31,13 +42,17 @@
     position: absolute;
     background-color: rgb(255, 246, 230);
     border: 1px solid transparent;
-    padding: 4px;
+    padding: 6px 8px;
     box-shadow: 0px 0px 12px rgba(7, 21, 58, 0.05);
     z-index: 1;
     border-radius: 2px;
 
     &[data-state=normal] {
         cursor: default;
+
+        span {
+            user-select: none !important;
+        }
     }
 
     &[data-state=edit] {
@@ -48,10 +63,34 @@
 
     &[data-state=dragging] {
         z-index: 2;
+
+        span {
+            user-select: none !important;
+        }
     }
 
     &[class=DraftEditor-root] {
         width: 100%;
         height: 100%;
+    }
+
+    h1[data-block="true"] {
+        font-weight: bold;
+        margin: 0;
+        margin-bottom: 6px;
+        font-size: 22px;
+    }
+
+    h2[data-block="true"] {
+        font-weight: 600;
+        margin: 0;
+        margin-top: 6px;
+        margin-bottom: 0px;
+        font-size: 18px;
+    }
+
+    [data-block="true"] {
+        font-size: 16px;
+        margin-bottom: 0px;
     }
 }

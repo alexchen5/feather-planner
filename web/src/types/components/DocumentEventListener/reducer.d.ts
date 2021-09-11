@@ -25,6 +25,7 @@ export interface DeregisterFocus {
 export interface TriggerListeners<K extends keyof DocumentEventMap> {
     type: 'trigger-event-listeners';
     focusId: string;
+    eventType: K;
     event: DocumentEventMap[K];
 }
 

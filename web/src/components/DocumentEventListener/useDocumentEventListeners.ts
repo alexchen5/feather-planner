@@ -21,5 +21,9 @@ export function useDocumentEventListeners(dispatchListeners: React.Dispatch<Docu
         dispatchListeners({ type: 'deregister-focus', focusId, removeListeners })
     }, [dispatchListeners])
 
-    return { registerFocus, deregisterFocus }
+    const triggerListener = React.useCallback(<K extends keyof DocumentEventMap>(focusId: string, type: K, event: DocumentEventMap[K]) => {
+        dispatchListeners({ type: 'trigger-event-listeners', focusId, eventType: type, event })
+    }, [dispatchListeners])
+
+    return { registerFocus, deregisterFocus, triggerListener }
 }

@@ -18,8 +18,10 @@ export const reducer: DocumentListenerReducer<keyof DocumentEventMap> = (state, 
                 : state.documentEventListeners,
         }
     } else if (action.type === 'trigger-event-listeners') {
-        const focusedComponent = state.focusIdStack[state.focusIdStack.length - 1] || 'homepage';
-        if (action.focusId === focusedComponent) document.dispatchEvent(action.event);
+        state.documentEventListeners.forEach(l => {
+            // @ts-ignore
+            if (l.focusId === action.focusId && l.type === action.eventType) l.callback(action.event)
+        })
         return state;
     } else if (action.type === 'add-document-event-listener') {
         return {

@@ -11,15 +11,16 @@ import { PinboardPin } from "../data";
 import 'draft-js/dist/Draft.css';
 import style from './pinboard.module.scss';
 import borderStyle from './borderCapture.module.scss';
+import { PinStyling } from ".";
 
 type ResizeStyle = 'ns' | 'ew' | 'nwse' | 'nesw';
 type ResizeDirections = 'n' | 'e' | 's' | 'w';
 let clientDx: number, clientDy: number, clientX: number, clientY: number // track drag positions
 
-function Pin({ pin }: {pin: PinboardPin}) {
+function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pin: PinStyling | null) => void}) {
   const { notes: { tabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
+  const { registerFocus, deregisterFocus, triggerListener } = useDocumentEventListeners(dispatchListeners);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const pinRef = React.useRef<HTMLDivElement>(null);
@@ -32,7 +33,8 @@ function Pin({ pin }: {pin: PinboardPin}) {
   /**
    * Helper function to take the necessary steps to delete self
    */
-  const deleteSelf = React.useCallback(() => {
+  const deleteSelf = React.useRef(() => {}) 
+  deleteSelf.current = () => {
     // ensure edit listeners are cleaned up
     deregisterFocus('pin-edit');
 
@@ -52,18 +54,18 @@ function Pin({ pin }: {pin: PinboardPin}) {
       }, 50);
     }
     addUndo({undo, redo})
-    // expect addUndo, declareBlur, tabs are memoised 
-  }, [ addUndo, deregisterFocus, tabs, pin.docPath, pin.restoreData, pin.inodePath ]);
+  }
 
   /**
    * Take the necessary steps to submit content changes to the db
    * @param val the current text content
    */
-  const submitContentChanges = React.useCallback((val: RawDraftContentState | false) => {
+  const submitContentChanges = React.useRef<(val: RawDraftContentState | false) => void>(() => {});
+  submitContentChanges.current = (val: RawDraftContentState | false) => {
     if (!didChange) return;
 
     if (!val) { // run delete first
-      deleteSelf();
+      deleteSelf.current();
       return;
     }
     
@@ -83,44 +85,18 @@ function Pin({ pin }: {pin: PinboardPin}) {
       }, 50);
     }
     addUndo({undo, redo})
-    // expect addUndo, deleteSelf, tabs are memoised 
-  }, [addUndo, deleteSelf, tabs, didChange, pin.docPath, pin.restoreData, pin.inodePath]);
+  }
 
-  /**
-   * Ref wrapper for the edit end function. We use a ref so its mutable in a callback
-   */
-  const handleEditEnd = React.useRef(() => {});
-  // update our handleEditEnd function whenever its dependancies change
-  React.useEffect(() => {
-    // our edit end handler function
-    handleEditEnd.current = () => {
-      setState('normal')
-      deregisterFocus('pin-edit');
-      submitContentChanges(
-        editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
-      );
-    }
-    // expect deregisterFocus, submitContentChanges are memoised
-  }, [deregisterFocus, submitContentChanges, editorState])
-
-  React.useEffect(() => {
-    if (state === 'edit') {
-      // handle edit end whenever state leaves edit
-      return () => handleEditEnd.current()
-    }
-    return () => {}
-  }, [state]);
-
-  const handleClick: MouseEventHandler = (e) => {
-    if (state === 'normal') { 
-      // register edit state after the completion of a click
-      setState('edit')
-      reset(editorState);
+  // our edit end handler function
+  const handleEditStart = React.useRef(() => {});
+  handleEditStart.current = () => {
+    reset(editorState);
+    triggerListener('pin-edit', 'mousedown', new MouseEvent('mousedown'))
+    setTimeout(() => // set timeout to let the above trigger
       registerFocus('pin-edit', [
         {
           type: 'keydown',
-          // TODO: figure out how to convince ts that this is okay without type assertion
-          callback: handleKeyDown as (ev: DocumentEventMap[keyof DocumentEventMap]) => void, // handle document keydowns
+          callback: (e: KeyboardEvent) => handleKeyDown.current(e)
         },
         {
           type: 'mousedown',
@@ -130,7 +106,37 @@ function Pin({ pin }: {pin: PinboardPin}) {
             if (pinRef.current) setState('normal') 
           },
         }
-      ]); 
+      ])
+    ); 
+  }
+
+  /**
+   * our edit end handler function
+   */
+  const handleEditEnd = React.useRef(() => {});
+  handleEditEnd.current = () => {
+    setState('normal')
+    updateCurrentPin(null)
+    deregisterFocus('pin-edit');
+    submitContentChanges.current(
+      editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
+    );
+  }
+
+  React.useEffect(() => {
+    if (state === 'normal') {
+
+    } else if (state === 'edit') {
+      handleEditStart.current()
+      return () => handleEditEnd.current()
+    }
+    return () => {}
+  }, [state]);
+
+  const handleClick: MouseEventHandler = (e) => {
+    if (state === 'normal') { 
+      // register edit state after the completion of a click
+      setState('edit')
     } else if (state === 'edit') {
       // ensure focus if we have declared focus
       editor.current?.focus();
@@ -341,27 +347,24 @@ function Pin({ pin }: {pin: PinboardPin}) {
   /**
    * Function to handle the key interactions. This is added to document through declareFocus
    */
-  const handleKeyDown = React.useCallback((e: KeyboardEvent) => { // useCallback to preserve referential equality between renders 
+  const handleKeyDown = React.useRef<(e: KeyboardEvent) => void>(() => {})
+  handleKeyDown.current = (e: KeyboardEvent) => { 
     if (key.isDelete(e)) {
       e.stopPropagation();
-      console.log('delete from backspace');
-      
-      deleteSelf();
+      deleteSelf.current();
     } else if (e.key === 'Enter') {
       handleEditEnd.current();
     }
-  }, [deleteSelf]);
+  }
 
-  /**
-   * Callback on every key, to check if submit was called
-   * @param {KeyboardEvent} e 
-   * @returns 
-   */
-   const checkSubmit = (e: ReactKeyboardEvent): string | null => {
-    // if (e.key === 'Enter' && !e.shiftKey) {
-    //   handleEditEnd.current();
-    //   return 'submit';
-    // }
+  const handleKeyBinding = (e: ReactKeyboardEvent): string | null => {
+    if (e.key === 'Tab' ) {
+      console.log('xd');
+      
+      const newState = RichUtils.onTab(e, editorState, 4);
+      handleChange.current(newState);
+      return 'tab';
+    }
     return getDefaultKeyBinding(e);
   }
 
@@ -370,10 +373,10 @@ function Pin({ pin }: {pin: PinboardPin}) {
    * @param {string} command 
    * @returns 
    */
-   const handleKeyCommand = (command: string): DraftHandleValue => {
+  const handleKeyCommand = (command: string): DraftHandleValue => {
     const newState = RichUtils.handleKeyCommand(editorState, command);
     if (newState) {
-      handleChange(newState);
+      handleChange.current(newState);
       return 'handled';
     }
     return 'not-handled';
@@ -384,9 +387,42 @@ function Pin({ pin }: {pin: PinboardPin}) {
    * are not wasted
    * @param {EditorState} newState 
    */
-  const handleChange = (newState: EditorState) => {
+  const handleChange = React.useRef<(newState: EditorState) => void>(() => {})
+  handleChange.current = (newState: EditorState) => {
     logChange(newState);
     setEditorState(newState);
+    handleUpdateCurrentPin.current(newState)
+  }
+
+  const handleUpdateCurrentPin = React.useRef<(newState: EditorState) => void>(() => {});
+  handleUpdateCurrentPin.current = (newState) => {
+    updateCurrentPin({
+      editorState: newState,
+      onBlockToggle: (blockType: string) => {
+        handleChange.current(
+          RichUtils.toggleBlockType(
+            newState,
+            blockType
+          )
+        )
+      },
+      onInlineToggle: (inlineStyle: string) => {
+        handleChange.current(
+          RichUtils.toggleInlineStyle(
+            newState,
+            inlineStyle
+          )
+        )
+      },
+    })
+  }
+
+  const handleFocus = () => {
+    // handleUpdateCurrentPin.current(editorState)
+  }
+
+  const handleBlur = () => {
+    updateCurrentPin(null)
   }
   
   return <div
@@ -422,8 +458,10 @@ function Pin({ pin }: {pin: PinboardPin}) {
         readOnly={state !== 'edit'}
         editorState={editorState} 
         handleKeyCommand={handleKeyCommand}
-        onChange={handleChange}
-        keyBindingFn={checkSubmit}
+        onChange={(state) => handleChange.current(state)}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        keyBindingFn={handleKeyBinding}
       />
     </div>
   </div>
