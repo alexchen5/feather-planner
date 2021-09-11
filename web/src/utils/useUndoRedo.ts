@@ -38,9 +38,13 @@ export function useUndoRedo(saveUndoRedo: { current: { undo: UndoRedoAction[], r
 
         // set 30 minute timeout to clear undo/redo stack if it has any content
         if (stack.undo.length || stack.redo.length) {
-            const t = setTimeout(() => {
-                setStack({ undo: [], redo: [] })
-            }, 1800000) 
+            const start = Date.now()
+            const t = setInterval(() => {
+                if (Date.now() - start > 1800000) {
+                    clearInterval(t)
+                    setStack({ undo: [], redo: [] })
+                }
+            }, 10000) // check time every 10 seconds
             return () => clearInterval(t) // clean up timeout
         }
         return () => {}
