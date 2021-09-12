@@ -30,4 +30,14 @@ export const key = {
         ? e.key === 'Backspace' || e.key === 'Delete' 
         : e.key === 'Delete',
 
+    /**
+     * Is the key linked with any command? 
+     * @param e the key event
+     * @returns true if yes
+     */
+    isCommand: (e: KeyboardEvent) => (
+        !e.altKey 
+        && !e.ctrlKey
+        && !e.metaKey
+    ) 
 }

@@ -10,6 +10,7 @@ import { key } from 'utils/keyUtil';
 import Inode from './Inodes';
 import UndoRedo from 'components/UndoRedo';
 import useCurrent from 'utils/useCurrent';
+import { useHistory } from 'react-router-dom';
 
 const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
 
@@ -19,7 +20,8 @@ function Notes() {
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
 
   const {uid} = React.useContext(UidContext);
-  
+  const history = useHistory();
+
   const undoRedo = useUndoRedo(saveUndoRedo);
   const undo = React.useRef<() => void>(() => {})
   const redo = React.useRef<() => void>(() => {})
@@ -48,12 +50,14 @@ function Notes() {
             undo.current();
           } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
             redo.current();
+          } else if (key!.isCommand(e) && e.key === 'c') {
+            history.push('/');
           }
         }
       }
     ])
     return () => deregisterFocus('notes-base-focus');
-    // we expect all dependancies to be memoised and never require rerendering
+    // eslint-disable-next-line
   }, [registerFocus, deregisterFocus])
 
   const addPinboard = async () => {
