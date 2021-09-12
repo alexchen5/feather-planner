@@ -1,6 +1,6 @@
 import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
-import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RawDraftContentState, RichUtils } from "draft-js";
+import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RichUtils } from "draft-js";
 import React, { MouseEventHandler, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AppContext, db } from "utils/globalContext";
 import { key } from "utils/keyUtil";
@@ -27,8 +27,14 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
   const [state, setState] = React.useState<'normal' | 'edit' | 'dragging' | 'resizing'>('normal');
 
   const editor = React.useRef<Editor>(null);
-  const [editorState, setEditorState] = useEditorUpdater(pin.content);
-  const [ didChange, logChange, reset ] = useEditorChangeLogger(editorState);
+  const [editorState, setEditorState] = useEditorUpdater(pin.content, (newState) => {
+    if (state === 'edit') {
+      editStart(newState)
+    }
+  });
+  const { editStart, editChange, editEnd } = useEditorChangeLogger(React.useCallback((editorState: EditorState) => {
+    submitContentChanges.current(editorState)
+  }, []));
 
   /**
    * Helper function to take the necessary steps to delete self
@@ -60,9 +66,9 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
    * Take the necessary steps to submit content changes to the db
    * @param val the current text content
    */
-  const submitContentChanges = React.useRef<(val: RawDraftContentState | false) => void>(() => {});
-  submitContentChanges.current = (val: RawDraftContentState | false) => {
-    if (!didChange) return;
+  const submitContentChanges = React.useRef<(editorState: EditorState) => void>(() => {})
+  submitContentChanges.current = (editorState: EditorState) => {
+    const val = editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent());
 
     if (!val) { // run delete first
       deleteSelf.current();
@@ -90,7 +96,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
   // our edit end handler function
   const handleEditStart = React.useRef(() => {});
   handleEditStart.current = () => {
-    reset(editorState);
+    editStart(editorState);
     triggerListener('pin-edit', 'mousedown', new MouseEvent('mousedown'))
     setTimeout(() => // set timeout to let the above trigger
       registerFocus('pin-edit', [
@@ -118,9 +124,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     setState('normal')
     updateCurrentPin(null)
     deregisterFocus('pin-edit');
-    submitContentChanges.current(
-      editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent()), 
-    );
+    editEnd()
   }
 
   React.useEffect(() => {
@@ -396,7 +400,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
    */
   const handleChange = React.useRef<(newState: EditorState) => void>(() => {})
   handleChange.current = (newState: EditorState) => {
-    logChange(newState);
+    editChange(newState);
     setEditorState(newState);
     handleUpdateCurrentPin.current(newState)
   }

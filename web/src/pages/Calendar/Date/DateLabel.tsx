@@ -16,53 +16,53 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
   const {uid} = React.useContext(UidContext);
 
   const editor = React.useRef<Editor>(null);
-  const [ editorState, setEditorState ] = useEditorUpdater(label?.content || '');
-  const [ didChange, logChange, reset ] = useEditorChangeLogger(editorState);
+  const [ editorState, setEditorState ] = useEditorUpdater(label?.content || '', (newState) => {
+    if (isFocused) {
+      editStart(newState)
+    }
+  });
+  // const [ didChange, logChange, reset ] = useEditorChangeLogger(editorState);
   const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners);
+
+  const { editStart, editChange, editEnd } = useEditorChangeLogger(
+    React.useCallback((c: EditorState) => handleSubmission.current(c), [])
+  );
+
+  const handleFocus = () => {
+    editStart(editorState);
+  }
 
   const handleBlur = () => {
     declareBlur();
-    handleSubmission();
+    editEnd();
   }
 
   const handleClick: MouseEventHandler = () => {
     declareFocus();
-    reset(editorState);
     editor.current?.focus();
   }
 
   const handleChange = (newState: EditorState) => {
-    logChange(newState);
+    editChange(newState);
     setEditorState(newState);
   }
 
   const checkSubmit = (e: KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       declareBlur();
-      handleSubmission();
-      setTimeout(() => {
-        // we want to blur after submission has been dealt with
-        editor.current?.blur();
-      }, 50);
+      editor.current?.blur(); // handle submission in blur event
       return 'submit';
     }
     return getDefaultKeyBinding(e);
   }
 
-  const handleSubmission = () => {
-    if (!didChange) return;
-
-    label ? handleEditSubmission({...label}) // we are editing if the label exists
-    : handleNewSubmission(); // otherwise we are dealing with adding a new label
-  }
-
-  const handleEditSubmission = (label: CalendarDateLabel) => {
+  const handleEditSubmission = (label: CalendarDateLabel, newState: EditorState) => {
     let action: (() => Promise<void>) | null = null, undo: (() => Promise<void>) | null = null;
-    if (editorState.getCurrentContent().hasText()) { // if our edit has text
+    if (newState.getCurrentContent().hasText()) { // if our edit has text
       action = async () => {
         // give an update to the db
         db.doc(`users/${uid}/date-labels/${label.labelId}`).set(
-          { content: convertToRaw(editorState.getCurrentContent()) }, { merge: true }
+          { content: convertToRaw(newState.getCurrentContent()) }, { merge: true }
         )
       }
     } else { // if our edit has no text, we are deleting the label
@@ -81,19 +81,19 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
     addUndo({ undo, redo: action })
   }
 
-  const handleNewSubmission = async () => {
+  const handleNewSubmission = async (newState: EditorState) => {
     // no text in edit, we can do nothing
-    if (!editorState.getCurrentContent().hasText()) return;
+    if (!newState.getCurrentContent().hasText()) return;
 
     const newDoc = await db.collection(`users/${uid}/date-labels`).add({
       date: dateStr,
-      content: convertToRaw(editorState.getCurrentContent()),
+      content: convertToRaw(newState.getCurrentContent()),
     });
 
     const redo = async () => {
       db.doc(newDoc.path).set({ 
         date: dateStr,
-        content: convertToRaw(editorState.getCurrentContent()),
+        content: convertToRaw(newState.getCurrentContent()),
       })
     }
 
@@ -101,6 +101,12 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
       newDoc.delete();
     }
     addUndo({ undo, redo })
+  }
+
+  const handleSubmission = React.useRef<(newState: EditorState) => void>(() => {})
+  handleSubmission.current = (newState: EditorState) => {
+    label ? handleEditSubmission({...label}, newState) // we are editing if the label exists
+    : handleNewSubmission(newState); // otherwise we are dealing with adding a new label
   }
 
   return (
@@ -113,6 +119,7 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
         ref={editor}
         editorState={editorState} 
         onChange={handleChange}
+        onFocus={handleFocus}
         onBlur={handleBlur}
         keyBindingFn={checkSubmit}
       />

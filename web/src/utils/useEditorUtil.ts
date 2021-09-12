@@ -48,60 +48,88 @@ export const useEditorFocus = (
 /**
  * Provides updates to the editorState each time that the argument content is changed
  * @param content the initial content, use empty string for re-initialisation
+ * @param onUpdate callback when content is changed. Ensure onUpdate has no important dependants
  * @returns [ editorState, setEditorState ] as usual
  */
-export const useEditorUpdater = (content: RawDraftContentState | string): [ EditorState, React.Dispatch<React.SetStateAction<EditorState>> ] => {
+export const useEditorUpdater = (content: RawDraftContentState | string, onUpdate?: (newState: EditorState) => void): [ EditorState, React.Dispatch<React.SetStateAction<EditorState>> ] => {
     const [editorState, setEditorState] = React.useState(() => EditorState.createWithContent(
         typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
     ));
 
     // updating editorState when content changes
     React.useEffect(() => {
-        setEditorState(
-            EditorState.createWithContent(
-              typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
-            )
-        );
+        const newState = content 
+            ? EditorState.acceptSelection(
+                EditorState.createWithContent(
+                    typeof content === 'string' ? ContentState.createFromText(content) : convertFromRaw(content)
+                ),
+                editorState.getSelection() // we try to keep our previous selection state
+            ) 
+            : EditorState.createEmpty()
+        
+        setEditorState(newState)
+        if (onUpdate) onUpdate(newState)
+        // eslint-disable-next-line
     }, [content]);
 
     return [editorState, setEditorState];
 }
 
 /**
- * Gives information about whether the editor content has actually been updated,
- * in order to save db writes.
- * 
- * @param initState the initial editor state
- * @returns [ didChange, logChange, reset ]
- * 
- * didChange - whether the state changed from when it was last reset
- * 
- * logChange - should be called each time the editor state changes 
- * 
- * reset - called to reset the editor logger
+ * Hook to log when the text editor has been edited. Calls the dbWrite callback at 
+ * intervals where saving is necessary - that is, 10 seconds after any changes
+ * or immediately after edit has ended.
  */
-export const useEditorChangeLogger = (initState: EditorState): [ boolean, (newState: EditorState) => void, (reset: EditorState) => void ] => {
-    const originalState = React.useRef<EditorState>(initState);
-    const [didChange, setDidChange] = React.useState(false);
+export const useEditorChangeLogger = (dbWrite: (editorState: EditorState) => void): {
+    editStart: (initState: EditorState) => void, 
+    editChange: (newState: EditorState) => void, 
+    editEnd: () => void,
+} => {
+    const savedState = React.useRef<EditorState | null>(null);
+    const timeout = React.useRef<NodeJS.Timeout | null>(null);
+    const toSave = React.useRef<EditorState | null>(null);
 
-    const logChange = React.useCallback((newState: EditorState) => {
-        const currentContentState = originalState.current.getCurrentContent()
-        const newContentState = newState.getCurrentContent()
-    
-        // note that this comparison of variables is incomplete
-        if (currentContentState !== newContentState) {
-            // There was a change in the content  
-            setDidChange(true);
-        } else {
-            // No change from original / the change was triggered by a change in focus/selection
-            setDidChange(false);
-        }
-    }, []);
-
-    const reset = React.useCallback((reset: EditorState) => {
-        setDidChange(false);
-        originalState.current = reset;
+    const editStart = React.useCallback((init: EditorState) => {
+        // saved state is what we will be using to compare with future changes
+        // this is safe to be changed however much we want
+        savedState.current = init;
     }, [])
 
-    return [didChange, logChange, reset];
+    const editChange = React.useCallback((newState: EditorState) => {
+        if (!savedState.current) return; // sometimes edit change will be called before edit start - focus firing before click
+        
+        const currentContentState = savedState.current.getCurrentContent()
+        const newContentState = newState.getCurrentContent()
+    
+        // we do a shallow compare with the previous db saved state
+        if (currentContentState !== newContentState) {
+            toSave.current = newState;
+
+            // There was a change in the content
+            if (timeout.current) clearTimeout(timeout.current);
+            timeout.current = setTimeout(() => {
+                // note we update savedState here, but savedState MUST be updated 
+                // again if the editor state is being flushed with the new db written
+                // state
+                savedState.current = newState
+                timeout.current = null
+                toSave.current = null
+                dbWrite(newState)
+            }, 10000) 
+        } 
+    }, [dbWrite]);
+
+    const editEnd = React.useCallback(() => {        
+        if (toSave.current) {
+            if (timeout.current) clearTimeout(timeout.current);
+            // save the current state
+            dbWrite(toSave.current)
+            toSave.current = null
+        } 
+        // reset all refs
+        savedState.current = null;
+        timeout.current = null
+    }, [dbWrite])
+
+    return { editStart, editChange, editEnd };
 }

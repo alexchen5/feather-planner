@@ -176,6 +176,7 @@ function StyleMenu({ pin }: { pin: PinStyling | null }) {
   let selection: SelectionState, blockType: string = '', currentStyle: DraftInlineStyle | null = null;
   if (pin) {
     selection = pin.editorState.getSelection();
+
     blockType = pin.editorState
       .getCurrentContent()
       .getBlockForKey(selection.getStartKey())
