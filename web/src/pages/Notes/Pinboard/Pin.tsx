@@ -238,10 +238,15 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
       console.error('Expected pinRef during drag');
       return;
     }
-    if (pinRef.current.offsetTop - clientDy >= 6) clientY = e.clientY;
-    if (pinRef.current.offsetLeft - clientDx >= 6) clientX = e.clientX;
-    pinRef.current.style.top = Math.max(6, pinRef.current.offsetTop - clientDy) + "px";
-    pinRef.current.style.left = Math.max(6, pinRef.current.offsetLeft - clientDx) + "px";
+    const targetT = pinRef.current.offsetTop - clientDy;
+    const offT = Math.max(0, 6 - targetT);// target is not off if ≥ 6
+    const targetL = pinRef.current.offsetLeft - clientDx;
+    const offL = Math.max(0, 6 - targetL) // target is not off if ≥ 6
+
+    clientY = e.clientY + offT
+    clientX = e.clientX + offL
+    pinRef.current.style.top = targetT + offT + "px";
+    pinRef.current.style.left = targetL + offL + "px";
   }
 
   const mousemoveResize = React.useRef<(e: MouseEvent, directions: ResizeDirections[]) => void>((a, b) => {})
@@ -256,34 +261,36 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
 
     // change height/width/left/top depending on direction of resize
     if (directions.includes('n')) {
-      const newH = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) + clientDy) + "px"
-      if (newH !== pinRef.current.style.height && pinRef.current.offsetTop - clientDy >= 6) {
-        clientY = e.clientY;
-        pinRef.current.style.height = newH;
-        pinRef.current.style.top = pinRef.current.offsetTop - clientDy + 'px';
-      }
+      const targetH = parseInt(getComputedStyle(pinRef.current).height) + clientDy;
+      const offH = Math.max(0, 25 - targetH); // target is not off if ≥ 25
+      const targetT = pinRef.current.offsetTop - clientDy;
+      const offT = Math.max(0, 6 - targetT);// target is not off if ≥ 6
+      // true for the 3 cases: offH = offT = 0, offH > 0 & offT = 0, offT > 0 & offH = 0
+      clientY = e.clientY - offH + offT;
+      pinRef.current.style.height = targetH + offH - offT + 'px'
+      pinRef.current.style.top = targetT - offH + offT + 'px';
     }
     if (directions.includes('s')) {
-      const newH = Math.max(25, parseInt(getComputedStyle(pinRef.current).height) - clientDy) + "px";
-      if (newH !== pinRef.current.style.height) {
-        clientY = e.clientY;
-        pinRef.current.style.height = newH
-      }
+      const targetH = parseInt(getComputedStyle(pinRef.current).height) - clientDy;
+      const offH = Math.max(0, 25 - targetH); // target is not off if ≥ 25
+      clientY = e.clientY + offH;
+      pinRef.current.style.height = targetH + offH + 'px'
     }
     if (directions.includes('e')) {
-      const newW = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) - clientDx) + "px";
-      if (newW !== pinRef.current.style.width) {
-        clientX = e.clientX
-        pinRef.current.style.width = newW
-      }
+      const targetW = parseInt(getComputedStyle(pinRef.current).width) - clientDx;
+      const offW = Math.max(0, 25 - targetW); // target is not off if ≥ 25
+      clientX = e.clientX + offW;
+      pinRef.current.style.width = targetW + offW + 'px'
     }
     if (directions.includes('w')) {
-      const newW = Math.max(25, parseInt(getComputedStyle(pinRef.current).width) + clientDx) + "px";
-      if (newW !== pinRef.current.style.width && pinRef.current.offsetLeft - clientDx >= 6) {
-        clientX = e.clientX
-        pinRef.current.style.width = newW
-        pinRef.current.style.left = pinRef.current.offsetLeft - clientDx + 'px';
-      }
+      const targetW = parseInt(getComputedStyle(pinRef.current).width) + clientDx;
+      const offW = Math.max(0, 25 - targetW); // target is not off if ≥ 25
+      const targetL = pinRef.current.offsetLeft - clientDx;
+      const offL = Math.max(0, 6 - targetL) // target is not off if ≥ 6
+
+      clientX = e.clientX - offW + offL
+      pinRef.current.style.width = targetW + offW - offL + 'px'
+      pinRef.current.style.left = targetL + offL - offW + 'px';
     }
   }
 
