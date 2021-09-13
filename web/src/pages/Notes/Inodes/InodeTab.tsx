@@ -12,14 +12,26 @@ import 'draft-js/dist/Draft.css';
 import style from './inodes.module.scss';
 import { IconButton } from "@material-ui/core";
 import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
+import { animated, useSpring } from "react-spring";
+import { useMeasure } from "react-use";
 
 let clientDx: number, clientX: number // track drag positions
 
-function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, isOpen: boolean }) {
+function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handleMovement }: { 
+  index: number,
+  numTabs: number,
+  file: File, 
+  inodePath: string, 
+  isOpen: boolean,
+  registerRef: (path: string, staticEl: HTMLDivElement | null) => void,
+  handleMovement: (offset: number, path: string) => void,
+}) {
   const { notes: { tabs } } = React.useContext(AppContext);
   const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
+  const [measureStatic, { width: staticWidth }] = useMeasure() 
+  const staticRef = React.useRef<HTMLDivElement | null>(null);
   const tabRef = React.useRef<HTMLDivElement>(null);
   const [state, setState] = React.useState<'normal' | 'edit' | 'dragging'>('normal');
   const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
@@ -31,6 +43,54 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
   React.useEffect(() => {
     editorStateRef.current = editorState;
   }, [editorState])
+
+  const [leftSpring, leftSpringApi] = useSpring(() => ({ from: {left: 0}, config: { mass: 0.4 } }), []);
+  const [widthSpring, widthSpringApi] = useSpring(() => ({ from: {width: numTabs > 5 ? 0 : 60}, config: { mass: 0.2, tension: 480 } }), []);
+  const [leftMod, setLeftMod] = React.useState(0)
+  const leftModRef = React.useRef(0)
+  const prvLeft = React.useRef<number | null>(null); // clientLeft
+
+  const curIndex = React.useRef(index)
+
+  React.useLayoutEffect(() => {
+    curIndex.current = index
+    if (prvLeft.current && staticRef.current) {
+      // get current spring x
+      const x = leftSpring.left.get();
+
+      // get current style.left
+      const cx = x + leftModRef.current;
+
+      const staticDiff = staticRef.current.getBoundingClientRect().left - prvLeft.current
+
+      // calculate movement required
+      const dx = staticDiff - cx 
+
+      if (state !== 'dragging') {
+        // move spring with cur position + position diff
+        leftSpringApi.start({ left: x + dx });
+  
+        // store the new modifier positions 
+        setLeftMod(-(x + dx))
+        leftModRef.current = -(x + dx)
+      } else {
+        // adjust our modifier by the difference in static positions
+        setLeftMod(l => {
+          leftModRef.current = l - staticDiff 
+          return l - staticDiff 
+        })
+      }
+    }
+    prvLeft.current = staticRef.current ? staticRef.current.getBoundingClientRect().left : null
+  // eslint-disable-next-line
+  }, [index, numTabs])
+
+  React.useLayoutEffect(() => {
+    if (staticRef.current) {
+      widthSpringApi.start({ width: staticWidth });
+    }
+    // eslint-disable-next-line
+  }, [staticWidth])
 
   /**
    * Take the necessary steps to submit content changes to the db
@@ -132,15 +192,16 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
       console.error('Expected tabRef during drag');
       return;
     }
-    const newLeft = (parseInt(tabRef.current.style.left) || 0) - clientDx
-    const absLeft = tabRef.current.offsetLeft - clientDx
-    if (absLeft >= 0) {
-      clientX = e.clientX;
-      tabRef.current.style.left = newLeft + "px";
-    } else {
-      clientX = e.clientX - absLeft;
-      tabRef.current.style.left = newLeft - absLeft + "px";
-    }
+
+    // error left is how far from the parent container's left we end up 
+    // notice no error if we are a positive number, i.e. within the container
+    const errLeft = curIndex.current === 0 ? Math.min(tabRef.current.offsetLeft - clientDx, 0) : 0
+    clientX = e.clientX - errLeft;
+    setLeftMod(l => {
+      leftModRef.current = l - clientDx - errLeft
+      return l - clientDx - errLeft
+    })
+    handleMovement(leftSpring.left.get() + leftModRef.current, inodePath)
   }
 
   const mouseupEndDrag = (e: MouseEvent) => {
@@ -149,10 +210,11 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
       console.error('Expected tabRef at drag end');
       return;
     }
-    tabRef.current.style.left = '';
     setTimeout(() => {
+      // timeout because we are calling from a callback
+      leftSpringApi.start({ left: -leftModRef.current })
       if (tabRef.current) setState('normal')
-    }, 50);
+    }, 0);
   }
 
   const handleClickEdit = () => {
@@ -206,36 +268,56 @@ function InodeTab({ file, inodePath, isOpen }: { file: File, inodePath: string, 
   }
 
   return (
-    <div
-      ref={tabRef}
-      className={style.tab}
+    <div 
+      ref={(r: HTMLDivElement) => {
+        registerRef(inodePath, r)
+        staticRef.current = r
+        measureStatic(r)
+      }}
       fp-state={isOpen ? 'open' : 'closed'}
       fp-drag-state={state}
-      onMouseDown={handleMouseDown}
+      className={style.tabWrapper}
+      style={{
+        display: 'flex',
+        justifyContent: numTabs > 5 ? 'right' : 'left',
+        width: numTabs > 5 ? `calc(100% / ${numTabs})` : '20%',
+      }}
     >
-      <div
-        style={!isOpen ? {pointerEvents: 'none'} : {}}
-        className={style.editorContainer}
-        fp-state={state}
-        onClick={handleClickEdit}
-        onMouseDown={handleMouseDownEdit}
+      <animated.div
+        ref={tabRef}
+        className={style.tab}
+        fp-state={isOpen ? 'open' : 'closed'}
+        fp-drag-state={state}
+        style={{
+          left: leftSpring.left.to(o => o + leftMod), 
+          width: false ? widthSpring.width : '100%', // TODO: animate width properly
+        }}
+        onMouseDown={handleMouseDown}
       >
-        <Editor
-          ref={editor}
-          readOnly={!isOpen || state !== 'edit'}
-          editorState={editorState} 
-          onChange={setEditorState}
-          keyBindingFn={checkKey}
-          onBlur={handleBlur}
-        />
-      </div>
-      <IconButton 
-        size='small' 
-        onClick={handleCloseClick}
-        onMouseDown={e => e.stopPropagation()}
-      >
-        <CloseIcon/>
-      </IconButton>
+        <div
+          style={!isOpen ? {pointerEvents: 'none'} : {}}
+          className={style.editorContainer}
+          fp-state={state}
+          onClick={handleClickEdit}
+          onMouseDown={handleMouseDownEdit}
+        >
+          <Editor
+            ref={editor}
+            readOnly={!isOpen || state !== 'edit'}
+            editorState={editorState} 
+            onChange={setEditorState}
+            keyBindingFn={checkKey}
+            onBlur={handleBlur}
+          />
+        </div>
+        <IconButton 
+          size='small' 
+          onClick={handleCloseClick}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <CloseIcon/>
+        </IconButton>
+      </animated.div>
     </div>
   )
 }

@@ -86,24 +86,24 @@ function CalendarComponent() {
         <DeferComponentRender>
           <CalendarContainer>
             <PlanDragHandler>
-                {calendar.dates.map(date => 
-                  <Date
-                    key={date.dateStr}
-                    dateStr={date.dateStr}
-                    label={date.label}
-                  >
-                    {date.plans.map((plan, i) => 
-                      <PlanWrapper key={plan.planId + i} planId={plan.planId} moveTrigger={'' + i}>
-                        <Plan plan={{
-                          ...plan,
-                          dateStr: date.dateStr,
-                          nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
-                          prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
-                        }} />
-                      </PlanWrapper>
-                    )}
-                  </Date>
-                )}
+              {calendar.dates.map(date => 
+                <Date
+                  key={date.dateStr}
+                  dateStr={date.dateStr}
+                  label={date.label}
+                >
+                  {date.plans.map((plan, i) => 
+                    <PlanWrapper key={plan.planId + i} planId={plan.planId} moveTrigger={'' + i}>
+                      <Plan plan={{
+                        ...plan,
+                        dateStr: date.dateStr,
+                        nxt: date.plans[i + 1] ? date.plans[i + 1].planId : '',
+                        prv: date.plans[i - 1] ? date.plans[i - 1].planId : '',
+                      }} />
+                    </PlanWrapper>
+                  )}
+                </Date>
+              )}
             </PlanDragHandler>
           </CalendarContainer>
         </DeferComponentRender>

@@ -1,3 +1,43 @@
+.tabWrapper {
+    position: relative;
+    &:nth-child(1) .tab {
+        &::before {
+            opacity: 0;
+        }
+    }
+
+    &:hover, &[fp-state=open] {
+        .tab::before {
+            opacity: 0;
+        }
+
+        &+.tabWrapper {
+            .tab::before {
+                opacity: 0;
+            }
+        }
+    }
+
+    &[fp-drag-state=dragging] {
+        // &::before {
+        //     content: '';
+        //     position: absolute;
+        //     width: 1px;
+        //     height: 18px;
+        //     top: 6px;
+        //     left: 0px;
+        //     background-color: #8d8d8d;
+        //     transition: opacity 200ms ease;
+        // }
+
+        &+.tabWrapper {
+            .tab::before {
+                opacity: 1;
+            }
+        }
+    }
+}
+
 .tab {
     padding: 6px 8px 2px 6px;
     overflow: hidden;
@@ -10,6 +50,17 @@
     position: relative;
     transition: background-color 100ms ease;
 
+    &::before {
+        content: '';
+        position: absolute;
+        width: 1px;
+        height: 18px;
+        top: 6px;
+        left: 0px;
+        background-color: #8d8d8d;
+        transition: opacity 200ms ease;
+    }
+
     &:hover {
         background-color: #ffffff62;
     }
@@ -18,10 +69,10 @@
         cursor: auto;
         background-color: white;
         box-shadow: 0px -6px 6px rgba(7, 21, 58, 0.02);
-        z-index: 1;
+        z-index: 2;
     }
     &[fp-drag-state=dragging] {
-        z-index: 2;
+        z-index: 3;
     }
 
     .editorContainer {

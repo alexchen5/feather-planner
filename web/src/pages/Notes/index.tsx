@@ -3,7 +3,6 @@ import { AppContext, db, UidContext } from 'utils/globalContext';
 import { UndoRedoAction, UndoRedoContext, useUndoRedo } from 'utils/useUndoRedo';
 import PinboardComponent from './Pinboard';
 import style from './styles/index.module.scss';
-import InodeTab from './Inodes/InodeTab';
 import { DocumentListenerContext } from 'components/DocumentEventListener/context';
 import { useDocumentEventListeners } from 'components/DocumentEventListener/useDocumentEventListeners';
 import { key } from 'utils/keyUtil';
@@ -11,6 +10,7 @@ import Inode from './Inodes';
 import UndoRedo from 'components/UndoRedo';
 import useCurrent from 'utils/useCurrent';
 import { useHistory } from 'react-router-dom';
+import TabContainer from './Inodes/TabContainer';
 
 const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
 
@@ -148,9 +148,7 @@ function Notes() {
           { homeNodes.map(path => allNotes[path] ? <Inode key={path} inodePath={path} file={allNotes[path]!}/> : null) }
         </div>
         <div className={style.notesContainer}>
-          <div className={style.tabsContainer}>
-            { noteTabs.map(note => allNotes[note.inodePath] ? <InodeTab key={note.inodePath} file={allNotes[note.inodePath]!} inodePath={note.inodePath} isOpen={note.isOpen}/> : null) }
-          </div>
+          <TabContainer/>
           {noteTabs.map(note => {
             if (note.isOpen) {
               const file = allNotes[note.inodePath];

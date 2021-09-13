@@ -77,6 +77,7 @@ export interface NotesData {
     }
     tabs: {
         open: (inodePath: string, type: FileType) => void;
+        rearrange: (inodePaths: string[]) => void;
         close: (inodePath: string, type: FileType, immediate?: boolean) => void;
     }
     inodes: {
@@ -203,6 +204,10 @@ export function useNotes(uid: string | boolean): NotesData {
                 // add the open tab if it doesnt exist
                 return tabExists ? ret : [...ret, { inodePath, isOpen: true }]
             })
+        },
+
+        rearrange: (inodePaths: string[]) => {
+            setNoteTabs(allTabs => inodePaths.map(p => allTabs.find(t => t.inodePath === p)!));
         },
 
         close: (inodePath: string, type: FileType, immediate = false) => {
