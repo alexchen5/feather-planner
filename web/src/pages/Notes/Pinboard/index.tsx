@@ -9,6 +9,7 @@ import StyleMenu from "./StyleMenu";
 import Pin from "./Pin";
 
 import style from './pinboard.module.scss';
+import { animated, useSpring } from "react-spring";
 
 export interface PinStyling {
   editorState: EditorState, 
@@ -20,6 +21,15 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
   const { notes: { tabs } } = React.useContext(AppContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
   const [ currentPin, setCurrentPin ] = React.useState<PinStyling | null>(null);
+
+  const boardContent = React.useRef<HTMLDivElement>(null);
+  const [spring, api] = useSpring(() => ({ 
+    config: { tension: 270, clamp: true, },
+    from: { height: 0, width: 0 },
+  }));
+  React.useLayoutEffect(() => {
+    api.start({ height: boardContent.current?.scrollHeight || 0, width: boardContent.current?.scrollWidth || 0 })
+  }, [pins, api]);
 
   const addNote = async () => {
     const initContent = {
@@ -61,13 +71,23 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
       <div className={style.menu}>
         <StyleMenu pin={currentPin}/>
       </div>
-      <div className={style.board}>
-        {
-          pins.map(pin => <Pin key={pin.docPath} pin={pin} updateCurrentPin={updateCurrentPin}/>)
-        }
-        <div className={style.addButton}>
-          <IconButton size='medium' onClick={addNote}><AddIcon/></IconButton>
-        </div>
+      <div className={style.boardWrapper}>
+        <animated.div 
+          style={{
+            position: 'absolute',
+            width: spring.width,
+            height: spring.height,
+          }}
+        >
+          <div ref={boardContent} style={{ position: 'absolute' }}>
+            {pins.map(pin => 
+              <Pin key={pin.docPath} pin={pin} updateCurrentPin={updateCurrentPin}/>
+            )}
+          </div>
+        </animated.div>
+      </div>
+      <div className={style.addButton}>
+        <IconButton size='medium' onClick={addNote}><AddIcon/></IconButton>
       </div>
     </div>
   )

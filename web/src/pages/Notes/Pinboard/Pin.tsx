@@ -144,13 +144,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     } else if (state === 'edit') {
       // ensure focus if we have declared focus
       editor.current?.focus();
-    } else if (state === 'dragging') {
-      // set state back to normal when the click registers after drag 
-      // with timeout so we dont get flashing with z-index changes
-      setTimeout(() => {
-        if (pinRef.current) setState('normal')
-      }, 50);
-    }
+    } 
   }
 
   const handleMouseDown: MouseEventHandler = (e) => {
@@ -305,6 +299,12 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
       return;
     }
 
+    // set state back to normal when the click registers after drag 
+    // with timeout so we dont get flashing with z-index changes
+    setTimeout(() => {
+      if (pinRef.current) setState('normal')
+    }, 50);
+    
     const top = parseInt(pinRef.current.style.top);
     const left = parseInt(pinRef.current.style.left);
 
@@ -331,7 +331,10 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     // reset document cursor style
     document.documentElement.style.cursor = '';
 
-    setState('normal')
+    setTimeout(() => {
+      if (pinRef.current) setState('normal')
+    }, 50);
+    
     deregisterFocus('pin-resize')
     if (!pinRef.current) {
       console.error('Expected pinRef at resize end');
@@ -475,6 +478,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
         keyBindingFn={handleKeyBinding}
       />
     </div>
+    <div className={style.pinSizer}/>
   </div>
 }
 
