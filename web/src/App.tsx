@@ -3,16 +3,19 @@ import LoginPage from "pages/Profile/LoginPage";
 import { AppContext, UidContext } from "utils/globalContext";
 import { BrowserRouter, Route, Switch } from "react-router-dom";
 import firebase from "firebase/app";
-import DocumentEventListener from "components/DocumentEventListener";
-import { useCalendar } from "pages/Calendar/data";
-import { useNotes } from "pages/Notes/data";
-import PlanStyleListener from "pages/Calendar/listeners/PlanStyleListener";
-import DateRangeListener from "pages/Calendar/listeners/DateRangeListener";
-import { DirectoryListener, InodeListener, PinboardListener } from "pages/Notes/Listeners";
+
 import Menu from "components/Menu";
+import DocumentFocusStack from "components/DocumentFocusStack";
+
 import Notes from "pages/Notes";
 import CalendarComponent from "pages/Calendar";
 import Profile from "pages/Profile";
+import { useCalendar } from "pages/Calendar/data";
+import { useNotes } from "pages/Notes/data";
+
+import PlanStyleListener from "pages/Calendar/listeners/PlanStyleListener";
+import DateRangeListener from "pages/Calendar/listeners/DateRangeListener";
+import { DirectoryListener, InodeListener, PinboardListener } from "pages/Notes/Listeners";
 
 import style from 'app.module.scss';
 
@@ -82,7 +85,7 @@ function App() {
   }, []);
 
   return (
-    <DocumentEventListener>
+    <DocumentFocusStack>
       <UidContext.Provider value={{ uid }}>
         <BrowserRouter>
           <Switch>
@@ -108,7 +111,7 @@ function App() {
           </Switch>
         </BrowserRouter>
       </UidContext.Provider>
-    </DocumentEventListener>
+    </DocumentFocusStack>
   );
 }
 

@@ -3,26 +3,27 @@ import { convertToRaw, Editor, EditorState, getDefaultKeyBinding } from "draft-j
 import { CalendarDateLabel } from "types/components/Calendar";
 import { db, UidContext } from "utils/globalContext";
 import { useEditorChangeLogger, useEditorFocus, useEditorUpdater } from "utils/useEditorUtil";
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
 
 import 'draft-js/dist/Draft.css';
 import style from "./date.module.scss";
 import { UndoRedoContext } from "utils/useUndoRedo";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLabel | null }) {
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  // const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const {uid} = React.useContext(UidContext);
 
   const editor = React.useRef<Editor>(null);
+  const renderRef = React.useRef<HTMLDivElement>(null);
   const [ editorState, setEditorState ] = useEditorUpdater(label?.content || '', (newState) => {
     if (isFocused) {
       editStart(newState)
     }
   });
   // const [ didChange, logChange, reset ] = useEditorChangeLogger(editorState);
-  const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners);
+  const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(renderRef, DocumentFocusContext, 'date-label-editor', 'calendar-root');
 
   const { editStart, editChange, editEnd } = useEditorChangeLogger(
     React.useCallback((c: EditorState) => handleSubmission.current(c), [])
@@ -33,7 +34,7 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
   }
 
   const handleBlur = () => {
-    declareBlur();
+    // declareBlur();
     editEnd();
   }
 
@@ -114,6 +115,7 @@ function DateLabel({ dateStr, label }: { dateStr: string, label: CalendarDateLab
       className={style.dateLabelContainer}
       data-state={isFocused ? 'edit' : 'normal'}
       onClick={handleClick}
+      ref={renderRef}
     >
       <Editor
         ref={editor}

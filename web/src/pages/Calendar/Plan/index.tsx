@@ -11,10 +11,10 @@ import style from './plan.module.scss';
 import panelStyle from './editPanel.module.scss';
 import { key } from "utils/keyUtil";
 import { DraggingPlansContext } from "../PlanDragHandler/context";
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { CalendarContext } from "../context";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import useCurrent from "utils/useCurrent";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 /**
  * Describes the state of the plan. Note that text values are connected to stylesheets.
@@ -29,13 +29,11 @@ function isEdit(state: PlanState): boolean {
  * Context for if the plan style menu is open. Boolean.
  */
 export const StyleOpenContext = React.createContext({} as { styleOpen: boolean; setStyleOpen: React.Dispatch<React.SetStateAction<boolean>>; });
-
-const timeOutSubscriptions: NodeJS.Timeout[] = []; // track any timeout functions being used
-let pos3: number, pos4 = 0; // track drag positions
+let clientX: number, clientY = 0; // track drag positions
 
 function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nxt, prv}}: { plan: CalendarPlanProp }) {
   const { calendar } = React.useContext(CalendarContext);
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const { dragPlans, isDragging, startDrag } = React.useContext(DraggingPlansContext);
 
   const planRef = React.useRef<HTMLDivElement>(null);
@@ -94,7 +92,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
    */
   const deleteSelf = React.useCallback(() => {
     // ensure edit listeners are cleaned up
-    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true });
+    unmountFocus('plan-edit')
 
     // delete plan from db
     const ids = getPlanIds(calendar.dates, dateStr); // TODO: change to use allDates api
@@ -115,16 +113,16 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     action();
     addUndo({ undo, redo: action })
 
-  }, [uid, calendar.dates, dateStr, planId, restoreData, addUndo, dispatchListeners]);
+  }, [uid, calendar.dates, dateStr, planId, restoreData, addUndo, unmountFocus]);
 
-  /**
-   * Take the necessary steps to deregister current plan as edit
-   */
-   const deregisterPlanEdit = React.useCallback(() => {
-    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true });
-    // TODO: remove unsafe timeout
-    timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
-  }, [dispatchListeners]);
+  // /**
+  //  * Take the necessary steps to deregister current plan as edit
+  //  */
+  // const deregisterPlanEdit = React.useCallback(() => {
+  //   dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true });
+  //   // TODO: remove unsafe timeout
+  //   timeOutSubscriptions.push(setTimeout(() => setState('normal'), 0)); // set normal state, with timeout so that the editor blur event has time to fire 
+  // }, [dispatchListeners]);
 
   /**
    * Take the necessary steps to submit plan changes to the db
@@ -137,7 +135,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       deleteSelf();
       return;
     }
-    if (shouldClose) deregisterPlanEdit(); // turn off edit state if need
+    if (shouldClose) unmountFocus('plan-edit'); // turn off edit state if need
     if (hasChange) { // dispatch changes to the plan content
       editChangeCount.current = editChangeCount.current + 1; // increment change counter
 
@@ -152,7 +150,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     } else {
       // no changes to dispatch
     }
-  }, [addUndo, content, deleteSelf, deregisterPlanEdit, planId, uid])
+  }, [addUndo, content, deleteSelf, unmountFocus, planId, uid])
 
   /**
    * Handle the click event of a plan. 
@@ -172,30 +170,27 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
    */
   const handleMouseDown: MouseEventHandler = (e) => {
     const dragInitiate = () => { // helper function to set up drag from mousedown
-      pos3 = e.clientX;
-      pos4 = e.clientY;
+      clientX = e.clientX;
+      clientY = e.clientY;
 
       // set up drag listeners
-      dispatchListeners({ 
-        type: 'register-focus', 
-        focusId: 'plan-try-drag',
-        listeners: [
+      setTimeout(() => {
+        mountFocus('plan-try-drag', ['plan-edit', 'calendar-root'], [
           { 
-            focusId: 'plan-try-drag', 
-            type: 'mousemove', 
+            key: 'mousemove', 
             callback: tryStartDrag, 
           },
           {
-            focusId: 'plan-try-drag', 
-            type: 'mouseup', 
-            callback: cancelTryStartDrag,
+            key: 'mouseup', 
+            callback: () => unmountFocus('plan-try-drag'),
           }
-        ],
+        ]);
       });
     }
 
     const target = e.target as HTMLElement; // assume target is html element
     if (state === 'normal') {
+      // e.stopPropagation(); // stop mousedown from going to document
       dragInitiate(); // potentially start a drag 
     } else if (isEdit(state) && target.getAttribute('fp-role') === 'edit-panel') {
       e.stopPropagation(); // stop mousedown from going to document
@@ -209,23 +204,19 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
    * Take the necessary steps to register current plan as edit
    */
   const registerPlanEdit = () => {
-    dispatchListeners({ 
-      type: 'register-focus', 
-      focusId: 'plan-edit',
-      listeners: [
-        { 
-          // keydown events to be handled by this plan
-          focusId: 'plan-edit', 
-          type: 'keydown', 
-          callback: (e) => handleKeyDown.current(e), 
-        },
-        {
-          // add own deregister event
-          focusId: 'plan-edit', 
-          type: 'mousedown', 
-          callback: deregisterPlanEdit,
-        }
-      ],
+    mountFocus('plan-edit', 'calendar-root', [
+      { 
+        key: 'keydown', 
+        callback: (e) => handleKeyDown.current(e), 
+      },
+      {
+        key: 'mousedown', 
+        callback: () => unmountFocus('plan-edit'),
+      }
+    ], (newId: string) => {
+      if (newId !== 'dragging-plans') {
+        if (planRef.current) setState('normal');
+      }
     });
 
     editChangeCount.current = 0; // reset change counters
@@ -246,28 +237,17 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
     }
     
     // ensure mouse moved enough for a drag
-    if (!(Math.abs(e.clientX - pos3) > 2 || Math.abs(e.clientY - pos4) > 2)) return;
-        
-    // Can start the drag now
-    setState('dragging'); // set state to dragging
-
-    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-edit', removeListeners: true }); // remove edit listeners
-    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-try-drag', removeListeners: true }); // remove try drag listeners
-
+    if (!(Math.abs(e.clientX - clientX) > 2 || Math.abs(e.clientY - clientY) > 2)) return;
+    setState('dragging')
     const el = planRef.current.cloneNode(true) as HTMLDivElement;
     el.className = style.placeholder;
     el.style.width = planRef.current.getBoundingClientRect().width + 'px';
     el.style.height = planRef.current.getBoundingClientRect().height + 'px';
 
-    startDrag({ planId, restoreData, isDone, content, styleId }, dateStr, el, e.clientX, e.clientY );
-  }, [planId, dateStr, restoreData, isDone, content, styleId, startDrag, dispatchListeners]);
-
-  /**
-   * Callback to cancel the start drag listener
-   */
-  const cancelTryStartDrag = React.useCallback(() => {
-    dispatchListeners({ type: 'deregister-focus', focusId: 'plan-try-drag', removeListeners: true });
-  }, [dispatchListeners]);
+    startDrag({ planId, restoreData, isDone, content, styleId }, dateStr, el, e.clientX, e.clientY, () => {
+      if (planRef.current) setState('dragging')
+    });
+  }, [planId, dateStr, restoreData, isDone, content, styleId, startDrag]);
 
   // Update dragging state when isDragging trigger changes
   React.useEffect(() => {
@@ -318,7 +298,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
       deleteSelf();
     }
     else if (e.key === 'Enter') {
-      deregisterPlanEdit();
+      unmountFocus('plan-edit');
     }
     else if (key.isMeta(e) && e.key === 'b') {
       changeStyleHelper.current('BOLD')
@@ -335,7 +315,7 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
         editUndoCount.current = editUndoCount.current + 1;
         undo();
       } else if (undoLength) {
-        deregisterPlanEdit();
+        unmountFocus('plan-edit');
         undo();
       }
     } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
@@ -344,12 +324,12 @@ function Plan({plan: {dateStr, restoreData, planId, styleId, isDone, content, nx
         editChangeCount.current = editChangeCount.current + 1;
         redo();
       } else if (redoLength) {
-        deregisterPlanEdit();
+        unmountFocus('plan-edit');
         redo();
       }
     }
-    // else console.log(e.key)
-  }, [deleteSelf, deregisterPlanEdit, redo, undo, redoLength, undoLength]));
+    else console.log(e.key)
+  }, [deleteSelf, unmountFocus, redo, undo, redoLength, undoLength]));
 
   /**
    * Handle key-styling command for text edit

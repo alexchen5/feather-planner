@@ -3,30 +3,23 @@ import { AppContext, db, UidContext } from 'utils/globalContext';
 import { UndoRedoAction, UndoRedoContext, useUndoRedo } from 'utils/useUndoRedo';
 import PinboardComponent from './Pinboard';
 import style from './styles/index.module.scss';
-import { DocumentListenerContext } from 'components/DocumentEventListener/context';
-import { useDocumentEventListeners } from 'components/DocumentEventListener/useDocumentEventListeners';
 import { key } from 'utils/keyUtil';
 import Inode from './Inodes';
 import UndoRedo from 'components/UndoRedo';
-import useCurrent from 'utils/useCurrent';
 import { useHistory } from 'react-router-dom';
 import TabContainer from './Inodes/TabContainer';
+import { DocumentFocusContext } from 'components/DocumentFocusStack';
 
 const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
 
 function Notes() {
   const { notes: {allNotes, noteTabs, inodes: { open }} } = React.useContext(AppContext);
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
 
   const {uid} = React.useContext(UidContext);
   const history = useHistory();
 
   const undoRedo = useUndoRedo(saveUndoRedo);
-  const undo = React.useRef<() => void>(() => {})
-  const redo = React.useRef<() => void>(() => {})
-  useCurrent(undo, undoRedo.undo)
-  useCurrent(redo, undoRedo.redo)
 
   const homeNodes = React.useMemo<string[]>(() => {
     const ret = allNotes[`users/${uid}/inodes/index`];
@@ -42,23 +35,29 @@ function Notes() {
   }, [homeNodes, open]);
 
   React.useEffect(() => {
-    registerFocus('notes-base-focus', [
+    mountFocus('notes-root', 'root', [
       {
-        type: 'keydown',
-        callback: (e: KeyboardEvent) => {
-          if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
-            undo.current();
-          } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
-            redo.current();
-          } else if (key!.isCommand(e) && e.key === 'c') {
-            history.push('/');
-          }
-        }
-      }
+        key: 'keydown',
+        callback: (e) => handleKeydown.current(e),
+      },
     ])
-    return () => deregisterFocus('notes-base-focus');
+
+    return () => unmountFocus('notes-root');
     // eslint-disable-next-line
-  }, [registerFocus, deregisterFocus])
+  }, [mountFocus, unmountFocus])
+
+  const handleKeydown = React.useRef<(e: KeyboardEvent) => void>(() => {})
+  React.useEffect(() => {
+    handleKeydown.current = (e) => {
+      if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
+        undoRedo.undo();
+      } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
+        undoRedo.redo();
+      } else if (key!.isCommand(e) && e.key === 'c') {
+        history.push('/');
+      }
+    }
+  })
 
   const addPinboard = async () => {
     // add new inode for the pinboard 

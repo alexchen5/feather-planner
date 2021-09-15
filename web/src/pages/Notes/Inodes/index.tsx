@@ -1,4 +1,3 @@
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { ContentState, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
 import React, { MouseEventHandler } from "react";
 import { AppContext, db } from "utils/globalContext";
@@ -10,15 +9,14 @@ import PinboardInode from "./PinboardInode";
 
 import 'draft-js/dist/Draft.css';
 import style from './inodes.module.scss';
-import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
   const { notes: { noteTabs } } = React.useContext(AppContext);
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const [state, setState] = React.useState<'normal' | 'edit' | 'dragging'>('normal');
-  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const [forceOpen, setForceOpen] = React.useState<boolean>(false);
 
   const editor = React.useRef<Editor>(null);
@@ -72,15 +70,14 @@ function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
     // expect that pointer event none if tab not open
     if (state === 'normal') {
       setState('edit')
-      registerFocus('inode-focus', [
+      mountFocus('inode-focus', 'notes-root', [
         {
-          type: 'mousedown',
-          callback: () => {
-            if (editor.current) setState('normal')
-            deregisterFocus('inode-focus')
-          }
+          key: 'mousedown',
+          callback: () => unmountFocus('inode-focus'),
         }
-      ])
+      ], () => {
+        if (editor.current) setState('normal')
+      })
     } else if (state === 'edit') {
       editor.current?.focus();
     }
@@ -94,8 +91,7 @@ function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
   }
 
   const handleBlur = () => {
-    setState('normal')
-    deregisterFocus('inode-focus')
+    unmountFocus('inode-focus');
   }
 
   /**

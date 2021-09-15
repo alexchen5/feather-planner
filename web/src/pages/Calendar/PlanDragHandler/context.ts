@@ -6,6 +6,6 @@ import { SpringChanges } from "types/components/Calendar/PlanDragHandler/PlanSpr
 export const DraggingPlansContext = React.createContext({} as {
     dragPlans: DragPlan[],
     isDragging: boolean,
-    startDrag: (plan: CalendarPlan, dateStr: string, el: HTMLDivElement, clientX: number, clientY: number) => void,
+    startDrag: (plan: CalendarPlan, dateStr: string, el: HTMLDivElement, clientX: number, clientY: number, onDrag: () => void) => void,
     declarePlanSpawn: (planId: string, staticEl: HTMLDivElement, onUpdate: (spring: SpringChanges) => void) => void,
 });

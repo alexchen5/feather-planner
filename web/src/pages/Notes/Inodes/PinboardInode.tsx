@@ -1,20 +1,32 @@
-import { IconButton } from "@material-ui/core";
-import DeleteForeverIcon from '@material-ui/icons/DeleteForever';
-import { Editor } from "draft-js";
 import React, { MouseEventHandler } from "react";
+import { Editor } from "draft-js";
+
 import { AppContext, db } from "utils/globalContext";
 import { UndoRedoContext } from "utils/useUndoRedo";
 import { FileBase } from "../data";
+import { getParentInode } from "../Listeners";
+
+import { IconButton } from "@material-ui/core";
+import DeleteForeverIcon from '@material-ui/icons/DeleteForever';
+import MoreHorizIcon from '@material-ui/icons/MoreHoriz';
+import EditIcon from '@material-ui/icons/Edit';
 
 import firebase from "firebase/app";
 import "firebase/firestore";
 
 import style from './inodes.module.scss';
-import { getParentInode } from "../Listeners";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
+
+function PinboardInodeMenu() {
+
+  return null;
+}
 
 function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: FileBase, editor: { ref: React.RefObject<Editor>, component: JSX.Element } }) {
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const { notes: {tabs, inodes, noteTabs} } = React.useContext(AppContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
+  const [ menuState, setMenuState ] = React.useState<'open' | 'closed'>('closed');
   
   const isOpen = React.useMemo(() => noteTabs.find(note => note.inodePath === inodePath)?.isOpen || false, [noteTabs, inodePath]);
   
@@ -23,8 +35,17 @@ function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: 
   }
 
   const handleMouseDownMenu: MouseEventHandler = (e) => {
-    e.stopPropagation()
-    deletePinboardHelper()
+    if (menuState === 'closed') {
+      setMenuState('open')
+      mountFocus('inode-menu-open', 'notes-root', [
+        {
+          key: 'mousedown',
+          callback: () => unmountFocus('inode-menu-open'),
+        }
+      ], () => {
+        if (true) setMenuState('closed')
+      })
+    } 
   }
 
   const deletePinboardHelper = async () => {
@@ -96,13 +117,34 @@ function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: 
       onClick={handleClick}
     >
       {editor.component}
-      <IconButton 
-        size='small' 
-        onClick={handleMouseDownMenu}
-        onMouseDown={e => e.stopPropagation()}
+      <div
+        className={style.inodeMenu}
+        fp-state={menuState}
       >
-        <DeleteForeverIcon/>
-      </IconButton>
+        <IconButton 
+          size='small' 
+          onClick={handleMouseDownMenu}
+        >
+          <MoreHorizIcon/>
+        </IconButton>
+        {
+          menuState === 'open' && 
+          <>
+            <IconButton 
+              size='small' 
+              onClick={handleMouseDownMenu}
+            >
+              <EditIcon/>
+            </IconButton>
+            <IconButton 
+              size='small' 
+              onClick={handleMouseDownMenu}
+            >
+              <DeleteForeverIcon/>
+            </IconButton>
+          </>
+        }
+      </div>
     </div>
   )
 }

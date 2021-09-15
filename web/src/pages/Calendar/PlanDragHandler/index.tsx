@@ -1,4 +1,4 @@
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 import React from "react";
 import { DatePlansUpdate } from "types";
 import { CalendarPlan } from "types/components/Calendar";
@@ -17,7 +17,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
   const [ dragPlans, setDragPlans ] = React.useState<DragPlan[]>([]);
   const dragPicture = React.useRef<HTMLDivElement>(null);
   const [ isDragging, setIsDragging ] = React.useState(false);
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const { calendar, dispatch: dispatchCalendar } = React.useContext(CalendarContext);
   const { addScrollEventListener, removeScrollEventListener } = React.useContext(ScrollHandlerContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
@@ -84,7 +84,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
     }));
   }, []);
 
-  const registerPlan = React.useCallback((plan: CalendarPlan, dateStr: string, el: HTMLDivElement) => {
+  const registerPlan = React.useCallback((plan: CalendarPlan, dateStr: string, el: HTMLDivElement, onDrag: () => void) => {
     setDragPlans(dragPlans => {
       const ret = [
         ...dragPlans,
@@ -92,6 +92,7 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
           ...plan,
           el, 
           dateStr,
+          onDrag,
           plans: getPlanIds(calendar.dates, dateStr),
         },
       ]
@@ -120,8 +121,8 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
     });
   }, [calendar.dates]);
 
-  const startDrag = React.useCallback((plan: CalendarPlan, dateStr: string, el: HTMLDivElement, clientX: number, clientY: number) => {
-    registerPlan(plan, dateStr, el);
+  const startDrag = React.useCallback((plan: CalendarPlan, dateStr: string, el: HTMLDivElement, clientX: number, clientY: number, onDrag: () => void) => {
+    registerPlan(plan, dateStr, el, onDrag);
     
     if (!dragPicture.current) {
       console.error('Expected placeholder at start drag');
@@ -179,28 +180,30 @@ function PlanDragHandler({children} : {children: React.ReactNode}) {
 
       const callbackRef = { current: null as NodeJS.Timeout | null };
       const dragHandle = getMousemoveCallback([...dragPlans], callbackRef);
+      dragPlans.forEach(p => p.onDrag());
       const closeDrag = (e: MouseEvent) => {
         e.preventDefault();
+        unmountFocus('dragging-plans');
         setIsDragging(false);
       };
 
       // add a new focus state to listeners 
-      dispatchListeners({ type: 'register-focus', focusId: `dragging-plans` });
-      // mount listeners directly to document for performance 
-      document.addEventListener('mousemove', dragHandle);
-      document.addEventListener('mouseup', closeDrag);
+      mountFocus(`dragging-plans`, 'calendar-root', [
+        {
+          key: 'mousemove',
+          callback: dragHandle,
+        }, {
+          key: 'mouseup',
+          callback: closeDrag,
+        }
+      ]);
       document.body.setAttribute('plan-drag-display', '');
 
       return () => {
         // cleanup function is drag finish function
-        document.removeEventListener('mousemove', dragHandle);
-        document.removeEventListener('mouseup', closeDrag);
         document.body.removeAttribute('plan-drag-display');
 
         callbackRef.current && clearInterval(callbackRef.current);
-
-        dispatchListeners({ type: 'deregister-focus', focusId: `dragging-plans`, removeListeners: false });
-
         // remove all placeholders
         if (dragPic) while (dragPic.lastChild) dragPic.removeChild(dragPic.lastChild);
 

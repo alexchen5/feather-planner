@@ -1,5 +1,3 @@
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
-import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
 import { convertToRaw, DraftHandleValue, Editor, EditorState, getDefaultKeyBinding, RichUtils } from "draft-js";
 import React, { MouseEventHandler, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { AppContext, db } from "utils/globalContext";
@@ -12,6 +10,7 @@ import 'draft-js/dist/Draft.css';
 import style from './pinboard.module.scss';
 import borderStyle from './borderCapture.module.scss';
 import { PinStyling } from ".";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 type ResizeStyle = 'ns' | 'ew' | 'nwse' | 'nesw';
 type ResizeDirections = 'n' | 'e' | 's' | 'w';
@@ -19,8 +18,7 @@ let clientDx: number, clientDy: number, clientX: number, clientY: number // trac
 
 function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pin: PinStyling | null) => void}) {
   const { notes: { tabs } } = React.useContext(AppContext);
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const { registerFocus, deregisterFocus, triggerListener } = useDocumentEventListeners(dispatchListeners);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const pinRef = React.useRef<HTMLDivElement>(null);
@@ -40,107 +38,100 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
    * Helper function to take the necessary steps to delete self
    */
   const deleteSelf = React.useRef(() => {}) 
-  deleteSelf.current = () => {
-    // ensure edit listeners are cleaned up
-    deregisterFocus('pin-edit');
+  React.useEffect(() => {
+    deleteSelf.current = () => {
+      // ensure edit listeners are cleaned up
+      unmountFocus('pin-edit');
 
-    // execute delete
-    db.doc(pin.docPath).delete();
+      // execute delete
+      db.doc(pin.docPath).delete();
 
-    const redo = async () => {
-      setTimeout(() => {
-        tabs.open(pin.inodePath, 'pinboard')
-        db.doc(pin.docPath).delete();
-      }, 50);
+      const redo = async () => {
+        setTimeout(() => {
+          tabs.open(pin.inodePath, 'pinboard')
+          db.doc(pin.docPath).delete();
+        }, 50);
+      }
+      const undo = async () => {
+        setTimeout(() => {
+          tabs.open(pin.inodePath, 'pinboard')
+          db.doc(pin.docPath).set({...pin.restoreData});
+        }, 50);
+      }
+      addUndo({undo, redo})
     }
-    const undo = async () => {
-      setTimeout(() => {
-        tabs.open(pin.inodePath, 'pinboard')
-        db.doc(pin.docPath).set({...pin.restoreData});
-      }, 50);
-    }
-    addUndo({undo, redo})
-  }
+  })
 
   /**
    * Take the necessary steps to submit content changes to the db
    * @param val the current text content
    */
   const submitContentChanges = React.useRef<(editorState: EditorState) => void>(() => {})
-  submitContentChanges.current = (editorState: EditorState) => {
-    const val = editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent());
+  React.useEffect(() => {
+    submitContentChanges.current = (editorState: EditorState) => {
+      const val = editorState.getCurrentContent().hasText() && convertToRaw(editorState.getCurrentContent());
 
-    if (!val) { // run delete first
-      deleteSelf.current();
-      return;
-    }
-    
-    // execute update
-    db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
+      if (!val) { // run delete first
+        deleteSelf.current();
+        return;
+      }
+      
+      // execute update
+      db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
 
-    const redo = async () => {
-      setTimeout(() => {
-        tabs.open(pin.inodePath, 'pinboard')
-        db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
-      }, 50);
-    };
-    const undo = async () => {
-      setTimeout(() => {
-        tabs.open(pin.inodePath, 'pinboard')
-        db.doc(pin.docPath).set({...pin.restoreData});
-      }, 50);
+      const redo = async () => {
+        setTimeout(() => {
+          tabs.open(pin.inodePath, 'pinboard')
+          db.doc(pin.docPath).set({ content: val, lastEdited: Date.now() }, { merge: true });
+        }, 50);
+      };
+      const undo = async () => {
+        setTimeout(() => {
+          tabs.open(pin.inodePath, 'pinboard')
+          db.doc(pin.docPath).set({...pin.restoreData});
+        }, 50);
+      }
+      addUndo({undo, redo})
     }
-    addUndo({undo, redo})
-  }
+  })
 
   // our edit end handler function
-  const handleEditStart = React.useRef(() => {});
-  handleEditStart.current = () => {
+  const handleEditStart = () => {
     editStart(editorState);
-    triggerListener('pin-edit', 'mousedown', new MouseEvent('mousedown'))
-    setTimeout(() => // set timeout to let the above trigger
-      registerFocus('pin-edit', [
-        {
-          type: 'keydown',
-          callback: (e: KeyboardEvent) => handleKeyDown.current(e)
+    mountFocus('pin-edit', 'notes-root', [
+      {
+        key: 'keydown',
+        callback: (e: KeyboardEvent) => handleKeyDown.current(e),
+      },
+      {
+        key: 'mousedown',
+        callback: (e) => {
+          const target = e.target as HTMLDivElement;
+          if (!target?.closest(`[fp-role="pin"][data-path="${pin.docPath}"]`)) {
+            unmountFocus('pin-edit')
+          }
         },
-        {
-          type: 'mousedown',
-          // edit end function contained in a ref so its value is mutable
-          callback: () => { 
-            deregisterFocus('pin-edit');
-            if (pinRef.current) setState('normal') 
-          },
-        }
-      ])
-    ); 
+      }
+    ], () => handleEditEnd.current())
   }
 
   /**
    * our edit end handler function
    */
   const handleEditEnd = React.useRef(() => {});
-  handleEditEnd.current = () => {
-    setState('normal')
-    updateCurrentPin(null)
-    deregisterFocus('pin-edit');
-    editEnd()
-  }
-
   React.useEffect(() => {
-    if (state === 'normal') {
-
-    } else if (state === 'edit') {
-      handleEditStart.current()
-      return () => handleEditEnd.current()
+    handleEditEnd.current = () => {
+      if (pinRef.current) setState('normal')
+      updateCurrentPin(null)
+      editEnd()
     }
-    return () => {}
-  }, [state]);
+  })
 
   const handleClick: MouseEventHandler = (e) => {
     if (state === 'normal') { 
       // register edit state after the completion of a click
       setState('edit')
+      handleEditStart()
     } else if (state === 'edit') {
       // ensure focus if we have declared focus
       editor.current?.focus();
@@ -150,8 +141,6 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
   const handleMouseDown: MouseEventHandler = (e) => {
     if (state === 'normal') {
       mousedownDragInitiate(e); // potentially start drag
-    } else if (state === 'edit') {
-      e.stopPropagation() // stop mousedown from going to document
     }
   }
 
@@ -163,51 +152,55 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     clientX = e.clientX;
     clientY = e.clientY;
 
-    registerFocus('pin-try-drag', [
-      {
-        type: 'mousemove',
-        callback: (e: MouseEvent) => mousemoveTryStartDrag.current(e),
-      },
-      {
-        type: 'mouseup',
-        // cancel try drag focus on mouseup
-        callback: () => deregisterFocus('pin-try-drag'),
-      }
-    ])
+    setTimeout(() => { 
+      // timeout in order to let the mousedown event propagate before 
+      // overiding the focus state
+      mountFocus('pin-try-drag', 'notes-root', [
+        {
+          key: 'mousemove',
+          callback: (e: MouseEvent) => mousemoveTryStartDrag.current(e),
+        },
+        {
+          key: 'mouseup',
+          // cancel try drag focus on mouseup
+          callback: () => unmountFocus('pin-try-drag'),
+        }
+      ])
+    });
   }
 
   const mousemoveTryStartDrag = React.useRef<(e: MouseEvent) => void>((e) => {});
-  mousemoveTryStartDrag.current = (e: MouseEvent) => {
-    // ensure mouse moved enough for a drag
-    if (!pinRef.current) {
-      console.error('Expected pinRef during drag');
-      return;
-    }
-
-    if (!(Math.abs(e.clientX - clientX) > 2 || Math.abs(e.clientY - clientY) > 2)) return;
-
-    // Can start the drag now
-    setState('dragging'); // set state to dragging
-
-    // dereg previous focus
-    deregisterFocus('pin-try-drag');
-    deregisterFocus('pin-edit')
-
-    // reg actual dragging listeners
-    registerFocus('pin-drag', [
-      {
-        type: 'mousemove',
-        callback: mousemoveHandleDrag
-      },
-      {
-        type: 'mouseup',
-        callback: mouseupEndDrag,
+  React.useEffect(() => {
+    mousemoveTryStartDrag.current = (e: MouseEvent) => {
+      // ensure mouse moved enough for a drag
+      if (!pinRef.current) {
+        console.error('Expected pinRef during drag');
+        return;
       }
-    ])
-  }
+
+      if (!(Math.abs(e.clientX - clientX) > 2 || Math.abs(e.clientY - clientY) > 2)) return;
+
+      // Can start the drag now
+      setState('dragging'); // set state to dragging
+
+      // reg actual dragging listeners
+      mountFocus('pin-drag', 'notes-root', [
+        {
+          key: 'mousemove',
+          callback: mousemoveHandleDrag
+        },
+        {
+          key: 'mouseup',
+          callback: () => unmountFocus('pin-drag'),
+        }
+      ], () => {
+        mouseupEndDrag()
+      })
+    }
+  })
 
   const handleMouseDownResize = (e: React.MouseEvent<HTMLDivElement, MouseEvent>, directions: ResizeDirections[], style: ResizeStyle) => {
-    if (state === 'normal') e.stopPropagation();
+    e.stopPropagation();
     // set document cursor style
     document.documentElement.style.cursor = style + '-resize';
     setState('resizing'); // set state to resizing
@@ -216,16 +209,16 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     clientY = e.clientY;
 
     // reg resize listeners
-    registerFocus('pin-resize', [
+    mountFocus('pin-resize', 'notes-root', [
       {
-        type: 'mousemove',
+        key: 'mousemove',
         callback: (e: MouseEvent) => mousemoveResize.current(e, directions)
       },
       {
-        type: 'mouseup',
-        callback: () => mouseupResize.current(),
+        key: 'mouseup',
+        callback: () => unmountFocus('pin-resize'),
       }
-    ])
+    ], () => mouseupResize.current())
   }
 
   const mousemoveHandleDrag = (e: MouseEvent) => {
@@ -248,52 +241,53 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
   }
 
   const mousemoveResize = React.useRef<(e: MouseEvent, directions: ResizeDirections[]) => void>((a, b) => {})
-  mousemoveResize.current = (e: MouseEvent, directions: ResizeDirections[]) => {
-    e.preventDefault();
-    clientDx = clientX - e.clientX;
-    clientDy = clientY - e.clientY;
-    if (!pinRef.current) {
-      console.error('Expected pinRef during resize');
-      return;
-    }
+  React.useEffect(() => {
+    mousemoveResize.current = (e: MouseEvent, directions: ResizeDirections[]) => {
+      e.preventDefault();
+      clientDx = clientX - e.clientX;
+      clientDy = clientY - e.clientY;
+      if (!pinRef.current) {
+        console.error('Expected pinRef during resize');
+        return;
+      }
 
-    // change height/width/left/top depending on direction of resize
-    if (directions.includes('n')) {
-      const targetH = parseInt(getComputedStyle(pinRef.current).height) + clientDy;
-      const offH = Math.max(0, 25 - targetH); // target is not off if ≥ 25
-      const targetT = pinRef.current.offsetTop - clientDy;
-      const offT = Math.max(0, 6 - targetT);// target is not off if ≥ 6
-      // true for the 3 cases: offH = offT = 0, offH > 0 & offT = 0, offT > 0 & offH = 0
-      clientY = e.clientY - offH + offT;
-      pinRef.current.style.height = targetH + offH - offT + 'px'
-      pinRef.current.style.top = targetT - offH + offT + 'px';
-    }
-    if (directions.includes('s')) {
-      const targetH = parseInt(getComputedStyle(pinRef.current).height) - clientDy;
-      const offH = Math.max(0, 25 - targetH); // target is not off if ≥ 25
-      clientY = e.clientY + offH;
-      pinRef.current.style.height = targetH + offH + 'px'
-    }
-    if (directions.includes('e')) {
-      const targetW = parseInt(getComputedStyle(pinRef.current).width) - clientDx;
-      const offW = Math.max(0, 25 - targetW); // target is not off if ≥ 25
-      clientX = e.clientX + offW;
-      pinRef.current.style.width = targetW + offW + 'px'
-    }
-    if (directions.includes('w')) {
-      const targetW = parseInt(getComputedStyle(pinRef.current).width) + clientDx;
-      const offW = Math.max(0, 25 - targetW); // target is not off if ≥ 25
-      const targetL = pinRef.current.offsetLeft - clientDx;
-      const offL = Math.max(0, 6 - targetL) // target is not off if ≥ 6
+      // change height/width/left/top depending on direction of resize
+      if (directions.includes('n')) {
+        const targetH = parseInt(getComputedStyle(pinRef.current).height) + clientDy;
+        const offH = Math.max(0, 25 - targetH); // target is not off if ≥ 25
+        const targetT = pinRef.current.offsetTop - clientDy;
+        const offT = Math.max(0, 6 - targetT);// target is not off if ≥ 6
+        // true for the 3 cases: offH = offT = 0, offH > 0 & offT = 0, offT > 0 & offH = 0
+        clientY = e.clientY - offH + offT;
+        pinRef.current.style.height = targetH + offH - offT + 'px'
+        pinRef.current.style.top = targetT - offH + offT + 'px';
+      }
+      if (directions.includes('s')) {
+        const targetH = parseInt(getComputedStyle(pinRef.current).height) - clientDy;
+        const offH = Math.max(0, 25 - targetH); // target is not off if ≥ 25
+        clientY = e.clientY + offH;
+        pinRef.current.style.height = targetH + offH + 'px'
+      }
+      if (directions.includes('e')) {
+        const targetW = parseInt(getComputedStyle(pinRef.current).width) - clientDx;
+        const offW = Math.max(0, 25 - targetW); // target is not off if ≥ 25
+        clientX = e.clientX + offW;
+        pinRef.current.style.width = targetW + offW + 'px'
+      }
+      if (directions.includes('w')) {
+        const targetW = parseInt(getComputedStyle(pinRef.current).width) + clientDx;
+        const offW = Math.max(0, 25 - targetW); // target is not off if ≥ 25
+        const targetL = pinRef.current.offsetLeft - clientDx;
+        const offL = Math.max(0, 6 - targetL) // target is not off if ≥ 6
 
-      clientX = e.clientX - offW + offL
-      pinRef.current.style.width = targetW + offW - offL + 'px'
-      pinRef.current.style.left = targetL + offL - offW + 'px';
+        clientX = e.clientX - offW + offL
+        pinRef.current.style.width = targetW + offW - offL + 'px'
+        pinRef.current.style.left = targetL + offL - offW + 'px';
+      }
     }
-  }
+  })
 
-  const mouseupEndDrag = (e: MouseEvent) => {
-    deregisterFocus('pin-drag')
+  const mouseupEndDrag = () => {
     if (!pinRef.current) {
       console.error('Expected pinRef at drag end');
       return;
@@ -327,49 +321,52 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
   }
 
   const mouseupResize = React.useRef<() => void>(() => {})
-  mouseupResize.current = () => {
-    // reset document cursor style
-    document.documentElement.style.cursor = '';
+  React.useEffect(() => {
+    mouseupResize.current = () => {
+      // reset document cursor style
+      document.documentElement.style.cursor = '';
 
-    setTimeout(() => {
-      if (pinRef.current) setState('normal')
-    }, 50);
-    
-    deregisterFocus('pin-resize')
-    if (!pinRef.current) {
-      console.error('Expected pinRef at resize end');
-      return;
-    }
+      setTimeout(() => {
+        if (pinRef.current) setState('normal')
+      }, 50);
+      
+      if (!pinRef.current) {
+        console.error('Expected pinRef at resize end');
+        return;
+      }
 
-    const width = parseInt(pinRef.current.style.width);
-    const height = parseInt(pinRef.current.style.height);
-    const top = parseInt(pinRef.current.style.top);
-    const left = parseInt(pinRef.current.style.left);
+      const width = parseInt(pinRef.current.style.width);
+      const height = parseInt(pinRef.current.style.height);
+      const top = parseInt(pinRef.current.style.top);
+      const left = parseInt(pinRef.current.style.left);
 
-    // execute update
-    db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
-
-    const redo = async () => {
+      // execute update
       db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
-    };
-    const undo = async () => {
-      db.doc(pin.docPath).set({...pin.restoreData});
+
+      const redo = async () => {
+        db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
+      };
+      const undo = async () => {
+        db.doc(pin.docPath).set({...pin.restoreData});
+      }
+      addUndo({undo, redo})
     }
-    addUndo({undo, redo})
-  }
+  })
 
   /**
    * Function to handle the key interactions. This is added to document through declareFocus
    */
   const handleKeyDown = React.useRef<(e: KeyboardEvent) => void>(() => {})
-  handleKeyDown.current = (e: KeyboardEvent) => { 
-    if (key.isDelete(e)) {
-      e.stopPropagation();
-      deleteSelf.current();
-    } else if (e.key === 'Enter') {
-      handleEditEnd.current();
+  React.useEffect(() => {
+    handleKeyDown.current = (e: KeyboardEvent) => { 
+      if (key.isDelete(e)) {
+        e.stopPropagation();
+        deleteSelf.current();
+      } else if (e.key === 'Enter') {
+        handleEditEnd.current();
+      }
     }
-  }
+  })
 
   const handleKeyBinding = (e: ReactKeyboardEvent): string | null => {
     if (e.key === 'Tab' ) {
@@ -402,37 +399,41 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
    * @param {EditorState} newState 
    */
   const handleChange = React.useRef<(newState: EditorState) => void>(() => {})
-  handleChange.current = (newState: EditorState) => {
-    editChange(newState);
-    setEditorState(newState);
-    handleUpdateCurrentPin.current(newState)
-  }
+  React.useEffect(() => {
+    handleChange.current = (newState: EditorState) => {
+      editChange(newState);
+      setEditorState(newState);
+      handleUpdateCurrentPin.current(newState)
+    }
+  })
 
   const handleUpdateCurrentPin = React.useRef<(newState: EditorState) => void>(() => {});
-  handleUpdateCurrentPin.current = (newState) => {
-    updateCurrentPin({
-      editorState: newState,
-      onBlockToggle: (blockType: string) => {
-        handleChange.current(
-          RichUtils.toggleBlockType(
-            newState,
-            blockType
+  React.useEffect(() => {
+    handleUpdateCurrentPin.current = (newState) => {
+      updateCurrentPin({
+        editorState: newState,
+        onBlockToggle: (blockType: string) => {
+          handleChange.current(
+            RichUtils.toggleBlockType(
+              newState,
+              blockType
+            )
           )
-        )
-      },
-      onInlineToggle: (inlineStyle: string) => {
-        handleChange.current(
-          RichUtils.toggleInlineStyle(
-            newState,
-            inlineStyle
+        },
+        onInlineToggle: (inlineStyle: string) => {
+          handleChange.current(
+            RichUtils.toggleInlineStyle(
+              newState,
+              inlineStyle
+            )
           )
-        )
-      },
-    })
-  }
+        },
+      })
+    }
+  })
 
   const handleFocus = () => {
-    // handleUpdateCurrentPin.current(editorState)
+    handleUpdateCurrentPin.current(editorState)
   }
 
   const handleBlur = () => {
@@ -443,6 +444,8 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     ref={pinRef}
     className={style.pin}
     data-state={state}
+    fp-role={'pin'}
+    data-path={pin.docPath}
     onClick={handleClick}
     onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out

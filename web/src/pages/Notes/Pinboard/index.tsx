@@ -63,7 +63,7 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
   }
 
   const updateCurrentPin = React.useCallback((pin: PinStyling | null) => {
-    setCurrentPin(pin)
+    if (boardContent.current) setCurrentPin(pin)
   }, [])
 
   return (

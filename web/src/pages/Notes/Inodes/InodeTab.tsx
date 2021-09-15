@@ -1,4 +1,3 @@
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { ContentState, Editor, EditorState, getDefaultKeyBinding } from "draft-js";
 import React, { MouseEventHandler } from "react";
 import { AppContext, db } from "utils/globalContext";
@@ -11,9 +10,9 @@ import CloseIcon from '@material-ui/icons/Close';
 import 'draft-js/dist/Draft.css';
 import style from './inodes.module.scss';
 import { IconButton } from "@material-ui/core";
-import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
 import { animated, useSpring } from "react-spring";
 import { useMeasure } from "react-use";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 let clientDx: number, clientX: number // track drag positions
 
@@ -27,14 +26,13 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
   handleMovement: (offset: number, path: string) => void,
 }) {
   const { notes: { tabs } } = React.useContext(AppContext);
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const [measureStatic, { width: staticWidth }] = useMeasure() 
   const staticRef = React.useRef<HTMLDivElement | null>(null);
   const tabRef = React.useRef<HTMLDivElement>(null);
   const [state, setState] = React.useState<'normal' | 'edit' | 'dragging'>('normal');
-  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
 
   const editor = React.useRef<Editor>(null);
   const [editorState, setEditorState] = useEditorUpdater(file.name);
@@ -143,15 +141,15 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
   const mousedownDragInitiate = (e: React.MouseEvent<Element, MouseEvent>) => {
     clientX = e.clientX;
 
-    registerFocus('tab-try-drag', [
+    mountFocus('tab-try-drag', 'notes-root', [
       {
-        type: 'mousemove',
+        key: 'mousemove',
         callback: mousemoveTryStartDrag,
       },
       {
-        type: 'mouseup',
+        key: 'mouseup',
         // cancel try drag focus on mouseup
-        callback: () => deregisterFocus('tab-try-drag'),
+        callback: () => unmountFocus('tab-try-drag'),
       }
     ])
   }
@@ -168,21 +166,17 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
     // Can start the drag now
     setState('dragging'); // set state to dragging
 
-    // dereg previous focus
-    deregisterFocus('tab-try-drag');
-    deregisterFocus('tab-edit')
-
     // reg actual dragging listeners
-    registerFocus('tab-drag', [
+    mountFocus('tab-drag', 'notes-root', [
       {
-        type: 'mousemove',
+        key: 'mousemove',
         callback: mousemoveHandleDrag
       },
       {
-        type: 'mouseup',
-        callback: mouseupEndDrag,
+        key: 'mouseup',
+        callback: () => unmountFocus('tab-drag'),
       }
-    ])
+    ], mouseupEndDrag)
   }
 
   const mousemoveHandleDrag = (e: MouseEvent) => {
@@ -204,8 +198,7 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
     handleMovement(leftSpring.left.get() + leftModRef.current, inodePath)
   }
 
-  const mouseupEndDrag = (e: MouseEvent) => {
-    deregisterFocus('tab-drag')
+  const mouseupEndDrag = () => {
     if (!tabRef.current) {
       console.error('Expected tabRef at drag end');
       return;
@@ -221,15 +214,14 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
     // expect that pointer event none if tab not open
     if (state === 'normal') {
       setState('edit')
-      registerFocus('tab-focus', [
+      mountFocus('tab-focus', 'notes-root', [
         {
-          type: 'mousedown',
-          callback: () => {
-            if (tabRef.current) setState('normal')
-            deregisterFocus('tab-focus')
-          }
+          key: 'mousedown',
+          callback: () => unmountFocus('tab-focus'),
         }
-      ])
+      ], () => {
+        if (tabRef.current) setState('normal')
+      })
     } else if (state === 'edit') {
       editor.current?.focus();
     }
@@ -248,8 +240,7 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
   }
 
   const handleBlur = () => {
-    setState('normal')
-    deregisterFocus('tab-focus')
+    unmountFocus('tab-focus')
   }
 
   /**

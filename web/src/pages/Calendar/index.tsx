@@ -6,7 +6,8 @@ import { key } from "utils/keyUtil";
 import { init, reducer } from "./reducer";
 import { CalendarContext } from "./context";
 
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
+import DeferComponentRender from "components/DeferComponentRender";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 import CalendarContainer from "./CalendarContainer";
 import PlanDragHandler from "./PlanDragHandler";
@@ -15,25 +16,17 @@ import PlanWrapper from "./PlanDragHandler/PlanWrapper";
 import Plan from './Plan'
 import { AppContext } from "utils/globalContext";
 import { UndoRedoAction, UndoRedoContext, useUndoRedo } from "utils/useUndoRedo";
-import useCurrent from "utils/useCurrent";
-import DeferComponentRender from "components/DeferComponentRender";
 
 const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
 
 function CalendarComponent() {
   const { calendar: { state: { calendarDates: allDates }, dispatch: dispatchCalendarData } } = React.useContext(AppContext);
   const [calendar, dispatch] = useReducer(reducer, allDates, init);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
 
   const history = useHistory();
 
   const undoRedo = useUndoRedo(saveUndoRedo);
-  const undo = React.useRef<() => void>(() => {})
-  const redo = React.useRef<() => void>(() => {})
-  useCurrent(undo, undoRedo.undo)
-  useCurrent(redo, undoRedo.redo)
-
-
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
   
   React.useEffect(() => {
     // we can expect that the allDates handed down to us is error free, 
@@ -54,31 +47,39 @@ function CalendarComponent() {
 
   React.useEffect(() => {
     // set up drag listeners
-    dispatchListeners({ 
-      type: 'register-focus', 
-      focusId: 'calendar-key-events',
-      listeners: [
+    mountFocus('calendar-root', 'root', [
         { 
-          focusId: 'calendar-key-events', 
-          type: 'keydown', 
-          callback: handleKeydown, 
+          key: 'keydown', 
+          callback: (e) => handleKeydown.current(e), 
         },
-      ],
-    });
-    return () => dispatchListeners({ type: 'deregister-focus', focusId: 'calendar-key-events', removeListeners: true });
-    // only run at mount 
-    // eslint-disable-next-line
-  }, []);
+        {
+          key: 'mousedown',
+          callback: (e) => {
+            const target = e.target as HTMLElement; // assume target is a HTML element
+            const hitbox = target.closest('[fp-role="add-plan-hitbox"]') as HTMLElement | null;
+            if (hitbox) {
+              // @ts-ignore
+              hitbox.querySelector('[fp-role="add-plan"]')?.click();
+            }
+          }
+        }
+      ]
+    );
+    return () => unmountFocus('calendar-root');
+  }, [mountFocus, unmountFocus]);
 
-  const handleKeydown = React.useCallback((e: KeyboardEvent) => {
-    if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
-      undo.current();
-    } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
-      redo.current();
-    } else if (key!.isCommand(e) && e.key === 'n') {
-      history.push('/notes');
+  const handleKeydown = React.useRef<(e: KeyboardEvent) => void>(() => {})
+  React.useEffect(() => {
+    handleKeydown.current = (e) => {
+      if (key.isMeta(e) && !e.shiftKey && e.key === 'z') {
+        undoRedo.undo();
+      } else if (key.isMeta(e) && e.shiftKey && e.key === 'z') {
+        undoRedo.redo();
+      } else if (key!.isCommand(e) && e.key === 'n') {
+        history.push('/notes');
+      }
     }
-  }, [history]);
+  })
 
   return (
     <CalendarContext.Provider value={{ calendar, dispatch }}>

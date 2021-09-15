@@ -9,29 +9,30 @@ import { db, UidContext } from "utils/globalContext";
 import style from './plan.module.scss';
 import { CalendarContext } from "../context";
 import { useEditorFocus } from "utils/useEditorUtil";
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
 import { UndoRedoContext } from "utils/useUndoRedo";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateStr}, ref) => {
   const { calendar } = React.useContext(CalendarContext);
   const editor = React.createRef<Editor>();
+  const renderRef = React.useRef<HTMLDivElement>(null);
   const [editorState, setEditorState] = React.useState(() => EditorState.createEmpty());
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(dispatchListeners);
+  const [ isFocused, declareFocus, declareBlur ] = useEditorFocus(renderRef, DocumentFocusContext, 'add-plan-editor', 'calendar-root');
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
 
   const {uid} = React.useContext(UidContext);
 
   const handleAddClick: MouseEventHandler = (e) => {
     e.stopPropagation();
+    // setEditorState(() => EditorState.createEmpty());
     declareFocus();
+    // editor.current?.focus();
   }
   const handleEditorBlur = () => {
     handleSubmission();
   }
 
   const handleSubmission = async () => {
-    declareBlur();
     if (!editorState.getCurrentContent().hasText()) {
       return;
     }
@@ -82,12 +83,13 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
   const checkSubmit = (e: KeyboardEvent): string | null => {
     if (e.key === 'Enter' && !e.shiftKey) {
       handleSubmission();
+      declareBlur();
       return 'submit';
     }
     return getDefaultKeyBinding(e);
   }
 
-  return (<>
+  return (<div ref={renderRef}>
     {
       isFocused ? 
       <div style={{
@@ -97,7 +99,7 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
         boxSizing: 'border-box',
         fontSize: 'var(--plan-font-size)',
         marginBottom: '5px',
-      }}>  
+      }}  onMouseDown={(e) => e.stopPropagation()}>  
         <Editor
           ref={editor}
           editorState={editorState} 
@@ -107,11 +109,11 @@ const AddPlan = React.forwardRef<HTMLButtonElement, { dateStr: string }>(({dateS
           onBlur={handleEditorBlur}
         />
       </div> :
-      <div className={style.addButton} fp-role={'plan-add'}>
-        <IconButton ref={ref} size='small' onClick={handleAddClick}><AddCircle/></IconButton> 
+      <div className={style.addButton}>
+        <IconButton ref={ref} fp-role={'add-plan'} size='small' onClick={handleAddClick}><AddCircle/></IconButton> 
       </div>
     }
-  </>)
+  </div>)
 });
 
 export default AddPlan;

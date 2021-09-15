@@ -27,32 +27,11 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
     }
   }, [height]);
 
-  /**
-   * Mouse down will add a new plan to the datenode
-   * 
-   * We use mousedown because we want to check for focused elements before
-   * activating a new plan
-   */
-  const handleMouseDown: MouseEventHandler<HTMLLIElement> = (event) => {
-    const target = event.target as HTMLElement; // assume target is a HTML element
-    if (
-      target.getAttribute('fp-role') === 'calendar-date'
-      && addPlan.current 
-      && !document.querySelector('[fp-role="calendar-container"]')?.contains(document.activeElement)
-      && !document.querySelector('[fp-role="calendar-plan"][fp-state^="edit"]')
-    ) {
-      event.preventDefault();
-      event.stopPropagation();
-      addPlan.current.click()
-    }
-  }
-
   return (
     <li
       className={style.root}
       fp-role={'calendar-date-root'}
       data-date={dateStr}
-      onMouseDown={handleMouseDown}
     >
       <div fp-role={'calendar-date'} className={style.item}>
         <animated.div style={{...spring}}> {/* Wrapper with animated height based on content */}
@@ -70,10 +49,12 @@ function Date({ dateStr, label, children }: { dateStr: string, label: CalendarDa
             {children}
           </div>
         </animated.div>
-        <AddPlan
-          dateStr={dateStr}
-          ref={addPlan}
-        />
+        <div fp-role={'add-plan-hitbox'} className={style.addPlanHitbox}>
+          <AddPlan
+            dateStr={dateStr}
+            ref={addPlan}
+          />
+        </div>
       </div>
     </li> 
   )

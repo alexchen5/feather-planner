@@ -2,8 +2,7 @@ import { Button } from "@material-ui/core";
 import { FormatBold, FormatItalic, FormatUnderlined } from "@material-ui/icons";
 import FormatListBulletedIcon from '@material-ui/icons/FormatListBulleted';
 import FormatListNumberedIcon from '@material-ui/icons/FormatListNumbered';
-import { DocumentListenerContext } from "components/DocumentEventListener/context";
-import { useDocumentEventListeners } from "components/DocumentEventListener/useDocumentEventListeners";
+import { DocumentFocusContext } from "components/DocumentFocusStack";
 import { DraftInlineStyle, SelectionState } from "draft-js";
 import React from "react";
 import { MouseEventHandler } from "react";
@@ -36,49 +35,41 @@ function TextStyleSelector({ activeStyle, isDisabled, onBlockToggle
   isDisabled: boolean, 
   onBlockToggle: (blockType: string) => void 
 }) {
-  const { dispatch: dispatchListeners } = React.useContext(DocumentListenerContext);
-  const { registerFocus, deregisterFocus } = useDocumentEventListeners(dispatchListeners);
+  const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const [ state, setState ] = React.useState<'open' | 'closed'>('closed');
+  const rootRef = React.useRef<HTMLDivElement>(null);
 
   const handleMouseDownContainer: MouseEventHandler = (e) => {
     if (isDisabled) return;
-    e.stopPropagation()
-    e.preventDefault()
     if (state === 'closed') {
+      e.stopPropagation()
+      e.preventDefault()
       setState('open')
-      registerFocus('text-style-dropdown', [
+      mountFocus('text-style-dropdown', 'pin-edit', [
         {
-          type: 'mousedown',
-          callback: () => {
-            setState('closed')
+          key: 'mousedown',
+          callback: (e) => {
+            e.preventDefault();
+            unmountFocus('text-style-dropdown')
           }
         }
-      ])
-    } else {
-      setState('closed')
+      ], () => {
+        if (rootRef.current) setState('closed')
+      })
     }
   }
-
-  React.useEffect(() => {
-    if (state === 'open') {
-      return () => {
-        // dereg when leaving open state
-        deregisterFocus('text-style-dropdown')
-      }
-    }
-    return () => {}
-  }, [state, deregisterFocus])
 
   const handleMouseDownButton = (e: React.MouseEvent<Element, MouseEvent>, style: string) => {
     if (isDisabled) return;
     e.stopPropagation()
     e.preventDefault()
     onBlockToggle(style)
-    setState('closed')
+    unmountFocus('text-style-dropdown')
   }
 
   return (
     <div 
+      ref={rootRef}
       className={style.textStyleContainer}
     >
       <div

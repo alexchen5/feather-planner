@@ -1,5 +1,7 @@
 // Key commands mean different things on different operating systems. Here we provide methods for different key commands between apple and windows
 
+import React from "react"
+
 /**
  * We calculate the operating system once, and expect that it won't change.
  */
@@ -17,7 +19,7 @@ export const key = {
      * @param e the key event
      * @returns true if yes
      */
-    isMeta: (e: KeyboardEvent) => isApple 
+    isMeta: (e: KeyboardEvent | React.KeyboardEvent) => isApple 
         ? e.metaKey 
         : e.ctrlKey,
     
@@ -26,7 +28,7 @@ export const key = {
      * @param e the key event
      * @returns true if yes
      */
-    isDelete: (e: KeyboardEvent) => isApple 
+    isDelete: (e: KeyboardEvent | React.KeyboardEvent) => isApple 
         ? e.key === 'Backspace' || e.key === 'Delete' 
         : e.key === 'Delete',
 
@@ -35,7 +37,7 @@ export const key = {
      * @param e the key event
      * @returns true if yes
      */
-    isCommand: (e: KeyboardEvent) => (
+    isCommand: (e: KeyboardEvent | React.KeyboardEvent) => (
         !e.altKey 
         && !e.ctrlKey
         && !e.metaKey

@@ -1,9 +1,8 @@
 // Custom hooks for working with the draft-js Editor component
 
+import { DocumentFocus, FocusListener, ListenerKey } from "components/DocumentFocusStack";
 import { ContentState, convertFromRaw, EditorState, RawDraftContentState } from "draft-js";
 import React from "react";
-import { DocumentEventListener } from "types/components/DocumentEventListener";
-import { DocumentListenerAction } from "types/components/DocumentEventListener/reducer";
 
 /**
  * Helper to declare the editor's focus to the document event listener
@@ -17,30 +16,40 @@ import { DocumentListenerAction } from "types/components/DocumentEventListener/r
  * declareBlur - call to declare blur i.e. remove focus declaration
  */
 export const useEditorFocus = (
-    dispatchListeners: (value: DocumentListenerAction<keyof DocumentEventMap>) => void, 
-    focusId = 'editor-focus'
+    renderRef: React.RefObject<HTMLDivElement>,
+    focusContext: React.Context<DocumentFocus>,
+    focusId: string,
+    parentFocusId: string,
 ): 
 [
     boolean, 
-    (listeners?: Omit<DocumentEventListener<keyof DocumentEventMap>, 'focusId'>[]) => void, 
+    (listeners?: FocusListener<ListenerKey>[]) => void, 
     () => void,
 ] => {
+    const { mountFocus, unmountFocus } = React.useContext(focusContext);
     const [isFocused, setFocus] = React.useState(false);
 
-    const declareFocus = React.useCallback<(listeners?: Omit<DocumentEventListener<keyof DocumentEventMap>, 'focusId'>[]) => void>((listeners = []) => {
-        dispatchListeners({ 
-            type: 'register-focus', 
+    const declareFocus = React.useCallback<(listeners?: FocusListener<ListenerKey>[]) => void>((listeners = []) => {
+        mountFocus(
             focusId,
-            // @ts-ignore
-            listeners: listeners.map(l => ({ focusId, ...l })),
-        });
+            parentFocusId,
+            [
+                ...listeners.map(l => ({ focusId, ...l })),
+                {
+                    key: 'mousedown',
+                    callback: () => unmountFocus(focusId),
+                }
+            ],
+            () => {
+                if (renderRef.current) setFocus(false);
+            }
+        );
         setFocus(true);
-    }, [dispatchListeners, focusId])
+    }, [mountFocus, renderRef, unmountFocus, focusId, parentFocusId])
 
     const declareBlur = React.useCallback(() => {
-        dispatchListeners({ type: 'deregister-focus', focusId, removeListeners: true });
-        setFocus(false);
-    }, [dispatchListeners, focusId]);
+        unmountFocus(focusId);
+    }, [unmountFocus, focusId]);
 
     return [isFocused, declareFocus, declareBlur];
 }

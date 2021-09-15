@@ -13,6 +13,8 @@
     margin: 1px;
     border-radius: 1px;
     height: 100%;
+    display: flex;
+    flex-direction: column;
 
     &:focus {
         border: 1px solid var(--edge-blue);
@@ -95,4 +97,9 @@ body[plan-drag-display] {
 .monthText {
     display: inline-block;
     margin-left: 8px;
+}
+
+.addPlanHitbox {
+    flex-grow: 1;
+    padding-top: 2px;
 }
