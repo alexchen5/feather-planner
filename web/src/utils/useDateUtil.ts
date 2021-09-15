@@ -40,6 +40,6 @@ const getDisplay = () => {
     const d = new Date();
     return longWeekdayArray[d.getDay()] 
         + ' ' + d.getDate() + '/' + (d.getMonth() + 1) + '/' + `${d.getFullYear()}`.substring(2)
-        + ' ' + d.getHours() % 12 + ':' + `${d.getMinutes()}`.padStart(2, '0') 
+        + ' ' + ((d.getHours() % 12) || 12) + ':' + `${d.getMinutes()}`.padStart(2, '0') 
         + ' ' + (d.getHours() >= 12 ? 'pm' : 'am')
 }

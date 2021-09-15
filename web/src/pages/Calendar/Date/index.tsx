@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { CalendarDateLabel } from "types/components/Calendar";
 
 import AddPlan from "../Plan/AddPlan";

@@ -17,16 +17,12 @@ import "firebase/firestore";
 import style from './inodes.module.scss';
 import { DocumentFocusContext } from "components/DocumentFocusStack";
 
-function PinboardInodeMenu() {
-
-  return null;
-}
-
 function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: FileBase, editor: { ref: React.RefObject<Editor>, component: JSX.Element } }) {
   const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const { notes: {tabs, inodes, noteTabs} } = React.useContext(AppContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
   const [ menuState, setMenuState ] = React.useState<'open' | 'closed'>('closed');
+  const renderRef = React.useRef<HTMLDivElement>(null);
   
   const isOpen = React.useMemo(() => noteTabs.find(note => note.inodePath === inodePath)?.isOpen || false, [noteTabs, inodePath]);
   
@@ -43,12 +39,13 @@ function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: 
           callback: () => unmountFocus('inode-menu-open'),
         }
       ], () => {
-        if (true) setMenuState('closed')
+        if (renderRef.current) setMenuState('closed')
       })
     } 
   }
 
   const deletePinboardHelper = async () => {
+    unmountFocus('inode-menu-open');
     const parentInode = await getParentInode(inodePath);
 
     tabs.close(inodePath, 'pinboard', true)
@@ -115,35 +112,39 @@ function PinboardInode({ inodePath, file, editor } : { inodePath: string, file: 
       className={style.inode + ' ' + style.pinboard}
       fp-state={isOpen ? 'open' : 'closed'}
       onClick={handleClick}
+      ref={renderRef}
     >
       {editor.component}
       <div
         className={style.inodeMenu}
         fp-state={menuState}
       >
-        <IconButton 
-          size='small' 
-          onClick={handleMouseDownMenu}
-        >
-          <MoreHorizIcon/>
-        </IconButton>
-        {
-          menuState === 'open' && 
-          <>
-            <IconButton 
-              size='small' 
-              onClick={handleMouseDownMenu}
-            >
-              <EditIcon/>
-            </IconButton>
-            <IconButton 
-              size='small' 
-              onClick={handleMouseDownMenu}
-            >
-              <DeleteForeverIcon/>
-            </IconButton>
-          </>
-        }
+        <div style={{ position: 'absolute', zIndex: 1, left: '2px' }}>
+          <IconButton 
+            size='small' 
+            onMouseDown={handleMouseDownMenu}
+          >
+            <MoreHorizIcon/>
+          </IconButton>
+          {
+            menuState === 'open' && 
+            <>
+              <IconButton 
+                size='small' 
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <EditIcon/>
+              </IconButton>
+              <IconButton 
+                size='small' 
+                onClick={() => deletePinboardHelper()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <DeleteForeverIcon/>
+              </IconButton>
+            </>
+          }
+        </div>
       </div>
     </div>
   )

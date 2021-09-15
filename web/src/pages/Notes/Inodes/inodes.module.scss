@@ -120,23 +120,33 @@
 
         &:hover {
             background-color: rgba(255, 255, 255, 0.9);
-            .inodeMenu {
-                opacity: 1;
-            }
+        }
+
+        .inodeMenu {
+            opacity: 1;
+            pointer-events: auto;
         }
     }
 
     .inodeMenu {
         opacity: 0;
         transition: opacity 120ms ease;
+        pointer-events: none;
     }
 
     &.pinboard {
     }
 
-    &.directory {
-
+    &.directory:hover, &.directory[fp-menustate=open] {
+        .inodeMenu {
+            opacity: 1;
+            pointer-events: auto;
+        }
     }
+    &.directory[fp-menustate=open] {
+        background-color: rgba(255, 255, 255, 0.9);
+    }
+
 
     .editorContainer {
         width: 100%;
@@ -164,7 +174,7 @@
 }
 
 .directory {
-    [class~=MuiIconButton-sizeSmall] {
+    .icon [class~=MuiIconButton-sizeSmall] {
         transition: opacity 120ms ease;
         opacity: 0;
         pointer-events: none;
@@ -173,19 +183,19 @@
         cursor: pointer;
     }
 
-    [class~=MuiSvgIcon-root] {
+    .icon [class~=MuiSvgIcon-root] {
         font-size: 18px;
     }
 
-    [class=MuiSvgIcon-root] {
+    .icon [class=MuiSvgIcon-root] {
         transition: transform 120ms ease;
     }
 
-    &[fp-state=collapsed] [class=MuiSvgIcon-root] {
+    &[fp-state=collapsed] .icon [class=MuiSvgIcon-root] {
         transform: rotateZ(-90deg);
     }
 
-    &[fp-state=expanded] [class=MuiSvgIcon-root] {
+    &[fp-state=expanded] .icon [class=MuiSvgIcon-root] {
         transform: rotateZ(0deg);
     }
 }
@@ -205,40 +215,34 @@
     }
 }
 
-.inodeMenu {
+.inodeMenu, .directory.inodeMenu {
     display: flex;
     flex-direction: column;
-    &[fp-state=open] {
-        opacity: 1;
-    }
+    width: 26px;
+    position: relative;
 
-    &[fp-state=open]:hover [class~=MuiIconButton-sizeSmall] {
-        opacity: 1;
-        pointer-events: all;
-        transition: opacity 420ms ease;
-    }
-
-    &[fp-state=closed] {
-        [class~=MuiIconButton-sizeSmall]:nth-child(1) {
-            opacity: 1;
-        }
-    }
     &[fp-state=open] {
         [class~=MuiIconButton-sizeSmall] {
-            opacity: 1;
-            margin-bottom: 6px;
-            background-color: white;
+            box-shadow: 0px 0px 6px rgba(7, 21, 58, 0.2);
         }
     }
 
     [class~=MuiIconButton-sizeSmall] {
+        margin-bottom: 6px;
+        opacity: 1;
+        background-color: white;
+        box-shadow: 0px 0px 2px rgba(7, 21, 58, 0.2);
         transition: opacity 120ms ease;
-        opacity: 0;
-        height: 18px;
-        width: 18px;
+        height: 20px;
+        width: 20px;
+        padding: 2px;
         cursor: pointer;
+
+        &:hover {
+            background-color: rgb(245, 245, 245);
+        }
     }
     [class~=MuiSvgIcon-root] {
-        font-size: 18px;
+        font-size: 16px;
     }
 }

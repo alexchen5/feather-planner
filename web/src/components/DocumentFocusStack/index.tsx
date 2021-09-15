@@ -69,7 +69,8 @@ function DocumentFocusStack({ children }: { children: ReactNode }) {
         ? stack.findIndex(focus => focus.id === id)
         : id.reduce((i, cur) => i === -1 ? stack.findIndex(focus => focus.id === cur) : i, -1);
       if (removalIndex === -1) {
-        console.warn('No-op - component is not focused: ' + id);
+        // this should happen very safely
+        // console.warn('No-op - component is not focused: ' + id);
         return stack;
       }
       const removal = newStack.splice(removalIndex);

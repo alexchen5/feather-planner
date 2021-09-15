@@ -239,10 +239,6 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
     tabs.close(inodePath, file.type)
   }
 
-  const handleBlur = () => {
-    unmountFocus('tab-focus')
-  }
-
   /**
    * Callback on every key, to check that no new line characters are entered
    * @param e 
@@ -251,6 +247,7 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
    const checkKey = (e: React.KeyboardEvent): string | null => {
     if (e.key === 'Enter' && !e.shiftKey) {
       editor.current?.blur(); 
+      unmountFocus('tab-focus')
       return 'submit';
     } else if (e.key === 'Enter') {
       return 'none';
@@ -298,7 +295,6 @@ function InodeTab({ index, numTabs, file, inodePath, isOpen, registerRef, handle
             editorState={editorState} 
             onChange={setEditorState}
             keyBindingFn={checkKey}
-            onBlur={handleBlur}
           />
         </div>
         <IconButton 

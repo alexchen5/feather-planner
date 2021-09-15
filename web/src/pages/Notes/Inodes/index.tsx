@@ -70,6 +70,7 @@ function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
     // expect that pointer event none if tab not open
     if (state === 'normal') {
       setState('edit')
+      editor.current?.focus()
       mountFocus('inode-focus', 'notes-root', [
         {
           key: 'mousedown',
@@ -78,7 +79,8 @@ function Inode({ inodePath, file } : { inodePath: string, file: FileBase }) {
       ], () => {
         if (editor.current) setState('normal')
       })
-    } else if (state === 'edit') {
+    } 
+    else if (state === 'edit') {
       editor.current?.focus();
     }
   }
