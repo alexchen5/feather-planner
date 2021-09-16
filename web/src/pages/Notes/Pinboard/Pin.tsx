@@ -11,12 +11,13 @@ import style from './pinboard.module.scss';
 import borderStyle from './borderCapture.module.scss';
 import { PinStyling } from ".";
 import { DocumentFocusContext } from "components/DocumentFocusStack";
+import { animated, useSpring } from "react-spring";
 
 type ResizeStyle = 'ns' | 'ew' | 'nwse' | 'nesw';
 type ResizeDirections = 'n' | 'e' | 's' | 'w';
 let clientDx: number, clientDy: number, clientX: number, clientY: number // track drag positions
 
-function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pin: PinStyling | null) => void}) {
+function Pin({ pin, updateCurrentPin, onPositionBlink }: {pin: PinboardPin, updateCurrentPin: (pin: PinStyling | null) => void, onPositionBlink: () => void}) {
   const { notes: { tabs } } = React.useContext(AppContext);
   const { mountFocus, unmountFocus } = React.useContext(DocumentFocusContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
@@ -33,6 +34,32 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
   const { editStart, editChange, editEnd } = useEditorChangeLogger(React.useCallback((editorState: EditorState) => {
     submitContentChanges.current(editorState)
   }, []));
+
+  const [spring, springApi] = useSpring(() => ({ 
+    from: { left: pin.position.left, top: pin.position.top, width: pin.size.width, height: pin.size.height }, 
+    config: { mass: 0.2, tension: 320 },
+  }), []);
+  const [mod, setMod] = React.useState({ left: 0, top: 0, width: 0, height: 0 })
+
+  React.useLayoutEffect(() => {
+    // our pin positions have changed
+    if (pinRef.current) {
+      // get spring values 
+      const x = spring.left.get(), y = spring.top.get(), w = spring.width.get(), h = spring.height.get();
+      // get our current styles
+      const cx = x + mod.left, cy = y + mod.top, cw = w + mod.width, ch = h + mod.height;
+      // calculate difference in movement
+      const dx = pin.position.left - cx, dy = pin.position.top - cy, dw = pin.size.width - cw, dh = pin.size.height - ch;
+      // update springs if theres a change
+      if (dx || dy || dw || dh) {
+        springApi.start({
+          to: { left: x + dx, top: y + dy, width: w + dw, height: h + dh },
+          onRest: () => onPositionBlink(),
+        })
+      }
+    }
+    // eslint-disable-next-line
+  }, [pin])
 
   /**
    * Helper function to take the necessary steps to delete self
@@ -187,7 +214,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
       mountFocus('pin-drag', 'notes-root', [
         {
           key: 'mousemove',
-          callback: mousemoveHandleDrag
+          callback: (e) => mousemoveHandleDrag.current(e),
         },
         {
           key: 'mouseup',
@@ -221,24 +248,31 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     ], () => mouseupResize.current())
   }
 
-  const mousemoveHandleDrag = (e: MouseEvent) => {
-    e.preventDefault();
-    clientDx = clientX - e.clientX;
-    clientDy = clientY - e.clientY;
-    if (!pinRef.current) {
-      console.error('Expected pinRef during drag');
-      return;
+  const mousemoveHandleDrag = React.useRef<(e: MouseEvent) => void>(() => {});
+  React.useEffect(() => {
+    mousemoveHandleDrag.current = (e: MouseEvent) => {
+      e.preventDefault();
+      clientDx = clientX - e.clientX;
+      clientDy = clientY - e.clientY;
+      if (!pinRef.current) {
+        console.error('Expected pinRef during drag');
+        return;
+      }
+      const targetT = pinRef.current.offsetTop - clientDy;
+      const offT = Math.max(0, 6 - targetT);// target is not off if ≥ 6
+      const targetL = pinRef.current.offsetLeft - clientDx;
+      const offL = Math.max(0, 6 - targetL) // target is not off if ≥ 6
+  
+      clientY = e.clientY + offT
+      clientX = e.clientX + offL
+      
+      setMod(mod => ({
+        ...mod,
+        left: mod.left - clientDx + offL,
+        top: mod.top - clientDy + offT,
+      }))
     }
-    const targetT = pinRef.current.offsetTop - clientDy;
-    const offT = Math.max(0, 6 - targetT);// target is not off if ≥ 6
-    const targetL = pinRef.current.offsetLeft - clientDx;
-    const offL = Math.max(0, 6 - targetL) // target is not off if ≥ 6
-
-    clientY = e.clientY + offT
-    clientX = e.clientX + offL
-    pinRef.current.style.top = targetT + offT + "px";
-    pinRef.current.style.left = targetL + offL + "px";
-  }
+  })
 
   const mousemoveResize = React.useRef<(e: MouseEvent, directions: ResizeDirections[]) => void>((a, b) => {})
   React.useEffect(() => {
@@ -259,20 +293,29 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
         const offT = Math.max(0, 6 - targetT);// target is not off if ≥ 6
         // true for the 3 cases: offH = offT = 0, offH > 0 & offT = 0, offT > 0 & offH = 0
         clientY = e.clientY - offH + offT;
-        pinRef.current.style.height = targetH + offH - offT + 'px'
-        pinRef.current.style.top = targetT - offH + offT + 'px';
+        setMod(mod => ({
+          ...mod,
+          top: mod.top - clientDy - offH + offT,
+          height: mod.height + clientDy + offH - offT,
+        }))
       }
       if (directions.includes('s')) {
         const targetH = parseInt(getComputedStyle(pinRef.current).height) - clientDy;
         const offH = Math.max(0, 25 - targetH); // target is not off if ≥ 25
         clientY = e.clientY + offH;
-        pinRef.current.style.height = targetH + offH + 'px'
+        setMod(mod => ({
+          ...mod,
+          height: mod.height - clientDy + offH,
+        }))
       }
       if (directions.includes('e')) {
         const targetW = parseInt(getComputedStyle(pinRef.current).width) - clientDx;
         const offW = Math.max(0, 25 - targetW); // target is not off if ≥ 25
         clientX = e.clientX + offW;
-        pinRef.current.style.width = targetW + offW + 'px'
+        setMod(mod => ({
+          ...mod,
+          width: mod.width - clientDx + offW,
+        }))
       }
       if (directions.includes('w')) {
         const targetW = parseInt(getComputedStyle(pinRef.current).width) + clientDx;
@@ -281,8 +324,11 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
         const offL = Math.max(0, 6 - targetL) // target is not off if ≥ 6
 
         clientX = e.clientX - offW + offL
-        pinRef.current.style.width = targetW + offW - offL + 'px'
-        pinRef.current.style.left = targetL + offL - offW + 'px';
+        setMod(mod => ({
+          ...mod,
+          width: mod.width + clientDx - offL + offW,
+          left: mod.left - clientDx + offL - offW,
+        }))
       }
     }
   })
@@ -344,10 +390,16 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
       db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
 
       const redo = async () => {
-        db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
+        setTimeout(() => {
+          tabs.open(pin.inodePath, 'pinboard')
+          db.doc(pin.docPath).set({ size: { width, height }, position: { left, top } }, { merge: true });
+        }, 50);
       };
       const undo = async () => {
-        db.doc(pin.docPath).set({...pin.restoreData});
+        setTimeout(() => {
+          tabs.open(pin.inodePath, 'pinboard')
+          db.doc(pin.docPath).set({...pin.restoreData});
+        }, 50);
       }
       addUndo({undo, redo})
     }
@@ -440,7 +492,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     updateCurrentPin(null)
   }
   
-  return <div
+  return <animated.div
     ref={pinRef}
     className={style.pin}
     data-state={state}
@@ -450,10 +502,10 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
     onMouseDown={handleMouseDown}
     onKeyDown={(e) => {e.stopPropagation()}} // stop key events from within bubble out
     style={{
-      left: pin.position.left + 'px', 
-      top: pin.position.top + 'px',
-      width: pin.size.width + 'px', 
-      height: pin.size.height + 'px',
+      left: spring.left.to(o => o + mod.left), 
+      top: spring.top.to(o => o + mod.top), 
+      height: spring.height.to(o => o + mod.height), 
+      width: spring.width.to(o => o + mod.width), 
     }}
   > 
     { (state === 'normal' || state === 'edit') && 
@@ -482,7 +534,7 @@ function Pin({ pin, updateCurrentPin }: {pin: PinboardPin, updateCurrentPin: (pi
       />
     </div>
     <div className={style.pinSizer}/>
-  </div>
+  </animated.div>
 }
 
 export default Pin;

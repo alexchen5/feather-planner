@@ -21,6 +21,7 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
   const { notes: { tabs } } = React.useContext(AppContext);
   const { addAction: addUndo } = React.useContext(UndoRedoContext);
   const [ currentPin, setCurrentPin ] = React.useState<PinStyling | null>(null);
+  const [ pinPositionTrigger, setTrigger ] = React.useState(false);
 
   const boardContent = React.useRef<HTMLDivElement>(null);
   const [spring, api] = useSpring(() => ({ 
@@ -29,7 +30,11 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
   }));
   React.useLayoutEffect(() => {
     api.start({ height: boardContent.current?.scrollHeight || 0, width: boardContent.current?.scrollWidth || 0 })
-  }, [pins, api]);
+  }, [pins, pinPositionTrigger, api]);
+
+  const handlePositionBlink = () => {
+    setTrigger(t => !t);
+  }
 
   const addNote = async () => {
     const initContent = {
@@ -81,7 +86,7 @@ function PinboardComponent({ inodePath, pins }: { inodePath: string, pins: Pinbo
         >
           <div ref={boardContent} style={{ position: 'absolute' }}>
             {pins.map(pin => 
-              <Pin key={pin.docPath} pin={pin} updateCurrentPin={updateCurrentPin}/>
+              <Pin key={pin.docPath} pin={pin} updateCurrentPin={updateCurrentPin} onPositionBlink={handlePositionBlink}/>
             )}
           </div>
         </animated.div>
