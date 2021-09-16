@@ -104,7 +104,7 @@ const init = (_noArg: never): CalendarDataState => {
         console.time("Cache Loading Time")
         localDatesAll = JSON.parse(localStorage.getItem('datesAll')!) || {};
         localPlanStyles = JSON.parse(localStorage.getItem('planStyles')!) || {};
-        console.timeEnd("Cache Loading Time"); // not sure why this function is called twice...
+        console.timeEnd("Cache Loading Time"); 
     }
   
     for (const [styleId, style] of Object.entries(localPlanStyles)) {
