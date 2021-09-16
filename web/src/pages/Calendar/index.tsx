@@ -11,13 +11,13 @@ import { DocumentFocusContext } from "components/DocumentFocusStack";
 
 import CalendarContainer from "./CalendarContainer";
 import PlanDragHandler from "./PlanDragHandler";
-import Date from "./Date";
+import DateComponent from "./Date";
 import PlanWrapper from "./PlanDragHandler/PlanWrapper";
 import Plan from './Plan'
 import { AppContext } from "utils/globalContext";
 import { UndoRedoAction, UndoRedoContext, useUndoRedo } from "utils/useUndoRedo";
 
-const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
+const saveUndoRedo: { undo: UndoRedoAction[], redo: UndoRedoAction[], time: number } = { undo: [], redo: [], time: Date.now() };
 
 function CalendarComponent() {
   const { calendar: { state: { calendarDates: allDates }, dispatch: dispatchCalendarData } } = React.useContext(AppContext);
@@ -88,7 +88,7 @@ function CalendarComponent() {
           <CalendarContainer>
             <PlanDragHandler>
               {calendar.dates.map(date => 
-                <Date
+                <DateComponent
                   key={date.dateStr}
                   dateStr={date.dateStr}
                   label={date.label}
@@ -103,7 +103,7 @@ function CalendarComponent() {
                       }} />
                     </PlanWrapper>
                   )}
-                </Date>
+                </DateComponent>
               )}
             </PlanDragHandler>
           </CalendarContainer>

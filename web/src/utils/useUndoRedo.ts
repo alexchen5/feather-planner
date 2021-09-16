@@ -26,21 +26,25 @@ export type UndoRedoAction = {
  * @param saveUndoRedo a global variable whos .current attribute represents the saved stack
  * @returns memoised UndoRedoData
  */
-export function useUndoRedo(saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] }}): UndoRedoData {
+export function useUndoRedo(saveUndoRedo: { undo: UndoRedoAction[], redo: UndoRedoAction[], time: number }): UndoRedoData {
     const [stack, setStack] = React.useState<{
         undo: UndoRedoAction[];
         redo: UndoRedoAction[];
-    }>({...saveUndoRedo.current});
+    }>(() => (Date.now() - saveUndoRedo.time) < 1800000 ? {...saveUndoRedo} : { undo: [], redo: [] });
 
     React.useEffect(() => {
         // save the stack every time it changes
-        saveUndoRedo.current = stack;
+        if (saveUndoRedo.undo !== stack.undo || saveUndoRedo.redo !== stack.redo) {
+            saveUndoRedo.undo = stack.undo;
+            saveUndoRedo.redo = stack.redo;
+            saveUndoRedo.time = Date.now(); // notice we only update time if stack has changed
+        }
 
-        // set 30 minute timeout to clear undo/redo stack if it has any content
+        // update 30 minute timeout to clear undo/redo stack if it has content
         if (stack.undo.length || stack.redo.length) {
-            const start = Date.now()
             const t = setInterval(() => {
-                if (Date.now() - start > 1800000) {
+                // compare current time with the last saved time
+                if (Date.now() - saveUndoRedo.time > 1800000) {
                     clearInterval(t)
                     setStack({ undo: [], redo: [] })
                 }

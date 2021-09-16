@@ -10,7 +10,7 @@ import { useHistory } from 'react-router-dom';
 import TabContainer from './Inodes/TabContainer';
 import { DocumentFocusContext } from 'components/DocumentFocusStack';
 
-const saveUndoRedo: { current: { undo: UndoRedoAction[], redo: UndoRedoAction[] } } = { current: { undo: [], redo: [] } };
+const saveUndoRedo: { undo: UndoRedoAction[], redo: UndoRedoAction[], time: number } = { undo: [], redo: [], time: Date.now() };
 
 function Notes() {
   const { notes: {allNotes, noteTabs, inodes: { open }} } = React.useContext(AppContext);
